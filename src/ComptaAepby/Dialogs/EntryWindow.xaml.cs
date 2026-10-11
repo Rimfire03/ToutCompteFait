@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using ComptaAepby.Core;
@@ -7,7 +7,7 @@ namespace ComptaAepby.Dialogs;
 
 public partial class EntryWindow : Window
 {
-    private enum Mode { Expense, Income, Transfer, Refund, NoCash }
+    private enum Mode { Expense, Income, Transfer, Refund, NoCash, Reimbursed }
 
     private sealed record CatItem(Category Cat, string Display)
     {
@@ -70,6 +70,7 @@ public partial class EntryWindow : Window
 
     private Mode CurrentMode =>
         ModeIncome.IsChecked == true ? Mode.Income :
+        ModeReimbursed.IsChecked == true ? Mode.Reimbursed :
         ModeTransfer.IsChecked == true ? Mode.Transfer :
         ModeRefund.IsChecked == true ? Mode.Refund :
         ModeNoCash.IsChecked == true ? Mode.NoCash : Mode.Expense;
@@ -96,11 +97,12 @@ public partial class EntryWindow : Window
         ToAccountPanel.Visibility = m == Mode.Transfer ? Visibility.Visible : Visibility.Collapsed;
         MemberPanel.Visibility = m == Mode.Refund ? Visibility.Visible : Visibility.Collapsed;
         AllocSection.Visibility = m == Mode.Transfer ? Visibility.Collapsed : Visibility.Visible;
-        AccountLabel.Text = m == Mode.Transfer ? "Depuis le compte" : m == Mode.Income ? "Compte crédité" : "Compte débité";
+        AccountLabel.Text = m == Mode.Transfer ? "Depuis le compte" : m is Mode.Income or Mode.Reimbursed ? "Compte crédité" : "Compte débité";
         ModeHelp.Text = m switch
         {
             Mode.Expense => "Argent qui sort d'un compte : achat, facture, frais bancaires…",
-            Mode.Income => "Argent qui entre sur un compte : adhésion, loto, subvention, remboursement reçu…",
+            Mode.Income => "Argent qui entre sur un compte : adhésion, loto, subvention…",
+            Mode.Reimbursed => "Argent remboursé à l'association (fournisseur, assurance…) : encaissé sur un compte, mais déduit de la charge concernée au lieu de compter comme un produit.",
             Mode.Transfer => "Déplacement d'argent entre deux comptes de l'association (banque → livret…) : n'a aucun effet sur le résultat.",
             Mode.Refund => "Remboursement d'un membre de l'équipe qui a payé un achat avec son compte personnel : c'est une dépense, à ventiler sur la charge concernée.",
             _ => "Refacturation interne ou régularisation : aucun argent ne bouge, mais un produit et une charge de même montant doivent être enregistrés."
@@ -118,6 +120,7 @@ public partial class EntryWindow : Window
         var charges = _cats.Where(c => c.Kind == CategoryKind.Charge).Select(c => new CatItem(c, "Charge · " + c.Name));
         var products = _cats.Where(c => c.Kind == CategoryKind.Product).Select(c => new CatItem(c, "Produit · " + c.Name));
         var m = CurrentMode;
+        if (m == Mode.Reimbursed) return charges;
         return m is Mode.Income ? products.Concat(charges)
              : m is Mode.NoCash ? products.Concat(charges)
              : charges.Concat(products);
@@ -223,7 +226,7 @@ public partial class EntryWindow : Window
                     var stored = shown * Factor(m, it.Cat.Kind);
                     v += it.Cat.Kind == CategoryKind.Product ? stored : -stored;
                 }
-                var gap = (m == Mode.Income ? cents : -cents) - v;
+                var gap = (m is Mode.Income or Mode.Reimbursed ? cents : -cents) - v;
                 var storedLast = cat.Kind == CategoryKind.Product ? gap : -gap;
                 var shownLast = storedLast * Factor(m, cat.Kind);
                 text = shownLast > 0 ? Money.Format(shownLast) : "";
@@ -242,7 +245,7 @@ public partial class EntryWindow : Window
     /// (recette), et inversement pour une dépense.</summary>
     private int Factor(Mode m, CategoryKind kind) => m switch
     {
-        Mode.Income => kind == CategoryKind.Product ? 1 : -1,
+        Mode.Income or Mode.Reimbursed => kind == CategoryKind.Product ? 1 : -1,
         Mode.NoCash => 1,
         _ => kind == CategoryKind.Charge ? 1 : -1
     };
@@ -283,7 +286,7 @@ public partial class EntryWindow : Window
             Mode.NoCash => EntryKind.NoCash,
             _ => EntryKind.Normal
         };
-        var dir = m == Mode.Income || m == Mode.NoCash ? Direction.In : Direction.Out;
+        var dir = m is Mode.Income or Mode.Reimbursed or Mode.NoCash ? Direction.In : Direction.Out;
 
         if (m != Mode.Transfer)
         {
@@ -392,9 +395,14 @@ public partial class EntryWindow : Window
             EntryKind.Transfer => Mode.Transfer,
             EntryKind.MemberRefund => Mode.Refund,
             EntryKind.NoCash => Mode.NoCash,
-            _ => e.Direction == Direction.In ? Mode.Income : Mode.Expense
+            _ when e.Direction == Direction.In =>
+                // Argent encaissé ne touchant que des charges = remboursement reçu (déduit de la charge).
+                row.Allocations.Count > 0 && row.Allocations.All(al => _cats.Any(c => c.Id == al.CategoryId && c.Kind == CategoryKind.Charge))
+                    ? Mode.Reimbursed : Mode.Income,
+            _ => Mode.Expense
         };
         ModeIncome.IsChecked = mode == Mode.Income;
+        ModeReimbursed.IsChecked = mode == Mode.Reimbursed;
         ModeExpense.IsChecked = mode == Mode.Expense;
         ModeTransfer.IsChecked = mode == Mode.Transfer;
         ModeRefund.IsChecked = mode == Mode.Refund;

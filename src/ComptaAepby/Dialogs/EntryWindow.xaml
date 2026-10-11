@@ -1,4 +1,4 @@
-﻿<Window x:Class="ComptaAepby.Dialogs.EntryWindow"
+<Window x:Class="ComptaAepby.Dialogs.EntryWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Écriture" Width="720" SizeToContent="Height" MaxHeight="900" ResizeMode="NoResize"
@@ -11,6 +11,8 @@
             <WrapPanel Margin="0,10,0,0">
                 <RadioButton x:Name="ModeExpense" Content="Dépense" GroupName="mode" Checked="Mode_Changed" IsChecked="True"/>
                 <RadioButton x:Name="ModeIncome" Content="Recette" GroupName="mode" Checked="Mode_Changed"/>
+                <RadioButton x:Name="ModeReimbursed" Content="Remboursement reçu" GroupName="mode" Checked="Mode_Changed"
+                             ToolTip="Argent remboursé à l'association (fournisseur, assurance…) : déduit de la charge concernée."/>
                 <RadioButton x:Name="ModeTransfer" Content="Virement entre comptes" GroupName="mode" Checked="Mode_Changed"/>
                 <RadioButton x:Name="ModeRefund" Content="Remboursement à un membre" GroupName="mode" Checked="Mode_Changed"/>
                 <RadioButton x:Name="ModeNoCash" Content="Sans mouvement d'argent" GroupName="mode" Checked="Mode_Changed"
