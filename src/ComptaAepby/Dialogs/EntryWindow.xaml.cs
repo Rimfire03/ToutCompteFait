@@ -85,6 +85,7 @@ public partial class EntryWindow : Window
             FillCombo(r.Combo);
             if (selected is { } id) r.Combo.SelectedItem = r.Combo.Items.OfType<CatItem>().FirstOrDefault(i => i.Cat.Id == id);
         }
+        SyncSingleRow();
         RefreshStatus();
     }
 
@@ -106,7 +107,7 @@ public partial class EntryWindow : Window
         };
         AllocHelp.Text = m == Mode.NoCash
             ? "Saisissez le produit ET la charge (montants positifs et égaux : le total des produits doit égaler le total des charges)."
-            : "Indiquez où va l'argent. Une seule ligne reprend le montant de l'opération ; ajoutez des lignes si elle touche plusieurs catégories (le total doit être égal au montant).";
+            : "Indiquez où va l'argent. Une seule ligne reprend le montant de l'opération ; avec plusieurs lignes, la dernière reprend automatiquement le reste : le total est toujours égal au montant.";
         AmountLabel.Text = m == Mode.NoCash ? "Montant refacturé (€)" : "Montant (€)";
     }
 
@@ -153,10 +154,11 @@ public partial class EntryWindow : Window
         root.Children.Add(remove);
 
         var row = new AllocRow { Combo = combo, Amount = amount, Root = root, AmountTouched = hasAmount };
-        combo.SelectionChanged += (_, _) => RefreshStatus();
+        combo.SelectionChanged += (_, _) => { SyncSingleRow(); RefreshStatus(); };
         amount.TextChanged += (_, _) =>
         {
             if (amount.IsKeyboardFocused) row.AmountTouched = true;
+            if (_rows.Count > 0 && _rows[^1] != row) SyncSingleRow();   // la dernière ligne reprend le reste
             RefreshStatus();
         };
         remove.Click += (_, _) =>
@@ -196,14 +198,45 @@ public partial class EntryWindow : Window
     /// non modifiable). Dès qu'il y a plusieurs lignes, les montants se saisissent librement.</summary>
     private void SyncSingleRow()
     {
-        var single = _rows.Count == 1;
-        foreach (var r in _rows) r.Amount.IsReadOnly = single;
-        if (single && Money.TryParse(AmountBox.Text, out var cents) && cents > 0)
+        if (_syncing || _rows.Count == 0) return;
+        _syncing = true;
+        try
         {
-            var text = Money.Format(cents);
-            if (_rows[0].Amount.Text != text) _rows[0].Amount.Text = text;
+            var m = CurrentMode;
+            var last = _rows[^1];
+            // Opération sans mouvement : produits et charges se saisissent librement (une ligne seule = le montant).
+            var forced = _rows.Count == 1 || m != Mode.NoCash;
+            foreach (var r in _rows) r.Amount.IsReadOnly = forced && r == last;
+            if (!forced || !Money.TryParse(AmountBox.Text, out var cents) || cents <= 0) return;
+
+            string text;
+            var cat = (last.Combo.SelectedItem as CatItem)?.Cat;
+            if (_rows.Count == 1 && (cat is null || m == Mode.NoCash)) text = Money.Format(cents);
+            else if (cat is null) text = "";
+            else
+            {
+                // La dernière ligne reprend le reste : l'ensemble de la ventilation est forcément égal au montant.
+                long v = 0;
+                foreach (var r in _rows.Take(_rows.Count - 1))
+                {
+                    if (r.Combo.SelectedItem is not CatItem it || !Money.TryParse(r.Amount.Text, out var shown)) continue;
+                    var stored = shown * Factor(m, it.Cat.Kind);
+                    v += it.Cat.Kind == CategoryKind.Product ? stored : -stored;
+                }
+                var gap = (m == Mode.Income ? cents : -cents) - v;
+                var storedLast = cat.Kind == CategoryKind.Product ? gap : -gap;
+                var shownLast = storedLast * Factor(m, cat.Kind);
+                text = shownLast > 0 ? Money.Format(shownLast) : "";
+            }
+            if (last.Amount.Text != text) last.Amount.Text = text;
+        }
+        finally
+        {
+            _syncing = false;
         }
     }
+
+    private bool _syncing;
 
     /// <summary>Signe appliqué à un montant saisi pour que les produits comptent en plus et les charges en moins
     /// (recette), et inversement pour une dépense.</summary>
