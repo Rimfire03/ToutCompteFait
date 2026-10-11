@@ -1127,6 +1127,7 @@ Console.WriteLine("Clôture à une date choisie");
         c.SaveEntry(new Entry(0, y.Id, d, label, false, EntryKind.Normal, banque.Id, Direction.In, null, cents, null, null),
             new[] { new Allocation(adh.Id, cents) });
     Add(Dt(2027, 6, 30), "Avant clôture", 10000);
+    Add(Dt(2027, 7, 1), "Jour de clôture", 300);
     Add(Dt(2027, 7, 10), "Après clôture", 2000);
     Add(Dt(2027, 8, 20), "Bien après", 500);
 
@@ -1139,13 +1140,13 @@ Console.WriteLine("Clôture à une date choisie");
     var ny = c.NextYear(vy);
     Check(ny is not null, "exercice suivant créé");
     Eq(Dt(2027, 7, 2), ny!.Start, "l'exercice suivant commence le lendemain");
-    Eq(1, c.Entries(y.Id).Count, "une seule écriture reste dans l'exercice clôturé");
+    Eq(2, c.Entries(y.Id).Count, "écritures jusqu'au jour de clôture inclus restent dans l'exercice clôturé");
     Eq(2, c.Entries(ny.Id).Count, "deux écritures déplacées dans l'exercice suivant");
     var nAdh = c.Categories(ny.Id).First(k => k.Kind == CategoryKind.Product && k.Name == "Adhésions");
     Check(c.Entries(ny.Id).All(r => r.Allocations.All(a => a.CategoryId == nAdh.Id)), "ventilation rattachée aux catégories de l'exercice suivant");
-    Eq(10000L, c.ComputeBilan(y.Id).ProductsTotal, "produits de l'exercice clôturé");
+    Eq(10300L, c.ComputeBilan(y.Id).ProductsTotal, "produits de l'exercice clôturé (jour de clôture inclus)");
     Eq(2500L, c.ComputeBilan(ny.Id).ProductsTotal, "produits de l'exercice suivant");
-    Eq(110000L, c.Opening(ny.Id, banque.Id), "solde d'ouverture de l'exercice suivant");
+    Eq(110300L, c.Opening(ny.Id, banque.Id), "solde d'ouverture de l'exercice suivant");
     Check(c.VerifyIntegrity(y.Id), "empreinte conforme après déplacement");
 }
 
