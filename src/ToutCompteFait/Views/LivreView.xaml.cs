@@ -82,8 +82,8 @@ public partial class LivreView : UserControl, IPage
     {
         InitializeComponent();
         AllowDrop = true;
-        DragOver += Livre_DragOver;
-        Drop += Livre_Drop;
+        PreviewDragOver += Livre_DragOver;
+        PreviewDrop += Livre_Drop;
         _year = year;
         _canWrite = App.Can(Permission.WriteLedger) && year.Open;
         TitleText.Text = $"Livre — exercice {year.Label}";

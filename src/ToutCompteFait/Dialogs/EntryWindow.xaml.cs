@@ -98,8 +98,8 @@ public partial class EntryWindow : Window
 
         // Glisser-déposer de justificatifs sur la fenêtre (dépenses, exercice ouvert).
         AllowDrop = true;
-        DragOver += (_, e) => FileDrop.Accept(e, CanDropAttachments);
-        Drop += (_, e) =>
+        PreviewDragOver += (_, e) => FileDrop.Accept(e, CanDropAttachments);
+        PreviewDrop += (_, e) =>
         {
             if (CanDropAttachments) AddAttachmentFiles(FileDrop.Files(e));
             e.Handled = true;

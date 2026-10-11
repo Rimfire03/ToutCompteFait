@@ -94,7 +94,7 @@
 
             <!-- Justificatifs -->
             <StackPanel x:Name="AttachSection" Margin="0,14,0,0">
-                <TextBlock Text="Justificatifs (facture, ticket, reçu…)" Style="{StaticResource SectionText}"/>
+                <TextBlock Text="Justificatifs (facture, ticket, reçu…) : glissez-déposez les fichiers ici ou utilisez Ajouter" Style="{StaticResource SectionText}"/>
                 <TextBlock x:Name="AttachHelp" Style="{StaticResource MutedText}" Margin="0,-4,0,6"
                            Text="Joignez le document qui justifie cette dépense (10 Mo maximum par fichier). Il est enregistré dans la base."/>
                 <ListBox x:Name="AttachList" MinHeight="0" MaxHeight="120" MouseDoubleClick="AttachOpen_Click"/>

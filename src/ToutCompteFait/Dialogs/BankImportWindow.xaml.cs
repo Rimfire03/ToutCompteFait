@@ -51,8 +51,8 @@ public partial class BankImportWindow : Window
 
         // Glisser-déposer d'un relevé (CSV, OFX, PDF ou image) depuis l'Explorateur.
         AllowDrop = true;
-        DragOver += (_, e) => FileDrop.Accept(e);
-        Drop += (_, e) =>
+        PreviewDragOver += (_, e) => FileDrop.Accept(e);
+        PreviewDrop += (_, e) =>
         {
             var files = FileDrop.Files(e);
             if (files.Length > 0) LoadFiles(files);

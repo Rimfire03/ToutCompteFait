@@ -69,8 +69,8 @@ public sealed class FirstRunWindow : Window
         Content = root;
 
         AllowDrop = true;
-        DragOver += (_, e) => FileDrop.Accept(e);
-        Drop += (_, e) =>
+        PreviewDragOver += (_, e) => FileDrop.Accept(e);
+        PreviewDrop += (_, e) =>
         {
             e.Handled = true;
             var file = FileDrop.Files(e).FirstOrDefault();

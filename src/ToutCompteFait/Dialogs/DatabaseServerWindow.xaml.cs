@@ -52,8 +52,8 @@ public partial class DatabaseServerWindow : Window
 
         // Glisser-déposer d'un fichier de configuration du serveur.
         AllowDrop = true;
-        DragOver += (_, e) => FileDrop.Accept(e);
-        Drop += (_, e) =>
+        PreviewDragOver += (_, e) => FileDrop.Accept(e);
+        PreviewDrop += (_, e) =>
         {
             e.Handled = true;
             var file = FileDrop.Files(e).FirstOrDefault(f => f.EndsWith(ServerConfigFile.Extension, StringComparison.OrdinalIgnoreCase))
