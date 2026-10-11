@@ -157,7 +157,7 @@ public partial class BilanView : UserControl, IPage
                 IssuesCard.Visibility = Visibility.Visible;
                 IssuesTitle.Text = blocking > 0
                     ? $"Avant de pouvoir valider : {blocking} point(s) à corriger" +
-                      (App.Session.Role == ComptaAepby.Core.Security.Role.Admin && issues.Where(i => i.Blocking).All(i => i.Forceable)
+                      (App.Session.Role == ComptaAepby.Core.Security.Role.Admin
                           ? " (en tant qu'administrateur, vous pouvez forcer la clôture)" : "")
                     : "L'exercice peut être validé (quelques remarques) :";
                 IssuesTitle.Foreground = new SolidColorBrush(blocking > 0 ? Color.FromRgb(0xB9, 0x1C, 0x1C) : Color.FromRgb(0xB4, 0x53, 0x09));
@@ -198,13 +198,13 @@ public partial class BilanView : UserControl, IPage
         // Points bloquants : un administrateur peut forcer la clôture (écritures non ventilées, dates antérieures).
         var force = false;
         var blocking = _c.ValidationIssues(_year.Id, closing).Where(i => i.Blocking).ToList();
-        if (blocking.Count > 0 && App.Session.Role == ComptaAepby.Core.Security.Role.Admin && blocking.All(i => i.Forceable))
+        if (blocking.Count > 0 && App.Session.Role == ComptaAepby.Core.Security.Role.Admin)
         {
             if (!Ui.Confirm($"{blocking.Count} point(s) bloquant(s) subsistent :\n\n• " +
                             string.Join("\n• ", blocking.Take(6).Select(i => i.Message)) +
                             (blocking.Count > 6 ? $"\n… et {blocking.Count - 6} autre(s)." : "") +
-                            "\n\nEn tant qu'administrateur, vous pouvez FORCER la clôture. Ces anomalies resteront dans l'exercice " +
-                            "verrouillé (écart non ventilé conservé) et la clôture forcée sera consignée dans le journal.\n\n" +
+                            "\n\nEn tant qu'administrateur, vous pouvez FORCER la clôture. Les mouvements non ventilés resteront « non affectés » " +
+                            "dans l'exercice verrouillé, et la clôture forcée sera consignée dans le journal.\n\n" +
                             "Forcer la clôture ?", "Forcer la clôture"))
                 return;
             force = true;

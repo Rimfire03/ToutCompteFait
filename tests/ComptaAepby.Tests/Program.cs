@@ -1183,6 +1183,24 @@ Console.WriteLine("Clôture forcée");
     Check(c.Year(y.Id)!.Validated, "clôture forcée par l'administrateur : exercice validé");
     Check(c.VerifyIntegrity(y.Id), "clôture forcée : empreinte conforme");
 }
+{
+    // Le forçage ne doit jamais échouer : exercice précédent non validé, date de clôture en conflit.
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y1 = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var y2 = c.CreateYear(Dt(2027, 9, 1), Dt(2028, 8, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    c.SaveEntry(new Entry(0, y2.Id, Dt(2027, 10, 5), "Non ventilée", false, EntryKind.Normal, banque.Id, Direction.Out, null, 1234, null, null),
+        Array.Empty<Allocation>(), strict: false);
+    Throws(() => c.ValidateYear(y2.Id), "exercice précédent non validé : clôture normale refusée", "précédent");
+    c.ValidateYear(y2.Id, Dt(2028, 8, 31), force: true);
+    Check(c.Year(y2.Id)!.Validated, "clôture forcée malgré l'exercice précédent non validé");
+    Check(!c.Year(y1.Id)!.Validated, "l'exercice précédent reste ouvert");
+    // Conflit de dates avec un exercice suivant validé : ramenée à la fin prévue, sans échec.
+    var y3 = c.CreateYear(Dt(2028, 9, 1), Dt(2029, 8, 31));
+    c.ValidateYear(y3.Id, Dt(2029, 8, 31), force: true);
+    Check(c.Year(y3.Id)!.Validated, "troisième exercice clôturé de force");
+}
 // ---- Fichier de configuration du serveur
 {
     var cfgPath = Path.Combine(Path.GetTempPath(), "tcf-config-" + Guid.NewGuid().ToString("N") + ServerConfigFile.Extension);

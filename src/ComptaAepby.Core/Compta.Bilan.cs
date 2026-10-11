@@ -257,8 +257,8 @@ public sealed partial class Compta
         if (force && blocking.Count > 0)
         {
             if (Session.Role != Role.Admin) throw new ComptaException("Seul un administrateur peut forcer une clôture.");
-            forcedIssues = blocking.Where(i => i.Forceable).ToList();
-            blocking = blocking.Where(i => !i.Forceable).ToList();
+            forcedIssues = blocking;   // un forçage administrateur ne doit jamais échouer : tout est ignoré
+            blocking = new List<Issue>();
         }
         if (blocking.Count > 0)
             throw new ComptaException("Validation impossible :\n• " + string.Join("\n• ", blocking.Take(8).Select(i => i.Message))
@@ -269,6 +269,19 @@ public sealed partial class Compta
         if (next is not null && next.Validated && closing != year.End)
             throw new ComptaException($"L'exercice suivant ({next.Label}) est validé : la date de clôture ne peut pas être modifiée.");
         var origEnd = year.End;
+        string? forcedNote = null;
+        if (force && closing != origEnd && next is not null)
+        {
+            // Forçage : un conflit de dates avec l'exercice suivant ne fait pas échouer la clôture ; on retombe sur la
+            // fin prévue de l'exercice.
+            var conflict = next.Validated || closing.AddDays(1) > next.End
+                           || (closing > origEnd && Entries(next.Id).Any(r => r.Entry.Date <= closing));
+            if (conflict)
+            {
+                forcedNote = $"date de clôture {closing:dd/MM/yyyy} impossible avec l'exercice suivant, ramenée à la fin prévue {origEnd:dd/MM/yyyy}";
+                closing = origEnd;
+            }
+        }
 
         // 1. Période : la fin de l'exercice devient la date de clôture ; l'exercice suivant commence le lendemain.
         if (closing != origEnd)
@@ -332,7 +345,8 @@ public sealed partial class Compta
         Save(ctx);
         Log(ctx, "Exercice validé", $"{b.Year.Label} — clôture au {closing:dd/MM/yyyy}" +
             (moved > 0 ? $", {moved} écriture(s) déplacée(s) vers l'exercice suivant" : "") +
-            (forcedIssues.Count > 0 ? $" — CLÔTURE FORCÉE par un administrateur malgré {forcedIssues.Count} point(s) bloquant(s)" : ""));
+            (forcedIssues.Count > 0 ? $" — CLÔTURE FORCÉE par un administrateur malgré {forcedIssues.Count} point(s) bloquant(s)" : "") +
+            (forcedNote is not null ? " ; " + forcedNote : ""));
         tx.Commit();
     }
 
