@@ -299,7 +299,12 @@ public partial class BankImportWindow : Window
             NeedsDecision = p.Status == BankLineStatus.ToConfirm,
             Options = p.Status == BankLineStatus.ToConfirm ? BuildOptions(p) : Array.Empty<DecisionOption>()
         }).ToList();
-        foreach (var r in _rows.Where(r => r.NeedsDecision)) r.Selected = r.Options[0];
+        foreach (var r in _rows.Where(r => r.NeedsDecision))
+        {
+            // Une seule contrepartie sur un autre compte et aucun autre candidat : proposée d'office (modifiable).
+            var only = r.Options.Where(o => o.Decision is not null && o.Decision.Kind is BankDecisionKind.Match or BankDecisionKind.Transfer).ToList();
+            r.Selected = only.Count == 1 && only[0].Decision!.Kind == BankDecisionKind.Transfer ? only[0] : r.Options[0];
+        }
         PreviewGrid.ItemsSource = _rows;
         AlignBox.Visibility = _rows.Any(r => r.NeedsDecision) ? Visibility.Visible : Visibility.Collapsed;
 
@@ -336,9 +341,16 @@ public partial class BankImportWindow : Window
     {
         var list = new List<DecisionOption> { new(null, "❓ Choisissez…") };
         foreach (var c in p.Candidates!)
-            list.Add(new DecisionOption(new BankDecision(BankDecisionKind.Match, c.EntryId),
-                $"Rapprocher de l'écriture du {c.Date:dd/MM/yyyy} « {Short(c.Label)} » ({c.DaysApart} j d'écart" +
-                (c.Allocated ? "" : ", non ventilée") + ")"));
+        {
+            if (c.IsTransfer)
+                list.Add(new DecisionOption(new BankDecision(BankDecisionKind.Transfer, c.EntryId),
+                    $"↔ Virement entre comptes : même opération que l'écriture du {c.Date:dd/MM/yyyy} « {Short(c.Label)} » " +
+                    $"de l'autre compte ({c.DaysApart} j d'écart" + (c.Allocated ? ", sa ventilation sera retirée" : "") + ")"));
+            else
+                list.Add(new DecisionOption(new BankDecision(BankDecisionKind.Match, c.EntryId),
+                    $"Rapprocher de l'écriture du {c.Date:dd/MM/yyyy} « {Short(c.Label)} » ({c.DaysApart} j d'écart" +
+                    (c.Allocated ? "" : ", non ventilée") + ")"));
+        }
         list.Add(new DecisionOption(new BankDecision(BankDecisionKind.CreateNew), "Créer une nouvelle écriture (à ventiler)"));
         list.Add(new DecisionOption(new BankDecision(BankDecisionKind.Skip), "Ignorer cette ligne"));
         return list;
@@ -356,7 +368,7 @@ public partial class BankImportWindow : Window
         if (_plan is null) return;
         var undecided = _rows.Count(r => r.NeedsDecision && r.Selected?.Decision is null);
         var creates = _plan.Count(BankLineStatus.New) + _rows.Count(r => r.NeedsDecision && r.Selected?.Decision?.Kind == BankDecisionKind.CreateNew);
-        var matches = _rows.Count(r => r.NeedsDecision && r.Selected?.Decision?.Kind == BankDecisionKind.Match);
+        var matches = _rows.Count(r => r.NeedsDecision && r.Selected?.Decision?.Kind is BankDecisionKind.Match or BankDecisionKind.Transfer);
         var u = _plan.Count(BankLineStatus.LabelUpdated);
         var same = _plan.Count(BankLineStatus.Unchanged);
         var skipped = _plan.Count(BankLineStatus.NoYear) + _plan.Count(BankLineStatus.YearValidated)
@@ -390,6 +402,7 @@ public partial class BankImportWindow : Window
             return;
         }
         Ui.Info($"Import terminé : {Result.Created} écriture(s) créée(s) à ventiler, {Result.LabelsUpdated} intitulé(s) mis à jour" +
+                (Result.TransfersLinked > 0 ? $", {Result.TransfersLinked} virement(s) entre comptes reconnu(s) (une seule écriture)" : "") +
                 (Result.Skipped > 0 ? $", {Result.Skipped} ignorée(s)" : "") + ".\n\n" +
                 (Result.Created > 0 ? "Les nouvelles lignes sont en jaune dans le Livre : choisissez leur produit ou leur charge directement dans la liste." : "") +
                 (_balanceReport is { Text.Length: > 0 } br ? "\n\n" + br.Text : ""),

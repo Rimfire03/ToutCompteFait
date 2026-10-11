@@ -24,7 +24,13 @@ public enum BankLineStatus
 
 /// <summary>Écriture existante qui pourrait correspondre à une ligne du relevé (même compte et même montant, date
 /// proche).</summary>
-public sealed record BankMatchCandidate(long EntryId, DateOnly Date, string Label, bool Allocated, int DaysApart);
+public sealed record BankMatchCandidate(long EntryId, DateOnly Date, string Label, bool Allocated, int DaysApart,
+    long? CounterpartAccountId = null)
+{
+    /// <summary>Contrepartie sur un autre compte : la ligne du relevé et cette écriture forment un même virement entre
+    /// comptes.</summary>
+    public bool IsTransfer => CounterpartAccountId is not null;
+}
 
 public sealed record BankLinePlan(BankLine Line, BankLineStatus Status, long? YearId, long? EntryId, string? OldLabel,
     IReadOnlyList<BankMatchCandidate>? Candidates = null);
@@ -34,18 +40,23 @@ public sealed record BankImportPlan(long AccountId, IReadOnlyList<BankLinePlan> 
     public int Count(BankLineStatus s) => Lines.Count(l => l.Status == s);
 }
 
-public enum BankDecisionKind { Match, CreateNew, Skip }
+public enum BankDecisionKind { Match, CreateNew, Skip, Transfer }
 
 /// <summary>Choix de l'utilisateur pour une ligne douteuse (<see cref="BankLineStatus.ToConfirm"/>).</summary>
 public sealed record BankDecision(BankDecisionKind Kind, long? EntryId = null);
 
-public sealed record BankImportResult(int Created, int LabelsUpdated, int Pointed, int Unchanged, int Skipped, int DatesAligned = 0);
+public sealed record BankImportResult(int Created, int LabelsUpdated, int Pointed, int Unchanged, int Skipped, int DatesAligned = 0,
+    int TransfersLinked = 0);
 
 public sealed partial class Compta
 {
     /// <summary>Écart de dates toléré (en jours) entre une ligne du relevé et une écriture déjà saisie : la banque
     /// date souvent l'opération autrement que la saisie (date de carte, de valeur, de traitement).</summary>
     public const int BankDateToleranceDays = 7;
+
+    /// <summary>Écart de dates toléré pour reconnaître les deux moitiés d'un virement entre comptes (les banques
+    /// datent généralement les deux côtés du même jour ou à un jour d'écart).</summary>
+    public const int BankTransferToleranceDays = 4;
 
     // ------------------------------------------------------------------ import d'un relevé bancaire
 
@@ -81,7 +92,18 @@ public sealed partial class Compta
         }
         var pools = flat.GroupBy(x => (x.E.YearId, x.E.Date, x.Signed)).ToDictionary(g => g.Key, g => g.Select(x => x.E).ToList());
 
+        // Écritures ordinaires des AUTRES comptes (contrepartie possible d'un virement entre comptes).
+        var others = new List<(Entry E, long Signed, EntryRow Row)>();
+        foreach (var y in years.Where(y => !y.Validated))
+            foreach (var r in Entries(y.Id))
+            {
+                var e = r.Entry;
+                if (e.Kind != EntryKind.Normal || e.AccountId is null || e.AccountId == accountId || e.RefundOfId is not null) continue;
+                others.Add((e, e.Direction == Direction.In ? e.AmountCents : -e.AmountCents, r));
+            }
+
         var used = new HashSet<long>();
+        var usedCounterparts = new HashSet<long>();   // contreparties déjà proposées à une autre ligne de ce relevé
         var plan = new List<BankLinePlan?>();
         var yearOf = new List<FiscalYear?>();
 
@@ -124,12 +146,22 @@ public sealed partial class Compta
                 .OrderBy(x => x.Days).ThenBy(x => SameLabel(x.E.Label, line.Label) ? 0 : 1).ThenBy(x => x.E.Id)
                 .Take(5)
                 .ToList();
-            if (near.Count == 0)
+            // Virement entre comptes : même jour (à quelques jours près), montant opposé, autre compte, même exercice.
+            var counterparts = others
+                .Where(x => x.Signed == -line.AmountCents && x.E.YearId == year.Id && !used.Contains(x.E.Id) && !usedCounterparts.Contains(x.E.Id))
+                .Select(x => (x.E, Days: Math.Abs(x.E.Date.DayNumber - line.Date.DayNumber), x.Row))
+                .Where(x => x.Days <= BankTransferToleranceDays)
+                .OrderBy(x => x.Days).ThenBy(x => x.E.Id).Take(3).ToList();
+            if (near.Count == 0 && counterparts.Count == 0)
             {
                 plan[i] = new BankLinePlan(line, BankLineStatus.New, year.Id, null, null);
                 continue;
             }
-            var cands = near.Select(n => new BankMatchCandidate(n.E.Id, n.E.Date, n.E.Label, n.Row.Allocations.Count > 0, n.Days)).ToList();
+            if (near.Count == 0 && counterparts.Count > 0) usedCounterparts.Add(counterparts[0].E.Id);
+            var cands = near.Select(n => new BankMatchCandidate(n.E.Id, n.E.Date, n.E.Label, n.Row.Allocations.Count > 0, n.Days))
+                .Concat(counterparts.Select(n => new BankMatchCandidate(n.E.Id, n.E.Date, n.E.Label, n.Row.Allocations.Count > 0, n.Days,
+                    n.E.AccountId)))
+                .ToList();
             plan[i] = new BankLinePlan(line, BankLineStatus.ToConfirm, year.Id, cands[0].EntryId, cands[0].Label, cands);
         }
         return new BankImportPlan(accountId, plan.Select(p => p!).ToList());
@@ -157,7 +189,7 @@ public sealed partial class Compta
             throw new ComptaException($"{undecided.Count} ligne(s) du relevé ont une correspondance incertaine : " +
                                       "indiquez pour chacune de la rapprocher, de créer une nouvelle écriture ou de l'ignorer.");
 
-        int created = 0, updated = 0, pointed = 0, unchanged = 0, skipped = 0, aligned = 0;
+        int created = 0, updated = 0, pointed = 0, unchanged = 0, skipped = 0, aligned = 0, transfers = 0;
         var matchedEntries = new HashSet<long>();
         foreach (var l in plan.Lines)
             if (l.Status is BankLineStatus.LabelUpdated or BankLineStatus.Unchanged && l.EntryId is { } id) matchedEntries.Add(id);
@@ -172,6 +204,7 @@ public sealed partial class Compta
             var status = p.Status;
             long? entryId = p.EntryId;
             var fuzzy = false;
+            var linkTransfer = false;
 
             if (status == BankLineStatus.ToConfirm)
             {
@@ -183,6 +216,15 @@ public sealed partial class Compta
                         continue;
                     case BankDecisionKind.CreateNew:
                         status = BankLineStatus.New;
+                        break;
+                    case BankDecisionKind.Transfer:
+                        if (d.EntryId is not { } other || p.Candidates is null || p.Candidates.All(c => c.EntryId != other || !c.IsTransfer))
+                            throw new ComptaException("Le virement choisi n'est pas l'une des écritures proposées.");
+                        if (!matchedEntries.Add(other))
+                            throw new ComptaException("Une même écriture est rapprochée de deux lignes du relevé : revoyez vos choix.");
+                        entryId = other;
+                        status = BankLineStatus.LabelUpdated;   // traité plus bas
+                        linkTransfer = true;
                         break;
                     default:
                         if (d.EntryId is not { } chosen || p.Candidates is null || p.Candidates.All(c => c.EntryId != chosen))
@@ -230,6 +272,24 @@ public sealed partial class Compta
                 {
                     var e = ctx.Entries.FirstOrDefault(x => x.Id == entryId!.Value);
                     if (e is null) { skipped++; break; }
+                    if (linkTransfer)
+                    {
+                        // L'écriture de l'autre compte et cette ligne sont les deux moitiés d'un même virement : l'écriture
+                        // existante devient le virement (du compte qui paie vers le compte qui reçoit), sans ventilation.
+                        var lineAccount = plan.AccountId;
+                        var otherAccount = e.AccountId!.Value;
+                        var lineReceives = p.Line.AmountCents > 0;
+                        e.Kind = "TRANSFER";
+                        e.Direction = "OUT";
+                        e.AccountId = lineReceives ? otherAccount : lineAccount;
+                        e.ToAccountId = lineReceives ? lineAccount : otherAccount;
+                        e.MemberName = null;
+                        ctx.Allocations.RemoveRange(ctx.Allocations.Where(a => a.EntryId == e.Id));
+                        if (markPointed) e.Pointed = true;
+                        e.UpdatedAt = now;
+                        transfers++;
+                        break;
+                    }
                     var changed = false;
                     if (status == BankLineStatus.LabelUpdated && e.Label != p.Line.Label)
                     {
@@ -263,8 +323,9 @@ public sealed partial class Compta
         Save(ctx);
         Log(ctx, "Relevé bancaire importé",
             $"{Account(plan.AccountId)?.Name} : {created} créée(s), {updated} intitulé(s) mis à jour, {pointed} pointée(s)" +
-            (aligned > 0 ? $", {aligned} date(s) alignée(s)" : "") + $", {skipped} ignorée(s)");
+            (aligned > 0 ? $", {aligned} date(s) alignée(s)" : "") + (transfers > 0 ? $", {transfers} virement(s) entre comptes reconnu(s)" : "") +
+            $", {skipped} ignorée(s)");
         tx.Commit();
-        return new BankImportResult(created, updated, pointed, unchanged, skipped, aligned);
+        return new BankImportResult(created, updated, pointed, unchanged, skipped, aligned, transfers);
     }
 }

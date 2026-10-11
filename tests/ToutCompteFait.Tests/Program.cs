@@ -1348,6 +1348,56 @@ Console.WriteLine("Soldes du relevé");
     Eq(Dt(2026, 9, 1), bo.Start, "OFX : début de période");
     Check(bo.Opening is null, "OFX : pas de solde d'ouverture inventé");
 }
+// ---- Virements entre comptes : une seule écriture
+Console.WriteLine("Virements entre comptes");
+{
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    var livret = c.Accounts().First(a => a.Name == "Livret A");
+    c.SetOpening(y.Id, banque.Id, 100000);
+    c.SetOpening(y.Id, livret.Id, 500000);
+
+    // 1. Import des deux relevés : la deuxième moitié du virement est reconnue.
+    var lineLivret = new BankLine(Dt(2026, 10, 6), "VIREMENT PAR INTERNET", -64945);
+    var lineBanque = new BankLine(Dt(2026, 10, 6), "VIREMENT PAR INTERNET", 64945);
+    c.ApplyBankImport(c.PlanBankImport(livret.Id, new[] { lineLivret }), true);
+    var plan = c.PlanBankImport(banque.Id, new[] { lineBanque });
+    Eq(BankLineStatus.ToConfirm, plan.Lines[0].Status, "contrepartie sur l'autre compte : à confirmer");
+    Check(plan.Lines[0].Candidates!.Any(x => x.IsTransfer && x.CounterpartAccountId == livret.Id), "candidat virement proposé");
+    Throws(() => c.ApplyBankImport(plan, true), "décision obligatoire", "incertaine");
+    var res = c.ApplyBankImport(plan, true, new Dictionary<int, BankDecision>
+        { [0] = new BankDecision(BankDecisionKind.Transfer, plan.Lines[0].Candidates!.First(x => x.IsTransfer).EntryId) });
+    Eq(1, res.TransfersLinked, "1 virement reconnu");
+    var all = c.Entries(y.Id);
+    Eq(1, all.Count, "une seule écriture pour le virement (pas deux)");
+    Eq(EntryKind.Transfer, all[0].Entry.Kind, "devenue un virement entre comptes");
+    Eq(livret.Id, all[0].Entry.AccountId, "du livret");
+    Eq(banque.Id, all[0].Entry.ToAccountId, "vers la banque");
+    Eq(100000L + 64945, c.AccountBalanceAt(banque.Id, Dt(2026, 10, 6)), "solde banque");
+    Eq(500000L - 64945, c.AccountBalanceAt(livret.Id, Dt(2026, 10, 6)), "solde livret");
+    // Le relevé suivant ne recrée rien : les deux lignes sont retrouvées sur le virement.
+    Eq(BankLineStatus.Unchanged, c.PlanBankImport(banque.Id, new[] { lineBanque }).Lines[0].Status, "relevé réimporté : déjà à jour");
+
+    // 2. Doublons déjà présents : détection puis fusion.
+    var ch = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Charge);
+    var o = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 11, 10), "Virement vers livret", false, EntryKind.Normal, banque.Id, Direction.Out, null, 20000, null, null),
+        new[] { new Allocation(ch.Id, 20000) });
+    var i = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 11, 11), "Virement de la banque", true, EntryKind.Normal, livret.Id, Direction.In, null, 20000, null, null),
+        Array.Empty<Allocation>(), strict: false);
+    var pairs = c.FindTransferPairs(y.Id);
+    Eq(1, pairs.Count, "une paire en double détectée");
+    Eq(o, pairs[0].Out.Id, "sortie de la paire");
+    Eq(i, pairs[0].In.Id, "entrée de la paire");
+    c.MergeIntoTransfer(o, i);
+    Eq(2, c.Entries(y.Id).Count, "fusion : plus qu''une écriture pour ce virement");
+    var merged = c.EntryById(o)!;
+    Check(merged.Entry.Kind == EntryKind.Transfer && merged.Entry.ToAccountId == livret.Id && merged.Allocations.Count == 0 && merged.Entry.Pointed,
+        "virement fusionné sans ventilation, pointé");
+    Eq(0, c.FindTransferPairs(y.Id).Count, "plus de paire à fusionner");
+    Eq(1, c.Entries(y.Id).Count(r => r.Entry.Kind == EntryKind.Transfer && r.Entry.AmountCents == 20000), "un seul virement de 200 €");
+}
 // ---- Fichier de configuration du serveur
 {
     var cfgPath = Path.Combine(Path.GetTempPath(), "tcf-config-" + Guid.NewGuid().ToString("N") + ServerConfigFile.Extension);

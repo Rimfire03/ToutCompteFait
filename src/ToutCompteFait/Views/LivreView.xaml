@@ -24,6 +24,8 @@
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                 <Button x:Name="AddButton" Content="＋  Nouvelle écriture" Style="{StaticResource PrimaryButton}" Click="Add_Click"/>
                 <Button x:Name="EditButton" Content="Modifier" Style="{StaticResource SecondaryButton}" Click="Edit_Click"/>
+                <Button x:Name="MergeTransfersButton" Content="Fusionner les virements en double" Style="{StaticResource SecondaryButton}" Click="MergeTransfers_Click"
+                        ToolTip="Un virement entre deux comptes apparaît deux fois (une sortie et une entrée) quand les deux relevés ont été importés : ce bouton les fusionne en un seul virement."/>
                 <Button x:Name="ResetButton" Content="Réinitialiser la ventilation" Style="{StaticResource SecondaryButton}" Click="Reset_Click"
                         ToolTip="Retire toute la ventilation de la ligne sélectionnée : elle redevient « à ventiler » (le montant, la date et le libellé ne changent pas)."/>
                 <Button x:Name="DeleteButton" Content="Supprimer" Style="{StaticResource DangerButton}" Click="Delete_Click"/>

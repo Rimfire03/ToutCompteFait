@@ -93,6 +93,7 @@ public partial class LivreView : UserControl, IPage
         EditButton.IsEnabled = false;
         DeleteButton.IsEnabled = false;
         ResetButton.IsEnabled = false;
+        MergeTransfersButton.IsEnabled = _canWrite;
         if (year.Validated)
             SubText.Text = "Exercice validé : consultation seule (aucune ligne ne peut être ajoutée, modifiée ou retirée). " +
                            "L'import du relevé bancaire reste possible : les lignes vont dans l'exercice correspondant à leur date.";
@@ -350,6 +351,29 @@ public partial class LivreView : UserControl, IPage
         if (Selected is not { } row) return;
         var dlg = new EntryWindow(_year, row.Source) { Owner = Window.GetWindow(this) };
         if (dlg.ShowDialog() == true) Reload();
+    }
+
+    private void MergeTransfers_Click(object sender, RoutedEventArgs e)
+    {
+        var pairs = _c.FindTransferPairs(_year.Id);
+        if (pairs.Count == 0) { Ui.Info("Aucun virement en double détecté : aucune paire sortie / entrée de même montant sur deux comptes."); return; }
+        var accounts = _c.Accounts(includeInactive: true).ToDictionary(a => a.Id, a => a.Name);
+        string Name(long? id) => id is { } i && accounts.TryGetValue(i, out var n) ? n : "?";
+        var sample = string.Join("\n", pairs.Take(8).Select(p =>
+            $"• {p.Out.Date:dd/MM/yyyy} {Money.Format(p.Out.AmountCents)} € : {Name(p.Out.AccountId)} → {Name(p.In.AccountId)}  « {p.Out.Label} »"));
+        if (!Ui.Confirm($"{pairs.Count} virement(s) apparaissent deux fois (une sortie et une entrée) :\n\n{sample}" +
+                        (pairs.Count > 8 ? $"\n… et {pairs.Count - 8} autre(s)." : "") +
+                        "\n\nLes fusionner en un seul virement entre comptes chacun ? La ventilation éventuelle de ces écritures sera retirée " +
+                        "(un virement n'a ni produit ni charge).", "Fusionner les virements"))
+            return;
+        var merged = 0;
+        foreach (var p in pairs)
+        {
+            if (!Ui.Try(() => _c.MergeIntoTransfer(p.Out.Id, p.In.Id))) break;
+            merged++;
+        }
+        Reload();
+        if (merged > 0) Ui.Info($"{merged} virement(s) fusionné(s).");
     }
 
     private void Reset_Click(object sender, RoutedEventArgs e)
