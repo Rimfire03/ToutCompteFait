@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 
 namespace ComptaAepby.Core.Services;
 
@@ -22,6 +24,34 @@ public sealed class AppSettings
 
     /// <summary>Dernier nom d'utilisateur saisi à la connexion (confort : jamais le mot de passe).</summary>
     public string? LastUserName { get; set; }
+
+    /// <summary>Mot de passe mémorisé à la connexion pour <see cref="LastUserName"/> : chiffré DPAPI (session Windows
+    /// courante), base64 ; jamais en clair. Vide = non mémorisé. Voir <see cref="SetRememberedPassword"/>.</summary>
+    public string? RememberedPassword { get; set; }
+
+    private static readonly byte[] PasswordEntropy = Encoding.UTF8.GetBytes("ToutCompteFait.login");
+
+    /// <summary>Mémorise (ou oublie, si null/vide) le mot de passe de connexion de ce poste.</summary>
+    public void SetRememberedPassword(string? password)
+    {
+        RememberedPassword = string.IsNullOrEmpty(password)
+            ? null
+            : Convert.ToBase64String(ProtectedData.Protect(Encoding.UTF8.GetBytes(password), PasswordEntropy, DataProtectionScope.CurrentUser));
+    }
+
+    /// <summary>Mot de passe mémorisé en clair, ou chaîne vide (rien de mémorisé, ou réglage venant d'une autre session Windows).</summary>
+    public string GetRememberedPassword()
+    {
+        if (string.IsNullOrEmpty(RememberedPassword)) return "";
+        try
+        {
+            return Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(RememberedPassword), PasswordEntropy, DataProtectionScope.CurrentUser));
+        }
+        catch (Exception ex) when (ex is CryptographicException or FormatException)
+        {
+            return "";
+        }
+    }
 
     /// <summary>Vérification des mises à jour (releases GitHub) au démarrage ; canal « Main » (stable) ou « Dev ».</summary>
     public bool AutoUpdateEnabled { get; set; } = true;

@@ -128,8 +128,13 @@ public partial class MainWindow : Window
 
     private void Logout_Click(object sender, RoutedEventArgs e)
     {
-        if (Ui.Confirm("Se déconnecter ? Le logiciel va se relancer sur l'écran de connexion.", "Déconnexion"))
+        if (Ui.Confirm("Se déconnecter ? Le logiciel va se relancer sur l'écran de connexion.\n" +
+                       "Le mot de passe mémorisé sur ce poste, s'il y en a un, sera oublié.", "Déconnexion"))
+        {
+            App.Settings.SetRememberedPassword(null);
+            App.Settings.Save();
             App.Restart();
+        }
     }
 
     private void TakeOver_Click(object sender, RoutedEventArgs e)

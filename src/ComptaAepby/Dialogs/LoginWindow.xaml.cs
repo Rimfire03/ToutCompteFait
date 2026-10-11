@@ -30,7 +30,23 @@ public partial class LoginWindow : Window
         {
             SubTitle.Text = "Livre de trésorerie — identifiez-vous";
             UserBox.Text = App.Settings.LastUserName ?? "";
+            var remembered = App.Settings.GetRememberedPassword();
+            if (remembered.Length > 0 && UserBox.Text.Length > 0)
+            {
+                PasswordBox.Password = remembered;
+                RememberBox.IsChecked = true;
+            }
+            // Autre identifiant saisi : le mot de passe mémorisé ne le concerne pas.
+            UserBox.TextChanged += (_, _) =>
+            {
+                if (!string.Equals(UserBox.Text.Trim(), App.Settings.LastUserName, StringComparison.OrdinalIgnoreCase))
+                {
+                    PasswordBox.Clear();
+                    RememberBox.IsChecked = false;
+                }
+            };
         }
+        if (_setup) RememberBox.Visibility = Visibility.Collapsed;
         Loaded += (_, _) => (string.IsNullOrEmpty(UserBox.Text) ? UserBox : (System.Windows.Controls.Control)PasswordBox).Focus();
     }
 
@@ -58,6 +74,8 @@ public partial class LoginWindow : Window
                     PasswordBox.Focus();
                     return;
                 }
+                // Enregistré par App après la connexion (Settings.Save) ; chiffré, ou oublié si la case est décochée.
+                App.Settings.SetRememberedPassword(RememberBox.IsChecked == true ? PasswordBox.Password : null);
             }
             DialogResult = true;
         }
