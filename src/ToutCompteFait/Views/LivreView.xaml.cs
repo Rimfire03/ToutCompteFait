@@ -81,6 +81,9 @@ public partial class LivreView : UserControl, IPage
     public LivreView(FiscalYear year)
     {
         InitializeComponent();
+        AllowDrop = true;
+        DragOver += Livre_DragOver;
+        Drop += Livre_Drop;
         _year = year;
         _canWrite = App.Can(Permission.WriteLedger) && year.Open;
         TitleText.Text = $"Livre — exercice {year.Label}";
@@ -367,9 +370,25 @@ public partial class LivreView : UserControl, IPage
         if (Ui.Try(() => _c.DeleteEntry(en.Id))) Reload();
     }
 
-    private void BankImport_Click(object sender, RoutedEventArgs e)
+    /// <summary>Un relevé déposé sur le Livre ouvre directement l'import avec ce fichier.</summary>
+    private void Livre_DragOver(object sender, DragEventArgs e) =>
+        FileDrop.Accept(e, App.Can(Permission.WriteLedger));
+
+    private void Livre_Drop(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        if (!App.Can(Permission.WriteLedger)) return;
+        var files = FileDrop.Files(e);
+        if (files.Length == 0) return;
+        OpenBankImport(files);
+    }
+
+    private void BankImport_Click(object sender, RoutedEventArgs e) => OpenBankImport(null);
+
+    private void OpenBankImport(string[]? files)
     {
         var dlg = new BankImportWindow { Owner = Window.GetWindow(this) };
+        if (files is not null) dlg.LoadFilesWhenShown(files);
         if (dlg.ShowDialog() == true)
         {
             Reload();

@@ -45,6 +45,44 @@ public partial class BankImportWindow : Window
         var accounts = _c.Accounts();
         AccountCombo.ItemsSource = accounts;
         AccountCombo.SelectedItem = accounts.FirstOrDefault(a => a.Kind == AccountKind.Bank) ?? accounts.FirstOrDefault();
+
+        // Glisser-déposer d'un relevé (CSV, OFX, PDF ou image) depuis l'Explorateur.
+        AllowDrop = true;
+        DragOver += (_, e) => FileDrop.Accept(e);
+        Drop += (_, e) =>
+        {
+            var files = FileDrop.Files(e);
+            if (files.Length > 0) LoadFiles(files);
+            e.Handled = true;
+        };
+    }
+
+    /// <summary>Charge un ou plusieurs fichiers de relevé une fois la fenêtre affichée (utilisé quand les fichiers ont été
+    /// déposés sur le Livre).</summary>
+    public void LoadFilesWhenShown(string[] files)
+    {
+        void Handler(object? s, EventArgs e)
+        {
+            ContentRendered -= Handler;
+            LoadFiles(files);
+        }
+        ContentRendered += Handler;
+    }
+
+    /// <summary>Un CSV / OFX seul, ou un ou plusieurs relevés imprimés (PDF, images).</summary>
+    public void LoadFiles(string[] files)
+    {
+        if (files.Length > 1)
+        {
+            if (!files.All(Services.StatementDocumentReader.IsSupported))
+            {
+                Ui.Error("Plusieurs fichiers : seuls des relevés PDF ou images peuvent être importés ensemble.\nPour un CSV ou un OFX, choisissez un seul fichier.");
+                return;
+            }
+            LoadFromPrinted(files);
+            return;
+        }
+        LoadFromFile(files[0]);
     }
 
     private void Browse_Click(object sender, RoutedEventArgs e)
@@ -58,17 +96,7 @@ public partial class BankImportWindow : Window
         };
         dlg.Multiselect = true;
         if (dlg.ShowDialog() != true) return;
-        if (dlg.FileNames.Length > 1)
-        {
-            if (!dlg.FileNames.All(Services.StatementDocumentReader.IsSupported))
-            {
-                Ui.Error("Plusieurs fichiers : seuls des relevés PDF ou images peuvent être importés ensemble.\nPour un CSV ou un OFX, choisissez un seul fichier.");
-                return;
-            }
-            LoadFromPrinted(dlg.FileNames);
-            return;
-        }
-        LoadFromFile(dlg.FileName);
+        LoadFiles(dlg.FileNames);
     }
 
     /// <summary>Lit un relevé (CSV ou OFX) et calcule l'aperçu.</summary>

@@ -17,9 +17,15 @@ internal static class ConfigLoader
                      "|Tous les fichiers (*.*)|*.*"
         };
         if (owner is not null ? dlg.ShowDialog(owner) != true : dlg.ShowDialog() != true) return null;
+        return ReadFile(dlg.FileName);
+    }
+
+    /// <summary>Lit un fichier de configuration connu (choisi ou déposé) ; null si invalide (l'erreur est affichée).</summary>
+    public static DbConnectionInfo? ReadFile(string path)
+    {
         try
         {
-            return ServerConfigFile.Read(dlg.FileName);
+            return ServerConfigFile.Read(path);
         }
         catch (ComptaException ex)
         {

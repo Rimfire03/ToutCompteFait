@@ -49,6 +49,18 @@ public partial class DatabaseServerWindow : Window
         }
         _loading = false;
         UpdateState();
+
+        // Glisser-déposer d'un fichier de configuration du serveur.
+        AllowDrop = true;
+        DragOver += (_, e) => FileDrop.Accept(e);
+        Drop += (_, e) =>
+        {
+            e.Handled = true;
+            var file = FileDrop.Files(e).FirstOrDefault(f => f.EndsWith(ServerConfigFile.Extension, StringComparison.OrdinalIgnoreCase))
+                       ?? FileDrop.Files(e).FirstOrDefault();
+            if (file is null || ConfigLoader.ReadFile(file) is not { } dropped) return;
+            ApplyConfig(dropped);
+        };
     }
 
     private DatabaseProvider Provider => (ProviderCombo.SelectedItem as ProviderItem)?.Provider ?? DatabaseProvider.PostgreSql;
@@ -140,7 +152,11 @@ public partial class DatabaseServerWindow : Window
     private void ImportConfig_Click(object sender, RoutedEventArgs e)
     {
         var info = ConfigLoader.Pick(this);
-        if (info is null) return;
+        if (info is not null) ApplyConfig(info);
+    }
+
+    private void ApplyConfig(DbConnectionInfo info)
+    {
         _loading = true;
         ProviderCombo.SelectedItem = ProviderCombo.Items.OfType<ProviderItem>().First(p => p.Provider == info.Provider);
         HostBox.Text = info.Host;

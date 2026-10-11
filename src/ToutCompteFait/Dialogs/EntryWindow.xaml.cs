@@ -95,6 +95,15 @@ public partial class EntryWindow : Window
         RefreshStatus();
         RefreshAttachList();
         Loaded += (_, _) => (existing is null ? LabelBox : AmountBox).Focus();
+
+        // Glisser-déposer de justificatifs sur la fenêtre (dépenses, exercice ouvert).
+        AllowDrop = true;
+        DragOver += (_, e) => FileDrop.Accept(e, CanDropAttachments);
+        Drop += (_, e) =>
+        {
+            if (CanDropAttachments) AddAttachmentFiles(FileDrop.Files(e));
+            e.Handled = true;
+        };
     }
 
     // ------------------------------------------------------------------ mode et affichage
@@ -203,7 +212,13 @@ public partial class EntryWindow : Window
             Filter = "Justificatifs (PDF, images, documents)|*.pdf;*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.tif;*.tiff;*.webp;*.txt;*.doc;*.docx;*.xls;*.xlsx;*.odt;*.ods|Tous les fichiers (*.*)|*.*"
         };
         if (dlg.ShowDialog(this) != true) return;
-        foreach (var path in dlg.FileNames)
+        AddAttachmentFiles(dlg.FileNames);
+    }
+
+    /// <summary>Joint des fichiers (choisis ou déposés) : contrôle du type et de la taille, réduction éventuelle des images.</summary>
+    private void AddAttachmentFiles(IEnumerable<string> paths)
+    {
+        foreach (var path in paths)
         {
             try
             {
@@ -244,6 +259,9 @@ public partial class EntryWindow : Window
             Ui.Error("Impossible d'ouvrir le justificatif : " + ex.Message);
         }
     }
+
+    private bool CanDropAttachments =>
+        !App.IsReadOnly && _year.Open && AttachSection.Visibility == Visibility.Visible;
 
     private void AttachRemove_Click(object sender, RoutedEventArgs e)
     {

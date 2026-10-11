@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace ToutCompteFait.Dialogs;
@@ -10,6 +10,10 @@ public enum FirstRunChoice { Cancel, CreateLocal, OpenFile, ConnectServer, LoadC
 public sealed class FirstRunWindow : Window
 {
     public FirstRunChoice Choice { get; private set; } = FirstRunChoice.Cancel;
+
+    /// <summary>Fichier de configuration déposé sur la fenêtre (choix « Charger un fichier de configuration » sans passer
+    /// par la boîte de sélection).</summary>
+    public string? DroppedConfigPath { get; private set; }
 
     public FirstRunWindow(string expectedPath)
     {
@@ -63,6 +67,18 @@ public sealed class FirstRunWindow : Window
         };
         root.Children.Add(quit);
         Content = root;
+
+        AllowDrop = true;
+        DragOver += (_, e) => FileDrop.Accept(e);
+        Drop += (_, e) =>
+        {
+            e.Handled = true;
+            var file = FileDrop.Files(e).FirstOrDefault();
+            if (file is null) return;
+            DroppedConfigPath = file;
+            Choice = FirstRunChoice.LoadConfig;
+            DialogResult = true;
+        };
     }
 
     private UIElement MakeChoice(string title, string description, FirstRunChoice choice, bool primary)
