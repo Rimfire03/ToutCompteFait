@@ -25,7 +25,7 @@ public sealed record OperationResult(Operation Operation, IReadOnlyList<Category
     public long Result => ProductsTotal - ChargesTotal;
 }
 
-public sealed record Issue(bool Blocking, string Message, long? EntryId = null);
+public sealed record Issue(bool Blocking, string Message, long? EntryId = null, bool Forceable = false);
 
 /// <summary>Compte de fonctionnement + situation (actif / passif) d'un exercice.</summary>
 public sealed class Bilan
@@ -179,11 +179,11 @@ public sealed partial class Compta
                 var msg = NeedsAllocation(r)
                     ? $"{e.Date:dd/MM/yyyy} « {e.Label} » : {Money.Format(Math.Abs(e.NetCash))} € à classer en produit ou en charge."
                     : $"{e.Date:dd/MM/yyyy} « {e.Label} » : {Money.Format(gap)} € non ventilé(s) (ou ventilation incohérente avec le montant).";
-                issues.Add(new Issue(true, msg, e.Id));
+                issues.Add(new Issue(true, msg, e.Id, Forceable: true));
             }
             if (e.Date < year.Start)
                 issues.Add(new Issue(true,
-                    $"{e.Date:dd/MM/yyyy} « {e.Label} » : date antérieure au début de l'exercice ({year.Start:dd/MM/yyyy}).", e.Id));
+                    $"{e.Date:dd/MM/yyyy} « {e.Label} » : date antérieure au début de l'exercice ({year.Start:dd/MM/yyyy}).", e.Id, Forceable: true));
         }
         if (movedCount > 0)
             issues.Add(new Issue(false, $"{movedCount} écriture(s) datée(s) après le {closing:dd/MM/yyyy} seront déplacée(s) dans l'exercice suivant."));
@@ -242,7 +242,10 @@ public sealed partial class Compta
     /// <summary>Valide (clôture) un exercice à la date de clôture indiquée (par défaut : la fin prévue de l'exercice).
     /// Les écritures datées après cette date sont déplacées dans l'exercice suivant (créé si besoin, début = lendemain
     /// de la clôture). Ensuite, plus aucune écriture, catégorie ni report ne peut être ajouté, modifié ou retiré.</summary>
-    public void ValidateYear(long yearId, DateOnly? closingDate = null)
+    /// <param name="force">Clôture forcée (administrateur seulement) malgré des écritures non ventilées ou datées avant
+    /// le début ; les anomalies structurelles (exercice précédent non validé, report sans catégorie, bilan déséquilibré)
+    /// restent bloquantes. Les points ignorés sont consignés dans le journal et dans l'empreinte de clôture.</param>
+    public void ValidateYear(long yearId, DateOnly? closingDate = null, bool force = false)
     {
         RequireOpen(yearId, Permission.ValidateYear);
         var year = Year(yearId)!;
@@ -250,6 +253,13 @@ public sealed partial class Compta
         if (closing < year.Start)
             throw new ComptaException($"La date de clôture ne peut pas précéder le début de l'exercice ({year.Start:dd/MM/yyyy}).");
         var blocking = ValidationIssues(yearId, closing).Where(i => i.Blocking).ToList();
+        var forcedIssues = new List<Issue>();
+        if (force && blocking.Count > 0)
+        {
+            if (Session.Role != Role.Admin) throw new ComptaException("Seul un administrateur peut forcer une clôture.");
+            forcedIssues = blocking.Where(i => i.Forceable).ToList();
+            blocking = blocking.Where(i => !i.Forceable).ToList();
+        }
         if (blocking.Count > 0)
             throw new ComptaException("Validation impossible :\n• " + string.Join("\n• ", blocking.Take(8).Select(i => i.Message))
                 + (blocking.Count > 8 ? $"\n… et {blocking.Count - 8} autre(s)." : ""));
@@ -308,7 +318,8 @@ public sealed partial class Compta
             charges = b.ChargesTotal,
             result = b.Result,
             report = b.Report,
-            accounts = b.Accounts.Select(a => new { a.Account.Name, a.Opening, a.Closing })
+            accounts = b.Accounts.Select(a => new { a.Account.Name, a.Opening, a.Closing }),
+            forced = forcedIssues.Count == 0 ? null : new { by = UserName, count = forcedIssues.Count, issues = forcedIssues.Take(50).Select(i => i.Message) }
         });
         var sum = ComputeChecksum(yearId);
         var ctx = Open().Ctx;
@@ -320,7 +331,8 @@ public sealed partial class Compta
         e.ClosingJson = snapshot;
         Save(ctx);
         Log(ctx, "Exercice validé", $"{b.Year.Label} — clôture au {closing:dd/MM/yyyy}" +
-            (moved > 0 ? $", {moved} écriture(s) déplacée(s) vers l'exercice suivant" : ""));
+            (moved > 0 ? $", {moved} écriture(s) déplacée(s) vers l'exercice suivant" : "") +
+            (forcedIssues.Count > 0 ? $" — CLÔTURE FORCÉE par un administrateur malgré {forcedIssues.Count} point(s) bloquant(s)" : ""));
         tx.Commit();
     }
 

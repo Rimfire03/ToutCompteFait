@@ -1,4 +1,4 @@
-﻿using ComptaAepby.Core;
+using ComptaAepby.Core;
 using ComptaAepby.Core.Data;
 using ComptaAepby.Core.Import;
 using ComptaAepby.Core.Security;
@@ -1168,6 +1168,21 @@ Console.WriteLine("Clôture à une date choisie");
     try { File.Delete(sqlDb); } catch { }
 }
 
+// ---- Clôture forcée par un administrateur
+Console.WriteLine("Clôture forcée");
+{
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    c.SaveEntry(new Entry(0, y.Id, Dt(2027, 1, 10), "Non ventilée", false, EntryKind.Normal, banque.Id, Direction.In, null, 5000, null, null),
+        Array.Empty<Allocation>(), strict: false);
+    Throws(() => c.ValidateYear(y.Id), "écriture non ventilée : clôture normale refusée", "Validation impossible");
+    Check(!c.Year(y.Id)!.Validated, "exercice toujours ouvert après refus");
+    c.ValidateYear(y.Id, null, force: true);
+    Check(c.Year(y.Id)!.Validated, "clôture forcée par l'administrateur : exercice validé");
+    Check(c.VerifyIntegrity(y.Id), "clôture forcée : empreinte conforme");
+}
 // ---- Fichier de configuration du serveur
 {
     var cfgPath = Path.Combine(Path.GetTempPath(), "tcf-config-" + Guid.NewGuid().ToString("N") + ServerConfigFile.Extension);

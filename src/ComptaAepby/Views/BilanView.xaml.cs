@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -156,7 +156,9 @@ public partial class BilanView : UserControl, IPage
                 var blocking = issues.Count(i => i.Blocking);
                 IssuesCard.Visibility = Visibility.Visible;
                 IssuesTitle.Text = blocking > 0
-                    ? $"Avant de pouvoir valider : {blocking} point(s) à corriger"
+                    ? $"Avant de pouvoir valider : {blocking} point(s) à corriger" +
+                      (App.Session.Role == ComptaAepby.Core.Security.Role.Admin && issues.Where(i => i.Blocking).All(i => i.Forceable)
+                          ? " (en tant qu'administrateur, vous pouvez forcer la clôture)" : "")
                     : "L'exercice peut être validé (quelques remarques) :";
                 IssuesTitle.Foreground = new SolidColorBrush(blocking > 0 ? Color.FromRgb(0xB9, 0x1C, 0x1C) : Color.FromRgb(0xB4, 0x53, 0x09));
                 IssuesList.ItemsSource = issues.OrderByDescending(i => i.Blocking).Take(15).Select(i => new IssueLine
@@ -193,7 +195,21 @@ public partial class BilanView : UserControl, IPage
                 " • une empreinte de contrôle est enregistrée.\n\n" +
                 "Vérifiez le bilan avant de continuer.", "Valider l'exercice"))
             return;
-        if (Ui.Try(() => _c.ValidateYear(_year.Id, closing)))
+        // Points bloquants : un administrateur peut forcer la clôture (écritures non ventilées, dates antérieures).
+        var force = false;
+        var blocking = _c.ValidationIssues(_year.Id, closing).Where(i => i.Blocking).ToList();
+        if (blocking.Count > 0 && App.Session.Role == ComptaAepby.Core.Security.Role.Admin && blocking.All(i => i.Forceable))
+        {
+            if (!Ui.Confirm($"{blocking.Count} point(s) bloquant(s) subsistent :\n\n• " +
+                            string.Join("\n• ", blocking.Take(6).Select(i => i.Message)) +
+                            (blocking.Count > 6 ? $"\n… et {blocking.Count - 6} autre(s)." : "") +
+                            "\n\nEn tant qu'administrateur, vous pouvez FORCER la clôture. Ces anomalies resteront dans l'exercice " +
+                            "verrouillé (écart non ventilé conservé) et la clôture forcée sera consignée dans le journal.\n\n" +
+                            "Forcer la clôture ?", "Forcer la clôture"))
+                return;
+            force = true;
+        }
+        if (Ui.Try(() => _c.ValidateYear(_year.Id, closing, force)))
         {
             Ui.Info($"L'exercice {_year.Label} est validé et verrouillé (clôture au {closing:dd/MM/yyyy}).");
             MainWindow.Current?.Refresh();
