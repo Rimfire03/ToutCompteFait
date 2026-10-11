@@ -156,20 +156,23 @@ public sealed partial class Compta
     // ------------------------------------------------------------------ clôture
 
     /// <summary>Problèmes à résoudre avant de valider un exercice (bloquants) ou à connaître (avertissements).</summary>
-    public List<Issue> ValidationIssues(long yearId)
+    public List<Issue> ValidationIssues(long yearId, DateOnly? closingDate = null)
     {
         var issues = new List<Issue>();
         var year = Year(yearId) ?? throw new ComptaException("Exercice introuvable.");
+        var closing = closingDate ?? year.End;
         var prev = PreviousYear(year);
         if (prev is not null && !prev.Validated)
             issues.Add(new Issue(true, $"L'exercice précédent ({prev.Label}) doit être validé avant celui-ci : ses reports alimentent cet exercice."));
 
         var cats = Categories(yearId).ToDictionary(c => c.Id);
         var rows = Entries(yearId);
-        if (rows.Count == 0) issues.Add(new Issue(false, "L'exercice ne contient aucune écriture."));
+        if (rows.All(r => r.Entry.Date > closing)) issues.Add(new Issue(false, "L'exercice ne contient aucune écriture."));
+        var movedCount = 0;
         foreach (var r in rows)
         {
             var e = r.Entry;
+            if (e.Date > closing) { movedCount++; continue; } // déplacée sur l'exercice suivant : contrôlée là-bas
             var gap = Imbalance(e, r.Allocations, cats);
             if (gap != 0)
             {
@@ -178,10 +181,12 @@ public sealed partial class Compta
                     : $"{e.Date:dd/MM/yyyy} « {e.Label} » : {Money.Format(gap)} € non ventilé(s) (ou ventilation incohérente avec le montant).";
                 issues.Add(new Issue(true, msg, e.Id));
             }
-            if (!year.Contains(e.Date))
+            if (e.Date < year.Start)
                 issues.Add(new Issue(true,
-                    $"{e.Date:dd/MM/yyyy} « {e.Label} » : date hors de l'exercice ({year.Start:dd/MM/yyyy} - {year.End:dd/MM/yyyy}).", e.Id));
+                    $"{e.Date:dd/MM/yyyy} « {e.Label} » : date antérieure au début de l'exercice ({year.Start:dd/MM/yyyy}).", e.Id));
         }
+        if (movedCount > 0)
+            issues.Add(new Issue(false, $"{movedCount} écriture(s) datée(s) après le {closing:dd/MM/yyyy} seront déplacée(s) dans l'exercice suivant."));
         foreach (var a in Adjustments(yearId).Where(a => a.CategoryId is null))
             issues.Add(new Issue(true, $"Report « {a.Label} » ({Money.Format(a.AmountCents)} €) : catégorie à affecter."));
 
@@ -234,15 +239,61 @@ public sealed partial class Compta
         return stored is not null && string.Equals(stored, ComputeChecksum(yearId), StringComparison.Ordinal);
     }
 
-    /// <summary>Valide (clôture) un exercice : après cela, plus aucune écriture, catégorie ni report ne peut être
-    /// ajouté, modifié ou retiré.</summary>
-    public void ValidateYear(long yearId)
+    /// <summary>Valide (clôture) un exercice à la date de clôture indiquée (par défaut : la fin prévue de l'exercice).
+    /// Les écritures datées après cette date sont déplacées dans l'exercice suivant (créé si besoin, début = lendemain
+    /// de la clôture). Ensuite, plus aucune écriture, catégorie ni report ne peut être ajouté, modifié ou retiré.</summary>
+    public void ValidateYear(long yearId, DateOnly? closingDate = null)
     {
         RequireOpen(yearId, Permission.ValidateYear);
-        var blocking = ValidationIssues(yearId).Where(i => i.Blocking).ToList();
+        var year = Year(yearId)!;
+        var closing = closingDate ?? year.End;
+        if (closing < year.Start)
+            throw new ComptaException($"La date de clôture ne peut pas précéder le début de l'exercice ({year.Start:dd/MM/yyyy}).");
+        var blocking = ValidationIssues(yearId, closing).Where(i => i.Blocking).ToList();
         if (blocking.Count > 0)
             throw new ComptaException("Validation impossible :\n• " + string.Join("\n• ", blocking.Take(8).Select(i => i.Message))
                 + (blocking.Count > 8 ? $"\n… et {blocking.Count - 8} autre(s)." : ""));
+
+        using var tx = Begin();
+        var next = NextYear(year);
+        if (next is not null && next.Validated && closing != year.End)
+            throw new ComptaException($"L'exercice suivant ({next.Label}) est validé : la date de clôture ne peut pas être modifiée.");
+        var origEnd = year.End;
+
+        // 1. Période : la fin de l'exercice devient la date de clôture ; l'exercice suivant commence le lendemain.
+        if (closing != origEnd)
+        {
+            if (next is not null)
+            {
+                var newStart = closing.AddDays(1);
+                if (newStart > next.End)
+                    throw new ComptaException($"L'exercice suivant ({next.Label}) se termine le {next.End:dd/MM/yyyy} : date de clôture trop tardive.");
+                if (closing > origEnd && Entries(next.Id).Any(r => r.Entry.Date <= closing))
+                    throw new ComptaException($"L'exercice suivant ({next.Label}) contient des écritures datées jusqu'au {closing:dd/MM/yyyy} : " +
+                                              "choisissez une date de clôture antérieure ou déplacez-les d'abord.");
+                if (closing > origEnd) SetYearPeriod(next.Id, newStart, next.End);
+                SetYearPeriod(yearId, year.Start, closing);
+                if (closing < origEnd) SetYearPeriod(next.Id, newStart, next.End);
+            }
+            else SetYearPeriod(yearId, year.Start, closing);
+        }
+
+        // 2. Écritures après la date de clôture : déplacées dans l'exercice suivant.
+        var moved = 0;
+        var closingText = D(closing);
+        using (var l = Open())
+            moved = l.Ctx.Entries.AsNoTracking().Count(e => e.YearId == yearId && string.Compare(e.EntryDate, closingText) > 0);
+        if (moved > 0)
+        {
+            if (next is null)
+            {
+                var days = origEnd.DayNumber - year.Start.DayNumber;
+                var start2 = closing.AddDays(1);
+                var end2 = days is >= 358 and <= 372 ? start2.AddYears(1).AddDays(-1) : start2.AddDays(days);
+                next = CreateYear(start2, end2, cloneStructure: true);
+            }
+            MoveEntriesToNextYear(yearId, next.Id, closingText);
+        }
 
         // Dernier report vers l'exercice suivant avant verrouillage.
         SyncCarry(yearId);
@@ -250,6 +301,7 @@ public sealed partial class Compta
         var snapshot = JsonSerializer.Serialize(new
         {
             year = b.Year.Label,
+            closingDate = closingText,
             opening = b.OpeningTotal,
             closing = b.ClosingTotal,
             products = b.ProductsTotal,
@@ -259,7 +311,6 @@ public sealed partial class Compta
             accounts = b.Accounts.Select(a => new { a.Account.Name, a.Opening, a.Closing })
         });
         var sum = ComputeChecksum(yearId);
-        using var tx = Begin();
         var ctx = Open().Ctx;
         var e = ctx.Years.First(y => y.Id == yearId);
         e.Status = "VALIDATED";
@@ -268,10 +319,53 @@ public sealed partial class Compta
         e.Checksum = sum;
         e.ClosingJson = snapshot;
         Save(ctx);
-        Log(ctx, "Exercice validé", b.Year.Label);
+        Log(ctx, "Exercice validé", $"{b.Year.Label} — clôture au {closing:dd/MM/yyyy}" +
+            (moved > 0 ? $", {moved} écriture(s) déplacée(s) vers l'exercice suivant" : ""));
         tx.Commit();
     }
 
+    /// <summary>Déplace les écritures de <paramref name="fromYearId"/> datées après <paramref name="afterDate"/> (yyyy-MM-dd)
+    /// vers <paramref name="toYearId"/>, en rattachant leur ventilation aux catégories de même nom (créées si absentes).</summary>
+    private void MoveEntriesToNextYear(long fromYearId, long toYearId, string afterDate)
+    {
+        var ctx = Open().Ctx;
+        var entries = ctx.Entries.Where(e => e.YearId == fromYearId && string.Compare(e.EntryDate, afterDate) > 0).ToList();
+        if (entries.Count == 0) return;
+        var ids = entries.Select(e => e.Id).ToList();
+        var allocs = ctx.Allocations.Where(a => ids.Contains(a.EntryId)).ToList();
+
+        var fromCats = ctx.Categories.AsNoTracking().Where(c => c.YearId == fromYearId).ToDictionary(c => c.Id);
+        var fromOps = ctx.Operations.AsNoTracking().Where(o => o.YearId == fromYearId).ToDictionary(o => o.Id);
+        var toCats = ctx.Categories.AsNoTracking().Where(c => c.YearId == toYearId).ToList();
+        var toOps = ctx.Operations.AsNoTracking().Where(o => o.YearId == toYearId).ToList();
+
+        var map = new Dictionary<long, long>();
+        foreach (var catId in allocs.Select(a => a.CategoryId).Distinct())
+        {
+            if (!fromCats.TryGetValue(catId, out var src)) continue;
+            var target = toCats.FirstOrDefault(c => c.Kind == src.Kind && SameName(c.Name, src.Name));
+            if (target is null)
+            {
+                long? opId = null;
+                if (src.OperationId is { } oid && fromOps.TryGetValue(oid, out var op))
+                    opId = toOps.FirstOrDefault(o => SameName(o.Name, op.Name))?.Id;
+                target = new ComptaAepby.Core.Data.CategoryEntity
+                {
+                    YearId = toYearId, Kind = src.Kind, Name = src.Name, OperationId = opId,
+                    Position = (toCats.Count == 0 ? 0 : toCats.Max(c => c.Position)) + 1
+                };
+                ctx.Categories.Add(target);
+                ctx.SaveChanges();
+                toCats.Add(target);
+            }
+            map[catId] = target.Id;
+        }
+
+        foreach (var a in allocs)
+            if (map.TryGetValue(a.CategoryId, out var nid)) a.CategoryId = nid;
+        foreach (var e in entries) e.YearId = toYearId;
+        Save(ctx);
+    }
     /// <summary>Rouvre un exercice validé (correction exceptionnelle, réservée à l'administrateur). Refusé si
     /// l'exercice suivant est validé. L'opération est tracée dans le journal.</summary>
     public void ReopenYear(long yearId, string reason)

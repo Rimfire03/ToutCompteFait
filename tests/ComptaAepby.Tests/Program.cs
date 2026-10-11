@@ -1114,6 +1114,41 @@ Console.WriteLine("Relevé multi-comptes (mise en page Caisse d'Épargne)");
         "chiffre faux : seul le compte concerné est bloqué");
 }
 
+// ---- Date de clôture saisie : les écritures postérieures passent à l'exercice suivant
+Console.WriteLine("Clôture à une date choisie");
+{
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    c.SetOpening(y.Id, banque.Id, 100000);
+    var adh = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Product && k.Name == "Adhésions");
+    void Add(DateOnly d, string label, long cents) =>
+        c.SaveEntry(new Entry(0, y.Id, d, label, false, EntryKind.Normal, banque.Id, Direction.In, null, cents, null, null),
+            new[] { new Allocation(adh.Id, cents) });
+    Add(Dt(2027, 6, 30), "Avant clôture", 10000);
+    Add(Dt(2027, 7, 10), "Après clôture", 2000);
+    Add(Dt(2027, 8, 20), "Bien après", 500);
+
+    Throws(() => c.ValidateYear(y.Id, Dt(2026, 8, 31)), "clôture avant le début refusée", "précéder");
+    c.ValidateYear(y.Id, Dt(2027, 7, 1));
+
+    var vy = c.Year(y.Id)!;
+    Check(vy.Validated, "exercice validé");
+    Eq(Dt(2027, 7, 1), vy.End, "fin de l'exercice = date de clôture");
+    var ny = c.NextYear(vy);
+    Check(ny is not null, "exercice suivant créé");
+    Eq(Dt(2027, 7, 2), ny!.Start, "l'exercice suivant commence le lendemain");
+    Eq(1, c.Entries(y.Id).Count, "une seule écriture reste dans l'exercice clôturé");
+    Eq(2, c.Entries(ny.Id).Count, "deux écritures déplacées dans l'exercice suivant");
+    var nAdh = c.Categories(ny.Id).First(k => k.Kind == CategoryKind.Product && k.Name == "Adhésions");
+    Check(c.Entries(ny.Id).All(r => r.Allocations.All(a => a.CategoryId == nAdh.Id)), "ventilation rattachée aux catégories de l'exercice suivant");
+    Eq(10000L, c.ComputeBilan(y.Id).ProductsTotal, "produits de l'exercice clôturé");
+    Eq(2500L, c.ComputeBilan(ny.Id).ProductsTotal, "produits de l'exercice suivant");
+    Eq(110000L, c.Opening(ny.Id, banque.Id), "solde d'ouverture de l'exercice suivant");
+    Check(c.VerifyIntegrity(y.Id), "empreinte conforme après déplacement");
+}
+
 // ---- Script SQL exécuté depuis l'application
 {
     var sqlDb = Path.Combine(Path.GetTempPath(), "tcf-sqlscript-" + Guid.NewGuid().ToString("N") + ".db");

@@ -180,21 +180,25 @@ public partial class BilanView : UserControl, IPage
 
     private void Validate_Click(object sender, RoutedEventArgs e)
     {
+        var rows = _c.Entries(_year.Id);
+        var dlg = new Dialogs.CloseYearWindow(_year, d => rows.Count(r => r.Entry.Date > d)) { Owner = Window.GetWindow(this) };
+        if (dlg.ShowDialog() != true) return;
+        var closing = dlg.ClosingDate;
         if (!Ui.Confirm(
-                $"Valider l'exercice {_year.Label} ?\n\n" +
+                $"Valider l'exercice {_year.Label} avec une clôture au {closing:dd/MM/yyyy} ?\n\n" +
                 "Après validation :\n" +
                 " • plus aucune écriture, catégorie ou report ne peut être ajouté, modifié ou retiré ;\n" +
+                " • les écritures datées après la clôture passent dans l'exercice suivant ;\n" +
                 " • les soldes et les reports sont transmis automatiquement à l'exercice suivant ;\n" +
                 " • une empreinte de contrôle est enregistrée.\n\n" +
                 "Vérifiez le bilan avant de continuer.", "Valider l'exercice"))
             return;
-        if (Ui.Try(() => _c.ValidateYear(_year.Id)))
+        if (Ui.Try(() => _c.ValidateYear(_year.Id, closing)))
         {
-            Ui.Info($"L'exercice {_year.Label} est validé et verrouillé.");
+            Ui.Info($"L'exercice {_year.Label} est validé et verrouillé (clôture au {closing:dd/MM/yyyy}).");
             MainWindow.Current?.Refresh();
         }
     }
-
     private void Reopen_Click(object sender, RoutedEventArgs e)
     {
         var reason = PromptWindow.Ask(Window.GetWindow(this), "Rouvrir l'exercice",
