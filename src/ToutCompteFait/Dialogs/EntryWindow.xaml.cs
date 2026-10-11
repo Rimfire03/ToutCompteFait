@@ -200,7 +200,7 @@ public partial class EntryWindow : Window
         AttachList.ItemsSource = _atts.Where(a => !a.Removed).ToList();
         if (keep is not null && AttachList.Items.Contains(keep)) AttachList.SelectedItem = keep;
         var editable = !App.IsReadOnly && _year.Open;
-        AttachAddButton.IsEnabled = editable;
+        AttachDrop.IsEnabled = editable;
         AttachRemoveButton.IsEnabled = editable;
         AttachSection.Visibility = CurrentMode is Mode.Expense or Mode.Refund || _atts.Any(a => !a.Removed)
             ? Visibility.Visible : Visibility.Collapsed;
