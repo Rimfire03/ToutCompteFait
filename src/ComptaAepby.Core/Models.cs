@@ -32,7 +32,7 @@ public enum AdjustmentType
     Due
 }
 
-public sealed record Account(long Id, string Name, AccountKind Kind, int Position, bool Active);
+public sealed record Account(long Id, string Name, AccountKind Kind, int Position, bool Active, string? StatementMatch = null);
 
 public sealed record FiscalYear(long Id, string Label, DateOnly Start, DateOnly End, bool Validated,
     DateTime? ValidatedAt, string? ValidatedBy)

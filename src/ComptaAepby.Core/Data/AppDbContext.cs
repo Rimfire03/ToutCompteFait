@@ -96,6 +96,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Kind).HasColumnName("kind").HasMaxLength(20).IsRequired();
             e.Property(x => x.Position).HasColumnName("position");
             e.Property(x => x.Active).HasColumnName("active");
+            e.Property(x => x.StatementMatch).HasColumnName("statement_match").HasMaxLength(500);
             e.HasIndex(x => x.Name).IsUnique();
         });
 

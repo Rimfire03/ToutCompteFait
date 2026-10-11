@@ -19,6 +19,7 @@ internal static class DatabaseMigrations
         (2, "Comptes utilisateurs : mot de passe et rôles (administrateur, trésorier, lecteur)", AddUsers),
         (3, "Justificatifs joints aux écritures", AddAttachments),
         (4, "Remboursements reçus liés à la dépense d'origine", AddRefundLink),
+        (5, "Identifiants de relevé bancaire sur les comptes (détection à l'import)", AddStatementMatch),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -33,6 +34,7 @@ internal static class DatabaseMigrations
     {
         (3, "Justificatifs joints aux écritures", AddAttachments),
         (4, "Remboursements reçus liés à la dépense d'origine", AddRefundLink),
+        (5, "Identifiants de relevé bancaire sur les comptes (détection à l'import)", AddStatementMatch),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -137,6 +139,22 @@ internal static class DatabaseMigrations
         ctx.Database.ExecuteSqlRaw(sql);
         var q = (string n) => ServerSql.Q(ctx.Provider, n);
         ctx.Database.ExecuteSqlRaw($"CREATE INDEX {q("ix_entries_refund")} ON {q("entries")} ({q("refund_of_id")});");
+    }
+
+    // ------------------------------------------------------------------ v5 : identifiants de relevé sur les comptes
+
+    private static void AddStatementMatch(AppDbContext ctx)
+    {
+        if (ServerSql.ColumnExists(ctx, "accounts", "statement_match")) return;
+        var sql = ctx.Provider switch
+        {
+            DatabaseProvider.Sqlite => """ALTER TABLE "accounts" ADD COLUMN "statement_match" TEXT NULL;""",
+            DatabaseProvider.PostgreSql => """ALTER TABLE "accounts" ADD COLUMN "statement_match" varchar(500) NULL;""",
+            DatabaseProvider.MariaDb => "ALTER TABLE `accounts` ADD COLUMN `statement_match` varchar(500) NULL;",
+            DatabaseProvider.SqlServer => "ALTER TABLE [accounts] ADD [statement_match] nvarchar(500) NULL;",
+            _ => throw new NotSupportedException()
+        };
+        ctx.Database.ExecuteSqlRaw(sql);
     }
 
     // ------------------------------------------------------------------ v2 : comptes utilisateurs (SQLite)

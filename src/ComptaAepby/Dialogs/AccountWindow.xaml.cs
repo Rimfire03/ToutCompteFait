@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using ComptaAepby.Core;
 
 namespace ComptaAepby.Dialogs;
@@ -24,6 +24,7 @@ public partial class AccountWindow : Window
             TitleText.Text = "Modifier le compte";
             NameBox.Text = existing.Name;
             ActiveBox.IsChecked = existing.Active;
+            MatchBox.Text = string.Join("\n", Compta.SplitStatementMatch(existing.StatementMatch));
             KindCombo.SelectedItem = KindCombo.Items.OfType<KindItem>().First(k => k.Kind == existing.Kind);
         }
         else TitleText.Text = "Nouveau compte";
@@ -35,8 +36,8 @@ public partial class AccountWindow : Window
         var kind = (KindCombo.SelectedItem as KindItem)?.Kind ?? AccountKind.Bank;
         try
         {
-            if (_existing is null) App.Compta.AddAccount(NameBox.Text, kind);
-            else App.Compta.UpdateAccount(_existing.Id, NameBox.Text, kind, ActiveBox.IsChecked == true);
+            if (_existing is null) App.Compta.AddAccount(NameBox.Text, kind, MatchBox.Text);
+            else App.Compta.UpdateAccount(_existing.Id, NameBox.Text, kind, ActiveBox.IsChecked == true, MatchBox.Text);
             DialogResult = true;
         }
         catch (ComptaException ex)

@@ -84,13 +84,14 @@ public partial class BankImportWindow : Window
         {
             var text = BankStatementParser.ReadText(path);
             FileText.Text = path;
+            var detectNote = DetectAccount(text);
             if (BankStatementParser.LooksLikeOfx(text))
             {
                 _table = null;
                 MappingBox.Visibility = Visibility.Collapsed;
                 var warns = new List<string>();
                 _lines = BankStatementParser.ParseOfx(text, warns);
-                WarningText.Text = warns.Count > 0 ? string.Join("\n", warns.Take(5)) : "";
+                WarningText.Text = JoinNotes(detectNote, warns.Count > 0 ? string.Join("\n", warns.Take(5)) : "");
             }
             else
             {
@@ -98,7 +99,7 @@ public partial class BankImportWindow : Window
                 MappingBox.Visibility = Visibility.Visible;
                 FillColumnChoices(BankStatementParser.DetectMapping(_table));
                 _lines = ParseCurrentMapping(out var warnText);
-                WarningText.Text = warnText;
+                WarningText.Text = JoinNotes(detectNote, warnText);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -107,6 +108,29 @@ public partial class BankImportWindow : Window
             return;
         }
         Recompute();
+    }
+
+    private static string JoinNotes(string a, string b) =>
+        a.Length == 0 ? b : b.Length == 0 ? a : a + "\n" + b;
+
+    /// <summary>Reconnaît le compte du relevé d'après les identifiants saisis sur les comptes (en-tête du fichier) et le
+    /// sélectionne. Renvoie une remarque à afficher (vide si rien à signaler).</summary>
+    private string DetectAccount(string text)
+    {
+        if (!_c.HasStatementIdentifiers()) return "";
+        var found = _c.MatchStatementAccounts(text);
+        if (found.Count == 1)
+        {
+            var wasLoading = _loading;
+            _loading = true;
+            AccountCombo.SelectedItem = (AccountCombo.ItemsSource as IEnumerable<Account>)?.FirstOrDefault(a => a.Id == found[0].Account.Id)
+                                        ?? AccountCombo.SelectedItem;
+            _loading = wasLoading;
+            return $"Compte reconnu d'après le relevé : {found[0].Account.Name} (« {found[0].Keyword} »).";
+        }
+        return found.Count > 1
+            ? "Plusieurs comptes correspondent à ce relevé (" + string.Join(", ", found.Select(f => f.Account.Name)) + ") : choisissez le compte."
+            : "Aucun compte reconnu d'après l'en-tête du relevé : vérifiez le compte choisi ci-dessus.";
     }
 
     /// <summary>Relevés imprimés (PDF numérique ou scan) : lecture, contrôle des soldes et correction éventuelle dans

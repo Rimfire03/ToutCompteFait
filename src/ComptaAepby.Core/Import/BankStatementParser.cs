@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -47,6 +47,36 @@ public static class BankStatementParser
         {
             return Encoding.Latin1.GetString(bytes);
         }
+    }
+
+    /// <summary>En-tête d'un relevé : les lignes avant la première opération (première ligne qui commence par une date
+    /// ou balise OFX d'opération). C'est là que la banque indique le numéro et le nom du compte.</summary>
+    public static string StatementHeader(string text)
+    {
+        var sb = new StringBuilder();
+        var count = 0;
+        foreach (var raw in text.Split('\n'))
+        {
+            var line = raw.TrimEnd('\r');
+            if (line.Contains("<STMTTRN>", StringComparison.OrdinalIgnoreCase)) break;
+            if (Regex.IsMatch(line, @"^\s*[""']?\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}")) break;
+            sb.AppendLine(line);
+            if (++count >= 60 || sb.Length > 8000) break;
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>Forme comparable : sans accents, majuscules, uniquement lettres et chiffres (les espaces, points et
+    /// tirets d'un numéro de compte ou d'un IBAN ne comptent pas).</summary>
+    public static string NormalizeKey(string s)
+    {
+        var sb = new StringBuilder();
+        foreach (var ch in s.Normalize(NormalizationForm.FormD))
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.NonSpacingMark) continue;
+            if (char.IsLetterOrDigit(ch)) sb.Append(char.ToUpperInvariant(ch));
+        }
+        return sb.ToString();
     }
 
     public static bool LooksLikeOfx(string text) =>

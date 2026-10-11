@@ -1335,6 +1335,32 @@ Console.WriteLine("Réinitialisation de la ventilation");
     Throws(() => c.ClearAllocations(id), "exercice validé : réinitialisation refusée", "validé");
 }
 
+// ---- Détection du compte d'un relevé (identifiants saisis sur les comptes)
+Console.WriteLine("Détection du compte du relevé");
+{
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var courant = c.Accounts().First(a => a.Name == "Banque");
+    var livret = c.Accounts().First(a => a.Name == "Livret A");
+    c.UpdateAccount(courant.Id, courant.Name, courant.Kind, true, "12345 67890 11122233344 ; compte courant");
+    c.UpdateAccount(livret.Id, livret.Name, livret.Kind, true, "99887766554");
+    Eq("12345 67890 11122233344 ; compte courant", c.Account(courant.Id)!.StatementMatch, "identifiants enregistrés");
+    Throws(() => c.UpdateAccount(livret.Id, livret.Name, livret.Kind, true, "ab"), "identifiant trop court refusé", "trop court");
+
+    const string fichierCourant = "Code de la banque : 00000;Code de l'agence : 00111\nNuméro de compte : 11122233344;Nom du compte : COMPTE COURANT;Devise : EUR\n\n" +
+        "Date comptable;Libelle;Debit;Credit\n06/10/2026;VIREMENT PAR INTERNET De 00000 00111 99887766554 23;;+649,45\n";
+    var m = c.MatchStatementAccounts(fichierCourant);
+    Check(m.Count == 1 && m[0].Account.Id == courant.Id, "compte courant reconnu (numéro dans l''en-tête)");
+    // Le numéro de l'autre compte apparaît dans une opération : ne doit pas compter.
+    const string fichierLivret = "Numéro de compte : 99 887 766 554;Nom du compte : LIVRET A\nDate comptable;Libelle;Debit;Credit\n" +
+        "06/10/2026;VIREMENT Vers 11122233344;-649,45;\n";
+    var m2 = c.MatchStatementAccounts(fichierLivret);
+    Check(m2.Count == 1 && m2[0].Account.Id == livret.Id, "livret reconnu malgré le numéro de l''autre compte dans une opération");
+    Eq(0, c.MatchStatementAccounts("Numéro de compte : 55555555555\n01/10/2026;X;-1,00;").Count, "compte inconnu : aucune détection");
+    c.UpdateAccount(livret.Id, livret.Name, livret.Kind, true, "11122233344");
+    Eq(2, c.MatchStatementAccounts(fichierCourant).Count, "identifiants en double : ambigu");
+}
 // ---- Fichier de configuration du serveur
 {
     var cfgPath = Path.Combine(Path.GetTempPath(), "tcf-config-" + Guid.NewGuid().ToString("N") + ServerConfigFile.Extension);

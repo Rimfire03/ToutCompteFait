@@ -177,7 +177,7 @@ public sealed partial class Compta
         "NORMAL" => EntryKind.Normal, "TRANSFER" => EntryKind.Transfer, "NO_CASH" => EntryKind.NoCash, _ => EntryKind.MemberRefund
     };
 
-    private static Account ToAccount(AccountEntity a) => new(a.Id, a.Name, AccountKindFromDb(a.Kind), a.Position, a.Active);
+    private static Account ToAccount(AccountEntity a) => new(a.Id, a.Name, AccountKindFromDb(a.Kind), a.Position, a.Active, a.StatementMatch);
 
     private static FiscalYear ToYear(YearEntity y) => new(y.Id, y.Label, ParseDate(y.StartDate), ParseDate(y.EndDate),
         y.Status == "VALIDATED", y.ValidatedAt is null ? null : ParseStamp(y.ValidatedAt), y.ValidatedBy);
@@ -213,7 +213,7 @@ public sealed partial class Compta
         return a is null ? null : ToAccount(a);
     }
 
-    public Account AddAccount(string name, AccountKind kind)
+    public Account AddAccount(string name, AccountKind kind, string? statementMatch = null)
     {
         Require(Permission.ManageStructure);
         RequireWritable();
@@ -224,14 +224,15 @@ public sealed partial class Compta
         if (ctx.Accounts.AsNoTracking().AsEnumerable().Any(a => SameName(a.Name, name)))
             throw new ComptaException($"Un compte « {name} » existe déjà.");
         var pos = (ctx.Accounts.AsNoTracking().Max(a => (int?)a.Position) ?? 0) + 1;
-        var e = new AccountEntity { Name = name, Kind = AccountKindToDb(kind), Position = pos, Active = true };
+        var e = new AccountEntity { Name = name, Kind = AccountKindToDb(kind), Position = pos, Active = true,
+                                    StatementMatch = CleanStatementMatch(statementMatch) };
         ctx.Accounts.Add(e);
         Save(ctx);
         Log(ctx, "Compte ajouté", name);
         return ToAccount(e);
     }
 
-    public void UpdateAccount(long id, string name, AccountKind kind, bool active)
+    public void UpdateAccount(long id, string name, AccountKind kind, bool active, string? statementMatch = null)
     {
         Require(Permission.ManageStructure);
         RequireWritable();
@@ -245,6 +246,7 @@ public sealed partial class Compta
         e.Name = name;
         e.Kind = AccountKindToDb(kind);
         e.Active = active;
+        e.StatementMatch = CleanStatementMatch(statementMatch);
         Save(ctx);
         Log(ctx, "Compte modifié", name);
     }

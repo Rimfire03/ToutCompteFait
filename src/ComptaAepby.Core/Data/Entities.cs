@@ -11,6 +11,8 @@ public sealed class AccountEntity
     public string Kind { get; set; } = "BANK";
     public int Position { get; set; }
     public bool Active { get; set; } = true;
+    /// <summary>Textes qui identifient ce compte dans l'en-tête d'un relevé téléchargé (séparés par « ; »).</summary>
+    public string? StatementMatch { get; set; }
 }
 
 public sealed class YearEntity
