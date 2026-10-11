@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using ComptaAepby.Core;
@@ -204,6 +204,7 @@ public partial class BankImportWindow : Window
         try
         {
             _plan = _c.PlanBankImport(acc.Id, _lines);
+            if (OfferNextYear(_plan)) _plan = _c.PlanBankImport(acc.Id, _lines);
         }
         catch (ComptaException ex)
         {
@@ -242,6 +243,29 @@ public partial class BankImportWindow : Window
     }
 
     private List<BankPreviewRow> _rows = new();
+    private bool _offeredNextYear;
+
+    /// <summary>Des lignes sont datées après la fin du dernier exercice (typiquement : l'exercice vient d'être clôturé
+    /// et le suivant n'existe pas encore) : propose de créer l'exercice suivant. Vrai s'il a été créé.</summary>
+    private bool OfferNextYear(BankImportPlan plan)
+    {
+        if (_offeredNextYear || !App.Can(ComptaAepby.Core.Security.Permission.ManageStructure)) return false;
+        var last = _c.Years().OrderBy(y => y.End).LastOrDefault();
+        if (last is null) return false;
+        var after = plan.Lines.Where(l => l.Status == BankLineStatus.NoYear && l.Line.Date > last.End).ToList();
+        if (after.Count == 0) return false;
+        _offeredNextYear = true;
+        var start = last.End.AddDays(1);
+        var end = start.AddYears(1).AddDays(-1);
+        if (!Ui.Confirm($"{after.Count} opération(s) du relevé sont datées après la fin du dernier exercice ({last.Label}, " +
+                        $"fin le {last.End:dd/MM/yyyy}), et aucun exercice ne les accueille.\n\n" +
+                        $"Créer l'exercice suivant, du {start:dd/MM/yyyy} au {end:dd/MM/yyyy}, pour les recevoir ?",
+                "Exercice suivant"))
+            return false;
+        _c.CreateYear(start, end, cloneStructure: true);
+        _c.SyncCarry(last.Id);
+        return true;
+    }
 
     private static IReadOnlyList<DecisionOption> BuildOptions(BankLinePlan p)
     {

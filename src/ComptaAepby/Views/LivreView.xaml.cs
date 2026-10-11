@@ -85,11 +85,13 @@ public partial class LivreView : UserControl, IPage
         _canWrite = App.Can(Permission.WriteLedger) && year.Open;
         TitleText.Text = $"Livre — exercice {year.Label}";
         AddButton.IsEnabled = _canWrite;
-        BankButton.IsEnabled = _canWrite;
+        // L'import du relevé se fait par dates : il reste possible depuis un exercice validé (il alimente les exercices ouverts).
+        BankButton.IsEnabled = App.Can(Permission.WriteLedger);
         EditButton.IsEnabled = false;
         DeleteButton.IsEnabled = false;
         if (year.Validated)
-            SubText.Text = "Exercice validé : consultation seule (aucune ligne ne peut être ajoutée, modifiée ou retirée).";
+            SubText.Text = "Exercice validé : consultation seule (aucune ligne ne peut être ajoutée, modifiée ou retirée). " +
+                           "L'import du relevé bancaire reste possible : les lignes vont dans l'exercice correspondant à leur date.";
         else if (App.IsReadOnly)
             SubText.Text = "Poste en lecture seule.";
         else if (!App.HasRole(Permission.WriteLedger))
