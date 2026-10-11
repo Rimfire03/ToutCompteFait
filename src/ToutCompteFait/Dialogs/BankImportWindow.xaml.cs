@@ -50,7 +50,7 @@ public partial class BankImportWindow : Window
         AccountCombo.SelectedItem = accounts.FirstOrDefault(a => a.Kind == AccountKind.Bank) ?? accounts.FirstOrDefault();
 
         // Glisser-déposer d'un relevé (CSV, OFX, PDF ou image) depuis l'Explorateur.
-        ImportDrop.Hint = "Formats acceptés : CSV, OFX, PDF, images (relevés scannés)";
+        ImportDrop.Hint = "Formats acceptés : CSV, OFX, PDF, images · plusieurs fichiers possibles (un par compte)";
         ImportDrop.Browse += (_, _) => Browse_Click(this, new RoutedEventArgs());
         AllowDrop = true;
         PreviewDragOver += (_, e) => FileDrop.Accept(e);
@@ -74,21 +74,67 @@ public partial class BankImportWindow : Window
         ContentRendered += Handler;
     }
 
-    /// <summary>Un CSV / OFX seul, ou un ou plusieurs relevés imprimés (PDF, images).</summary>
+    // File d'attente : plusieurs relevés (un par compte) déposés ou choisis ensemble sont traités l'un après l'autre,
+    // chacun avec son compte, son aperçu et ses validations.
+    private readonly Queue<string[]> _queue = new();
+    private int _queueTotal;
+    private int _queueIndex;
+    private BankImportResult? _total;
+    private readonly List<string> _reports = new();
+
+    /// <summary>Un ou plusieurs relevés : chaque CSV / OFX est un import à part ; les PDF et images forment un seul lot.</summary>
     public void LoadFiles(string[] files)
     {
-        if (files.Length > 1)
-        {
-            if (!files.All(Services.StatementDocumentReader.IsSupported))
-            {
-                Ui.Error("Plusieurs fichiers : seuls des relevés PDF ou images peuvent être importés ensemble.\nPour un CSV ou un OFX, choisissez un seul fichier.");
-                return;
-            }
-            LoadFromPrinted(files);
-            return;
-        }
-        LoadFromFile(files[0]);
+        var jobs = files.Where(f => !Services.StatementDocumentReader.IsSupported(f)).Select(f => new[] { f }).ToList();
+        var printed = files.Where(Services.StatementDocumentReader.IsSupported).ToArray();
+        if (printed.Length > 0) jobs.Add(printed);
+        if (jobs.Count == 0) return;
+        _queue.Clear();
+        _reports.Clear();
+        _total = null;
+        foreach (var j in jobs) _queue.Enqueue(j);
+        _queueTotal = jobs.Count;
+        _queueIndex = 0;
+        NextInQueue();
     }
+
+    private void NextInQueue()
+    {
+        if (_queue.Count == 0) return;
+        var job = _queue.Dequeue();
+        _queueIndex++;
+        ResetFileState();
+        if (job.Length == 1 && !Services.StatementDocumentReader.IsSupported(job[0])) LoadFromFile(job[0]);
+        else LoadFromPrinted(job);
+        UpdateQueueUi();
+    }
+
+    private void ResetFileState()
+    {
+        _table = null;
+        _lines = new List<BankLine>();
+        _plan = null;
+        _statementText = null;
+        _precheck = null;
+        _balanceReport = null;
+        _offeredNextYear = false;
+        MappingBox.Visibility = Visibility.Collapsed;
+        PreviewGrid.ItemsSource = null;
+        SummaryText.Text = "";
+        WarningText.Text = "";
+        ImportButton.IsEnabled = false;
+    }
+
+    private void UpdateQueueUi()
+    {
+        var multi = _queueTotal > 1;
+        QueueText.Visibility = multi ? Visibility.Visible : Visibility.Collapsed;
+        QueueText.Text = multi ? $"Relevé {_queueIndex} sur {_queueTotal}" : "";
+        SkipButton.Visibility = _queue.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ImportButton.Content = _queue.Count > 0 ? "Importer et passer au suivant" : "Importer";
+    }
+
+    private void Skip_Click(object sender, RoutedEventArgs e) => NextInQueue();
 
     private void Browse_Click(object sender, RoutedEventArgs e)
     {
@@ -151,8 +197,22 @@ public partial class BankImportWindow : Window
     /// sélectionne. Renvoie une remarque à afficher (vide si rien à signaler).</summary>
     private string DetectAccount(string text)
     {
-        if (!_c.HasStatementIdentifiers()) return "";
+        // Plusieurs relevés à la suite : le compte du fichier précédent ne doit pas être repris par erreur.
+        void ForgetAccount()
+        {
+            if (_queueTotal <= 1) return;
+            var was = _loading;
+            _loading = true;
+            AccountCombo.SelectedItem = null;
+            _loading = was;
+        }
+        if (!_c.HasStatementIdentifiers())
+        {
+            ForgetAccount();
+            return _queueTotal > 1 ? "Choisissez le compte de ce relevé." : "";
+        }
         var found = _c.MatchStatementAccounts(text);
+        if (found.Count != 1) ForgetAccount();
         if (found.Count == 1)
         {
             var wasLoading = _loading;
@@ -382,6 +442,12 @@ public partial class BankImportWindow : Window
         ImportButton.ToolTip = undecided > 0 ? "Validez d'abord les lignes en orange (correspondance incertaine)." : null;
     }
 
+    private int _lastCreated;
+
+    private static BankImportResult Add(BankImportResult? a, BankImportResult b) => a is null ? b : new BankImportResult(
+        a.Created + b.Created, a.LabelsUpdated + b.LabelsUpdated, a.Pointed + b.Pointed, a.Unchanged + b.Unchanged,
+        a.Skipped + b.Skipped, a.DatesAligned + b.DatesAligned, a.TransfersLinked + b.TransfersLinked);
+
     private void Import_Click(object sender, RoutedEventArgs e)
     {
         if (_plan is null) return;
@@ -393,7 +459,9 @@ public partial class BankImportWindow : Window
             if (_precheck is { Inconsistent: true } && !Ui.Confirm(
                     "Le contrôle des soldes signale une incohérence :\n\n" + _precheck.Note + "\n\nImporter quand même ?", "Contrôle des soldes"))
                 return;
-            Result = _c.ApplyBankImport(_plan, PointBox.IsChecked == true, decisions, AlignBox.IsChecked == true);
+            var one = _c.ApplyBankImport(_plan, PointBox.IsChecked == true, decisions, AlignBox.IsChecked == true);
+            _lastCreated = one.Created;
+            Result = _total = Add(_total, one);
             if (_statementText is not null && AccountCombo.SelectedItem is Account acc)
                 _balanceReport = _c.FinishStatementImport(acc.Id, _lines,
                     BankStatementParser.ExtractBalances(_statementText, _lines), _wasFirstImport);
@@ -401,6 +469,22 @@ public partial class BankImportWindow : Window
         catch (ComptaException ex)
         {
             Ui.Error(ex.Message);
+            return;
+        }
+        if (_queueTotal > 1)
+        {
+            var name = AccountCombo.SelectedItem is Account a ? a.Name : "?";
+            _reports.Add($"• {Path.GetFileName(FileText.Text)} → {name} : {_lastCreated} créée(s) à ventiler" +
+                         (_balanceReport is { Text.Length: > 0 } b ? "\n  " + b.Text.Replace("\n", "\n  ") : ""));
+            if (_queue.Count > 0)
+            {
+                NextInQueue();
+                return;
+            }
+            Ui.Info($"{_queueTotal} relevés traités.\n\n{string.Join("\n", _reports)}\n\nTotal : {Result.Created} écriture(s) créée(s) à ventiler, " +
+                    $"{Result.LabelsUpdated} intitulé(s) mis à jour" + (Result.Skipped > 0 ? $", {Result.Skipped} ignorée(s)" : "") + ".",
+                "Relevés importés");
+            DialogResult = true;
             return;
         }
         Ui.Info($"Import terminé : {Result.Created} écriture(s) créée(s) à ventiler, {Result.LabelsUpdated} intitulé(s) mis à jour" +

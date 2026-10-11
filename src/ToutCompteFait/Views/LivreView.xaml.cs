@@ -413,7 +413,8 @@ public partial class LivreView : UserControl, IPage
     {
         var dlg = new BankImportWindow { Owner = Window.GetWindow(this) };
         if (files is not null) dlg.LoadFilesWhenShown(files);
-        if (dlg.ShowDialog() == true)
+        var shown = dlg.ShowDialog() == true;
+        if (shown || dlg.Result is not null)   // plusieurs relevés : certains peuvent être importés avant une annulation
         {
             Reload();
             if (dlg.Result is { Created: > 0 }) OnlyToFill.IsChecked = false;
