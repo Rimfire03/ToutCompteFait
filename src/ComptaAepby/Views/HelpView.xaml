@@ -1,0 +1,35 @@
+﻿<UserControl x:Class="ComptaAepby.Views.HelpView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="900" HorizontalAlignment="Left" Margin="0,0,12,20">
+            <TextBlock x:Name="NoYearText" Style="{StaticResource MutedText}" Visibility="Collapsed" Margin="0,0,0,12"
+                       Text="Aucun exercice n'existe encore : cliquez sur « Nouvel exercice » à gauche pour commencer."/>
+            <TextBlock Text="Aide — Tout Compte Fait" Style="{StaticResource TitleText}"/>
+
+            <TextBlock Text="Le principe" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Le logiciel remplace le classeur Excel : une écriture par ligne du relevé (dépense, recette, virement entre comptes ou remboursement à un membre), ventilée sur les produits et charges. Le bilan, les soldes et la rentabilité des opérations se calculent tout seuls."/>
+
+            <TextBlock Text="Saisir une écriture" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Livre → « Nouvelle écriture ». Choisissez le type, la date, le libellé et le montant, puis indiquez la catégorie : le montant est repris automatiquement. Pour une opération sur plusieurs catégories, ajoutez des lignes de ventilation : le total doit égaler le montant (un bandeau vert ou rouge l'indique). Un remboursement reçu (avoir) se saisit en « Recette » sur la charge concernée."/>
+
+            <TextBlock Text="Virement entre comptes" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Type « Virement entre comptes » : choisissez le compte de départ et le compte d'arrivée. Aucun effet sur le résultat, les deux soldes sont mis à jour. Utile aussi pour une avance : créez un compte « Avances en cours » dans Paramètres."/>
+
+            <TextBlock Text="Remboursement à un membre" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Type « Remboursement à un membre » : un membre a payé avec son compte personnel, l'association le rembourse. Indiquez son nom et la charge concernée. Le récapitulatif par membre est dans « Remboursements membres »."/>
+
+            <TextBlock Text="Opérations (rentabilité)" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Paramètres → Opérations : regroupez les produits et charges d'un même événement (ex. Loto Octobre). Pendant la saisie, et dans le Bilan, vous voyez produits − charges = rentabilité de l'opération."/>
+
+            <TextBlock Text="Reports entre années" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Si vous payez en juin des lots pour le loto d'octobre, déclarez-le dans « Reports entre années » (réglé cette année, concerne l'année prochaine). Il est retiré du résultat de cette année et ajouté automatiquement à l'année suivante. Les soldes des comptes se reportent aussi automatiquement."/>
+
+            <TextBlock Text="Valider un exercice" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Bilan → « Valider l'exercice ». Toutes les écritures doivent être complètes. Ensuite plus aucune ligne, catégorie ou report ne peut être ajouté, modifié ou retiré. Les exercices doivent être validés dans l'ordre."/>
+
+            <TextBlock Text="Plusieurs postes" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Un seul poste à la fois peut écrire (le premier ouvert). Les autres sont en lecture seule et voient les modifications apparaître automatiquement. Le pied de page indique l'état : puce verte = base accessible, orange = lecture seule, rouge = connexion perdue. Placez le fichier de base sur un dossier partagé du réseau (Paramètres → Application)."/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

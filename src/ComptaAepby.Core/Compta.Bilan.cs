@@ -1,0 +1,299 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using ComptaAepby.Core.Security;
+using Microsoft.EntityFrameworkCore;
+
+namespace ComptaAepby.Core;
+
+public sealed record AccountBalance(Account Account, long Opening, long ReceiptsIn, long PaymentsOut,
+    long TransfersIn, long TransfersOut, long Closing);
+
+/// <summary>Résultat d'une ligne produit ou charge : ce qui est passé dans le livre + les régularisations.</summary>
+public sealed record CategoryResult(long? CategoryId, string Name, CategoryKind Kind, long? OperationId,
+    long Cash, long FromPrev, long Due, long ToNext, long ForPast)
+{
+    /// <summary>Montant retenu pour l'exercice.</summary>
+    public long Total => Cash + FromPrev + Due - ToNext - ForPast;
+    public long Adjustments => Total - Cash;
+    public bool Unassigned => CategoryId is null;
+}
+
+public sealed record OperationResult(Operation Operation, IReadOnlyList<CategoryResult> Products,
+    IReadOnlyList<CategoryResult> Charges, long ProductsTotal, long ChargesTotal)
+{
+    public long Result => ProductsTotal - ChargesTotal;
+}
+
+public sealed record Issue(bool Blocking, string Message, long? EntryId = null);
+
+/// <summary>Compte de fonctionnement + situation (actif / passif) d'un exercice.</summary>
+public sealed class Bilan
+{
+    public required FiscalYear Year { get; init; }
+    public required IReadOnlyList<AccountBalance> Accounts { get; init; }
+    public required IReadOnlyList<CategoryResult> Products { get; init; }
+    public required IReadOnlyList<CategoryResult> Charges { get; init; }
+    public required IReadOnlyList<OperationResult> Operations { get; init; }
+
+    public long ProductsTotal => Products.Sum(p => p.Total);
+    public long ChargesTotal => Charges.Sum(c => c.Total);
+    public long Result => ProductsTotal - ChargesTotal;
+
+    /// <summary>Total des régularisations côté produits − côté charges (signées).</summary>
+    public long NetAdjustments => Products.Sum(p => p.Adjustments) - Charges.Sum(c => c.Adjustments);
+
+    public long OpeningTotal => Accounts.Sum(a => a.Opening);
+    public long ClosingTotal => Accounts.Sum(a => a.Closing);
+
+    /// <summary>Somme des écarts de ventilation des écritures : doit être 0 pour un exercice sain.</summary>
+    public required long UnallocatedGap { get; init; }
+    public required int UnbalancedEntries { get; init; }
+
+    /// <summary>Nombre d'écritures sans aucune ventilation (à classer en produit ou en charge).</summary>
+    public int EntriesToFill { get; init; }
+
+    // PASSIF = solde d'ouverture + report (−régularisations nettes) + résultat + écart non ventilé.
+    public long Report => -NetAdjustments;
+    public long LiabilitiesTotal => OpeningTotal + Report + Result + UnallocatedGap;
+
+    /// <summary>Doit toujours être 0 : c'est le contrôle de cohérence du bilan.</summary>
+    public long BalanceDifference => ClosingTotal - LiabilitiesTotal;
+}
+
+public sealed partial class Compta
+{
+    public Bilan ComputeBilan(long yearId)
+    {
+        var year = Year(yearId) ?? throw new ComptaException("Exercice introuvable.");
+        var cats = Categories(yearId);
+        var catById = cats.ToDictionary(c => c.Id);
+        var rows = Entries(yearId);
+        var adjs = Adjustments(yearId);
+
+        // --- comptes
+        var balances = new List<AccountBalance>();
+        foreach (var a in Accounts(includeInactive: true))
+        {
+            long inn = 0, outt = 0, trIn = 0, trOut = 0;
+            foreach (var r in rows)
+            {
+                var e = r.Entry;
+                if (e.Kind == EntryKind.Transfer)
+                {
+                    if (e.AccountId == a.Id) trOut += e.AmountCents;
+                    if (e.ToAccountId == a.Id) trIn += e.AmountCents;
+                }
+                else if (e.AccountId == a.Id)
+                {
+                    if (e.Direction == Direction.In) inn += e.AmountCents; else outt += e.AmountCents;
+                }
+            }
+            var opening = Opening(yearId, a.Id);
+            // Un compte inactif sans mouvement ni solde n'apparaît pas.
+            if (!a.Active && opening == 0 && inn == 0 && outt == 0 && trIn == 0 && trOut == 0) continue;
+            balances.Add(new AccountBalance(a, opening, inn, outt, trIn, trOut, opening + inn - outt + trIn - trOut));
+        }
+
+        // --- catégories
+        var cash = new Dictionary<long, long>();
+        long gap = 0;
+        var unbalanced = 0;
+        var toFill = 0;
+        foreach (var r in rows)
+        {
+            long v = 0;
+            foreach (var al in r.Allocations)
+            {
+                cash[al.CategoryId] = cash.GetValueOrDefault(al.CategoryId) + al.AmountCents;
+                v += catById[al.CategoryId].Kind == CategoryKind.Product ? al.AmountCents : -al.AmountCents;
+            }
+            var g = r.Entry.NetCash - v;
+            if (g != 0) { gap += g; unbalanced++; }
+            if (NeedsAllocation(r)) toFill++;
+        }
+
+        CategoryResult Build(Category c)
+        {
+            long Sum(AdjustmentType t) => adjs.Where(a => a.CategoryId == c.Id && a.Type == t).Sum(a => a.AmountCents);
+            return new CategoryResult(c.Id, c.Name, c.Kind, c.OperationId, cash.GetValueOrDefault(c.Id),
+                Sum(AdjustmentType.FromPrev), Sum(AdjustmentType.Due), Sum(AdjustmentType.ToNext), Sum(AdjustmentType.ForPast));
+        }
+
+        List<CategoryResult> Lines(CategoryKind kind)
+        {
+            var list = cats.Where(c => c.Kind == kind).OrderBy(c => c.Position).ThenBy(c => c.Id).Select(Build).ToList();
+            // Régularisations sans catégorie : regroupées sur une ligne « À affecter » pour ne rien perdre.
+            var un = adjs.Where(a => a.CategoryId is null && a.Kind == kind).ToList();
+            if (un.Count > 0)
+            {
+                long Sum(AdjustmentType t) => un.Where(a => a.Type == t).Sum(a => a.AmountCents);
+                list.Add(new CategoryResult(null, "À affecter (régularisations sans catégorie)", kind, null, 0,
+                    Sum(AdjustmentType.FromPrev), Sum(AdjustmentType.Due), Sum(AdjustmentType.ToNext), Sum(AdjustmentType.ForPast)));
+            }
+            return list;
+        }
+
+        var products = Lines(CategoryKind.Product);
+        var charges = Lines(CategoryKind.Charge);
+
+        // --- opérations (produits et charges liés)
+        var operations = new List<OperationResult>();
+        foreach (var op in Operations(yearId))
+        {
+            var p = products.Where(x => x.OperationId == op.Id).ToList();
+            var c = charges.Where(x => x.OperationId == op.Id).ToList();
+            operations.Add(new OperationResult(op, p, c, p.Sum(x => x.Total), c.Sum(x => x.Total)));
+        }
+
+        return new Bilan
+        {
+            Year = year, Accounts = balances, Products = products, Charges = charges, Operations = operations,
+            UnallocatedGap = gap, UnbalancedEntries = unbalanced, EntriesToFill = toFill
+        };
+    }
+
+    // ------------------------------------------------------------------ clôture
+
+    /// <summary>Problèmes à résoudre avant de valider un exercice (bloquants) ou à connaître (avertissements).</summary>
+    public List<Issue> ValidationIssues(long yearId)
+    {
+        var issues = new List<Issue>();
+        var year = Year(yearId) ?? throw new ComptaException("Exercice introuvable.");
+        var prev = PreviousYear(year);
+        if (prev is not null && !prev.Validated)
+            issues.Add(new Issue(true, $"L'exercice précédent ({prev.Label}) doit être validé avant celui-ci : ses reports alimentent cet exercice."));
+
+        var cats = Categories(yearId).ToDictionary(c => c.Id);
+        var rows = Entries(yearId);
+        if (rows.Count == 0) issues.Add(new Issue(false, "L'exercice ne contient aucune écriture."));
+        foreach (var r in rows)
+        {
+            var e = r.Entry;
+            var gap = Imbalance(e, r.Allocations, cats);
+            if (gap != 0)
+            {
+                var msg = NeedsAllocation(r)
+                    ? $"{e.Date:dd/MM/yyyy} « {e.Label} » : {Money.Format(Math.Abs(e.NetCash))} € à classer en produit ou en charge."
+                    : $"{e.Date:dd/MM/yyyy} « {e.Label} » : {Money.Format(gap)} € non ventilé(s) (ou ventilation incohérente avec le montant).";
+                issues.Add(new Issue(true, msg, e.Id));
+            }
+            if (!year.Contains(e.Date))
+                issues.Add(new Issue(true,
+                    $"{e.Date:dd/MM/yyyy} « {e.Label} » : date hors de l'exercice ({year.Start:dd/MM/yyyy} - {year.End:dd/MM/yyyy}).", e.Id));
+        }
+        foreach (var a in Adjustments(yearId).Where(a => a.CategoryId is null))
+            issues.Add(new Issue(true, $"Report « {a.Label} » ({Money.Format(a.AmountCents)} €) : catégorie à affecter."));
+
+        var unpointed = rows.Count(r => !r.Entry.Pointed);
+        if (unpointed > 0)
+            issues.Add(new Issue(false, $"{unpointed} écriture(s) non pointée(s) sur le relevé bancaire."));
+
+        var b = ComputeBilan(yearId);
+        if (b.BalanceDifference != 0)
+            issues.Add(new Issue(true, $"Le bilan n'est pas équilibré (écart {Money.Format(b.BalanceDifference)} €) : anomalie interne, ne pas valider."));
+        return issues;
+    }
+
+    /// <summary>Empreinte (SHA-256) du contenu comptable d'un exercice : permet de détecter toute modification
+    /// faite hors du logiciel après la validation.</summary>
+    public string ComputeChecksum(long yearId)
+    {
+        var sb = new StringBuilder();
+        var y = Year(yearId) ?? throw new ComptaException("Exercice introuvable.");
+        sb.Append("Y|").Append(y.Label).Append('|').Append(D(y.Start)).Append('|').Append(D(y.End)).Append('\n');
+        foreach (var o in Operations(yearId)) sb.Append("O|").Append(o.Id).Append('|').Append(o.Name).Append('\n');
+        foreach (var c in Categories(yearId))
+            sb.Append("C|").Append(c.Id).Append('|').Append(c.Kind).Append('|').Append(c.Name).Append('|').Append(c.OperationId).Append('\n');
+        foreach (var r in Entries(yearId))
+        {
+            var e = r.Entry;
+            sb.Append("E|").Append(e.Id).Append('|').Append(D(e.Date)).Append('|').Append(e.Label).Append('|')
+              .Append(e.Pointed ? 1 : 0).Append('|').Append(e.Kind).Append('|').Append(e.AccountId).Append('|')
+              .Append(e.Direction).Append('|').Append(e.ToAccountId).Append('|').Append(e.AmountCents).Append('|')
+              .Append(e.MemberName).Append('\n');
+            foreach (var a in r.Allocations.OrderBy(a => a.CategoryId).ThenBy(a => a.AmountCents))
+                sb.Append("A|").Append(e.Id).Append('|').Append(a.CategoryId).Append('|').Append(a.AmountCents).Append('\n');
+        }
+        foreach (var a in Adjustments(yearId))
+            sb.Append("J|").Append(a.Id).Append('|').Append(a.Type).Append('|').Append(a.Kind).Append('|').Append(a.CategoryId)
+              .Append('|').Append(a.Label).Append('|').Append(a.AmountCents).Append('\n');
+        foreach (var ac in Accounts(true))
+            sb.Append("B|").Append(ac.Id).Append('|').Append(Opening(yearId, ac.Id)).Append('\n');
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString())));
+    }
+
+    /// <summary>True si le contenu d'un exercice validé est toujours conforme à l'empreinte enregistrée.</summary>
+    public bool VerifyIntegrity(long yearId)
+    {
+        var y = Year(yearId);
+        if (y is null || !y.Validated) return true;
+        string? stored;
+        using (var l = Open())
+            stored = l.Ctx.Years.AsNoTracking().Where(x => x.Id == yearId).Select(x => x.Checksum).FirstOrDefault();
+        return stored is not null && string.Equals(stored, ComputeChecksum(yearId), StringComparison.Ordinal);
+    }
+
+    /// <summary>Valide (clôture) un exercice : après cela, plus aucune écriture, catégorie ni report ne peut être
+    /// ajouté, modifié ou retiré.</summary>
+    public void ValidateYear(long yearId)
+    {
+        RequireOpen(yearId, Permission.ValidateYear);
+        var blocking = ValidationIssues(yearId).Where(i => i.Blocking).ToList();
+        if (blocking.Count > 0)
+            throw new ComptaException("Validation impossible :\n• " + string.Join("\n• ", blocking.Take(8).Select(i => i.Message))
+                + (blocking.Count > 8 ? $"\n… et {blocking.Count - 8} autre(s)." : ""));
+
+        // Dernier report vers l'exercice suivant avant verrouillage.
+        SyncCarry(yearId);
+        var b = ComputeBilan(yearId);
+        var snapshot = JsonSerializer.Serialize(new
+        {
+            year = b.Year.Label,
+            opening = b.OpeningTotal,
+            closing = b.ClosingTotal,
+            products = b.ProductsTotal,
+            charges = b.ChargesTotal,
+            result = b.Result,
+            report = b.Report,
+            accounts = b.Accounts.Select(a => new { a.Account.Name, a.Opening, a.Closing })
+        });
+        var sum = ComputeChecksum(yearId);
+        using var tx = Begin();
+        var ctx = Open().Ctx;
+        var e = ctx.Years.First(y => y.Id == yearId);
+        e.Status = "VALIDATED";
+        e.ValidatedAt = Now();
+        e.ValidatedBy = UserName;
+        e.Checksum = sum;
+        e.ClosingJson = snapshot;
+        Save(ctx);
+        Log(ctx, "Exercice validé", b.Year.Label);
+        tx.Commit();
+    }
+
+    /// <summary>Rouvre un exercice validé (correction exceptionnelle, réservée à l'administrateur). Refusé si
+    /// l'exercice suivant est validé. L'opération est tracée dans le journal.</summary>
+    public void ReopenYear(long yearId, string reason)
+    {
+        Require(Permission.ReopenYear);
+        RequireWritable();
+        var y = Year(yearId) ?? throw new ComptaException("Exercice introuvable.");
+        if (!y.Validated) throw new ComptaException("Cet exercice n'est pas validé.");
+        var next = NextYear(y);
+        if (next is { Validated: true })
+            throw new ComptaException($"L'exercice suivant ({next.Label}) est validé : rouvrez-le d'abord.");
+        if (string.IsNullOrWhiteSpace(reason)) throw new ComptaException("Indiquez le motif de la réouverture.");
+        using var tx = Begin();
+        var ctx = Open().Ctx;
+        var e = ctx.Years.First(x => x.Id == yearId);
+        e.Status = "OPEN";
+        e.ValidatedAt = null;
+        e.ValidatedBy = null;
+        e.Checksum = null;
+        e.ClosingJson = null;
+        Save(ctx);
+        Log(ctx, "Exercice rouvert", $"{y.Label} — {reason.Trim()}");
+        tx.Commit();
+    }
+}

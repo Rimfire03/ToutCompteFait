@@ -1,0 +1,30 @@
+# Données et livrables : JAMAIS dans le dépôt ni dans une release
+Donnees/
+Sauvegardes/
+dist/
+bin/
+obj/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.lock
+*.settings.json
+settings.json
+profils-releves/
+.vs/
+
+# Relevés bancaires et classeurs de l'association (données réelles)
+*.ofx
+*.qfx
+*.pdf
+*.xlsx
+*.xls
+*.csv
+
+# Secrets
+*.pfx
+*.key
+*.env

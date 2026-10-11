@@ -1,0 +1,31 @@
+﻿<UserControl x:Class="ComptaAepby.Views.MembersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock x:Name="TitleText" Style="{StaticResource TitleText}"/>
+            <TextBlock Style="{StaticResource MutedText}" MaxWidth="900" HorizontalAlignment="Left"
+                       Text="Achats faits avec le compte personnel d'un membre puis remboursés par l'association. Pour en saisir un : Livre → Nouvelle écriture → « Remboursement à un membre »."/>
+        </StackPanel>
+        <DataGrid x:Name="ByMember" Grid.Row="1" Margin="0,14,0,0" MaxHeight="220" HorizontalAlignment="Left" Width="560">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Membre" Binding="{Binding Member}" Width="*" ElementStyle="{StaticResource LeftCell}"/>
+                <DataGridTextColumn Header="Remboursements" Binding="{Binding Count}" Width="130" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                <DataGridTextColumn Header="Total remboursé (€)" Binding="{Binding Total}" Width="160" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <DataGrid x:Name="Detail" Grid.Row="2" Margin="0,14,0,0">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Date" Binding="{Binding Date}" Width="90" ElementStyle="{StaticResource LeftCell}"/>
+                <DataGridTextColumn Header="Membre" Binding="{Binding Member}" Width="160" ElementStyle="{StaticResource LeftCell}"/>
+                <DataGridTextColumn Header="Libellé" Binding="{Binding Label}" Width="*" ElementStyle="{StaticResource LeftCell}"/>
+                <DataGridTextColumn Header="Charge" Binding="{Binding Categories}" Width="240" ElementStyle="{StaticResource LeftCell}"/>
+                <DataGridTextColumn Header="Montant (€)" Binding="{Binding Amount}" Width="110" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>
+
