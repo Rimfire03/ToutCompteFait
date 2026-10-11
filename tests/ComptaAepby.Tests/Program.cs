@@ -27,6 +27,152 @@ if (args.Length >= 4 && args[0] == "adduser")
     return 0;
 }
 
+// Utilitaire : « pgsql <source.db> <sortie.sql> » : génère un script PostgreSQL autonome (schéma + données) à partir d'une
+// base SQLite, sans se connecter à aucun serveur. La source n'est pas modifiée (migration sur une copie temporaire).
+if (args.Length >= 3 && args[0] == "pgsql")
+{
+    var tmpDb = Path.Combine(Path.GetTempPath(), "tcf-pgsql-" + Guid.NewGuid().ToString("N") + ".db");
+    File.Copy(args[1], tmpDb);
+    var sqliteFactory = new DbContextFactory(tmpDb);
+    sqliteFactory.EnsureDatabaseUpToDate("export-sql");
+    var version = DbContextFactory.LatestVersion;
+
+    var sbSql = new System.Text.StringBuilder();
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    sbSql.AppendLine("-- Tout Compte Fait : script PostgreSQL (schéma + données) généré le " + DateTime.Now.ToString("yyyy-MM-dd HH:mm", inv));
+    sbSql.AppendLine("-- À exécuter sur une base VIDE (ex. psql -f ou l'éditeur SQL de votre outil d'administration).");
+    sbSql.AppendLine("-- Tout est dans une seule transaction : en cas d'erreur, rien n'est appliqué.");
+    sbSql.AppendLine("SET client_encoding = 'UTF8';");
+    sbSql.AppendLine("BEGIN;");
+    sbSql.AppendLine();
+    sbSql.AppendLine("-- 1. Schéma de l'application");
+    using (var scriptCtx = new ServerScriptContext(DatabaseProvider.PostgreSql))
+        sbSql.AppendLine(scriptCtx.Database.GenerateCreateScript().Trim());
+    sbSql.AppendLine();
+    sbSql.AppendLine("-- 2. Table technique (version du schéma, verrou d'écriture)");
+    sbSql.AppendLine("CREATE TABLE IF NOT EXISTS \"DbInfo\" (\"Key\" varchar(100) NOT NULL PRIMARY KEY, \"Value\" text NOT NULL);");
+    sbSql.AppendLine($"INSERT INTO \"DbInfo\" (\"Key\", \"Value\") VALUES ('SchemaVersion', '{version}'), ('AppVersion', 'export-sql')");
+    sbSql.AppendLine("  ON CONFLICT (\"Key\") DO UPDATE SET \"Value\" = EXCLUDED.\"Value\";");
+    sbSql.AppendLine();
+    sbSql.AppendLine("-- 3. Données");
+
+    string Lit(object? v, Type clr)
+    {
+        if (v is null || v is DBNull) return "NULL";
+        var t = Nullable.GetUnderlyingType(clr) ?? clr;
+        if (t == typeof(bool)) return Convert.ToInt64(v, inv) != 0 ? "TRUE" : "FALSE";
+        if (t == typeof(string)) return "'" + Convert.ToString(v, inv)!.Replace("'", "''") + "'";
+        if (t == typeof(decimal) || t == typeof(double) || t == typeof(float)) return Convert.ToString(v, inv)!;
+        if (t.IsEnum || t == typeof(int) || t == typeof(long) || t == typeof(short) || t == typeof(byte))
+            return Convert.ToInt64(v, inv).ToString(inv);
+        return "'" + Convert.ToString(v, inv)!.Replace("'", "''") + "'";
+    }
+
+    using (var src = sqliteFactory.Create())
+    {
+        var types = src.Model.GetEntityTypes().Where(e => !e.IsOwned() && e.GetTableName() is not null).ToList();
+        // tri topologique par clés étrangères
+        var ordered = new List<Microsoft.EntityFrameworkCore.Metadata.IEntityType>();
+        var pending = new List<Microsoft.EntityFrameworkCore.Metadata.IEntityType>(types);
+        while (pending.Count > 0)
+        {
+            var ready = pending.Where(e => e.GetForeignKeys().All(fk =>
+                fk.PrincipalEntityType == e || ordered.Contains(fk.PrincipalEntityType) || !pending.Contains(fk.PrincipalEntityType))).ToList();
+            if (ready.Count == 0) ready = pending.Take(1).ToList();
+            foreach (var e in ready) { ordered.Add(e); pending.Remove(e); }
+        }
+
+        var conn = src.Database.GetDbConnection();
+        conn.Open();
+        var total = 0;
+        foreach (var e in ordered)
+        {
+            var table = e.GetTableName()!;
+            var store = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(table, e.GetSchema());
+            var props = e.GetProperties().Select(p => (Name: p.GetColumnName(store)!, Clr: p.ClrType)).ToList();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT " + string.Join(", ", props.Select(p => "\"" + p.Name + "\"")) + " FROM \"" + table + "\"";
+            var count = 0;
+            sbSql.AppendLine($"-- {table}");
+            using (var rd = cmd.ExecuteReader())
+                while (rd.Read())
+                {
+                    var vals = props.Select((p, i) => Lit(rd.IsDBNull(i) ? null : rd.GetValue(i), p.Clr));
+                    sbSql.AppendLine($"INSERT INTO \"{table}\" ({string.Join(", ", props.Select(p => "\"" + p.Name + "\""))}) VALUES ({string.Join(", ", vals)});");
+                    count++;
+                }
+            total += count;
+            sbSql.AppendLine($"-- {count} ligne(s)");
+            var key = e.FindPrimaryKey();
+            if (key is { Properties.Count: 1 } && key.Properties[0].ValueGenerated == Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.OnAdd)
+            {
+                var col = key.Properties[0].GetColumnName(store)!;
+                sbSql.AppendLine($"SELECT setval(pg_get_serial_sequence('\"{table}\"', '{col}'), COALESCE((SELECT MAX(\"{col}\") FROM \"{table}\"), 0) + 1, false);");
+            }
+            sbSql.AppendLine();
+        }
+        sbSql.AppendLine("COMMIT;");
+        Console.WriteLine($"{ordered.Count} table(s), {total} ligne(s) de données.");
+    }
+    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+    File.WriteAllText(args[2], sbSql.ToString(), new System.Text.UTF8Encoding(false));
+    Console.WriteLine("Script écrit : " + args[2] + " (" + new FileInfo(args[2]).Length / 1024 + " Ko)");
+    return 0;
+}
+
+// Utilitaire : « pgcheck <hôte> <port> <base> <utilisateur> » (mot de passe dans TCF_DB_PASSWORD) : liste les tables
+// existantes du serveur PostgreSQL, sans rien modifier.
+if (args.Length >= 5 && args[0] == "pgcheck")
+{
+    var info = new DbConnectionInfo
+    {
+        Provider = DatabaseProvider.PostgreSql, Host = args[1], Port = int.Parse(args[2]), Database = args[3], UserName = args[4], UseSsl = true,
+        Password = Environment.GetEnvironmentVariable("TCF_DB_PASSWORD") ?? ""
+    };
+    using var c = new Npgsql.NpgsqlConnection(info.BuildConnectionString());
+    c.Open();
+    Console.WriteLine("Serveur : PostgreSQL " + c.ServerVersion + " ; base " + info.Database + " ; utilisateur " + info.UserName);
+    using var cmd = c.CreateCommand();
+    cmd.CommandText = "SELECT table_schema, table_name FROM information_schema.tables " +
+                      "WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY 1,2";
+    var tables = new List<(string S, string T)>();
+    using (var rd = cmd.ExecuteReader())
+        while (rd.Read()) tables.Add((rd.GetString(0), rd.GetString(1)));
+    Console.WriteLine($"Tables existantes : {tables.Count}");
+    foreach (var (s, tn) in tables)
+    {
+        using var cnt = c.CreateCommand();
+        cnt.CommandText = $"SELECT count(*) FROM \"{s}\".\"{tn}\"";
+        Console.WriteLine($"  {s}.{tn} : {cnt.ExecuteScalar()} ligne(s)");
+    }
+    using var sc = c.CreateCommand();
+    sc.CommandText = "SELECT rolcreatedb, rolsuper FROM pg_roles WHERE rolname = current_user";
+    using (var rd = sc.ExecuteReader()) if (rd.Read()) Console.WriteLine($"Droits : createdb={rd.GetBoolean(0)} super={rd.GetBoolean(1)}");
+    return 0;
+}
+
+// Utilitaire : « pgfill <source.db> <hôte> <port> <base> <utilisateur> » (mot de passe dans TCF_DB_PASSWORD) : copie la
+// base SQLite (migrée sur une COPIE temporaire, la source n'est pas touchée) vers le serveur PostgreSQL VIDE.
+if (args.Length >= 6 && args[0] == "pgfill")
+{
+    var srcPath = args[1];
+    var tmp = Path.Combine(Path.GetTempPath(), "tcf-pgfill-" + Guid.NewGuid().ToString("N") + ".db");
+    File.Copy(srcPath, tmp);
+    var sf = new DbContextFactory(tmp);
+    sf.EnsureDatabaseUpToDate("copie-serveur");
+    var dest = new DbConnectionInfo
+    {
+        Provider = DatabaseProvider.PostgreSql, Host = args[2], Port = int.Parse(args[3]), Database = args[4], UserName = args[5], UseSsl = true,
+        Password = Environment.GetEnvironmentVariable("TCF_DB_PASSWORD") ?? ""
+    };
+    var progress = new Progress<string>(s => Console.WriteLine("  " + s));
+    var report = DatabaseCopier.Copy(DbTarget.ForFile(tmp), DbTarget.ForServer(dest), "copie-serveur", replaceDestination: false, progress);
+    Console.WriteLine($"Copie terminée : {report.TotalRows} ligne(s) ; complète = {report.IsComplete}");
+    foreach (var (table, s, d) in report.Tables) Console.WriteLine($"  {table,-28} source {s,5}  destination {d,5}");
+    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+    return report.IsComplete ? 0 : 1;
+}
+
 // Mini exécuteur de tests (sans dépendance externe) : code de sortie 0 = tout est vrai.
 var failures = 0;
 var checks = 0;
