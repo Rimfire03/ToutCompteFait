@@ -76,7 +76,6 @@ public partial class SettingsView : UserControl, IPage
         // Onglets réservés à l'administrateur.
         UsersTab.Visibility = App.HasRole(Permission.ManageUsers) ? Visibility.Visible : Visibility.Collapsed;
         DbTab.Visibility = App.HasRole(Permission.ManageDatabase) ? Visibility.Visible : Visibility.Collapsed;
-        ImportButton.IsEnabled = App.Can(Permission.ManageDatabase);
         ResetDataButton.IsEnabled = App.Can(Permission.ManageDatabase);
         ServerButton.IsEnabled = App.HasRole(Permission.ManageDatabase);
         ChangeDbButton.IsEnabled = App.HasRole(Permission.ManageDatabase);
@@ -649,33 +648,4 @@ public partial class SettingsView : UserControl, IPage
             Ui.Error("Le vidage a échoué, la base n'a pas été modifiée :\n" + inner.Message);
         }
     }
-
-    private void Import_Click(object sender, RoutedEventArgs e)
-    {
-        var dlg = new Microsoft.Win32.OpenFileDialog
-        {
-            Title = "Choisir les classeurs Excel à importer (un par exercice)",
-            Filter = "Classeurs Excel (*.xlsx)|*.xlsx",
-            Multiselect = true
-        };
-        if (dlg.ShowDialog() != true) return;
-        if (!Ui.Confirm($"Importer {dlg.FileNames.Length} classeur(s) dans la base actuelle ?\n\n" +
-                        "Les exercices du même nom ne doivent pas déjà exister. Si quelque chose bloque, rien n'est modifié."))
-            return;
-        try
-        {
-            try { App.DbFactory.CreateBackup("avant-import"); }
-            catch (Exception ex) { Ui.Error("Sauvegarde préalable impossible : import annulé.\n" + ex.Message); return; }
-            var report = ExcelImporter.Import(_c, dlg.FileNames);
-            new ReportWindow("Rapport d'import", $"{report.YearsImported} exercice(s), {report.EntriesImported} écriture(s) importée(s).",
-                report.ToString()) { Owner = Window.GetWindow(this) }.ShowDialog();
-            MainWindow.Current?.Refresh();
-        }
-        catch (ComptaException ex) { Ui.Error("Import annulé (aucune modification) :\n" + ex.Message); }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or System.Xml.XmlException)
-        {
-            Ui.Error("Un classeur n'a pas pu être lu (est-il bien au format .xlsx ?). Aucune modification n'a été faite.\n\n" + ex.Message);
-        }
-    }
 }
-

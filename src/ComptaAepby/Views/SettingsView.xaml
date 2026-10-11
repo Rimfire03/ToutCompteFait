@@ -196,12 +196,6 @@
                         </WrapPanel>
                         <TextBlock x:Name="AutoBackupInfo" Style="{StaticResource MutedText}" Margin="0,6,0,0"/>
 
-                        <TextBlock Text="Import des classeurs Excel" Style="{StaticResource SectionText}"/>
-                        <TextBlock Style="{StaticResource MutedText}"
-                                   Text="Ajoute à la base les exercices contenus dans vos anciens classeurs « livre … .xlsx » (un fichier par exercice). Rien n'est corrigé en silence : les incohérences sont signalées et restent visibles dans le Livre."/>
-                        <Button x:Name="ImportButton" Content="Importer des classeurs Excel…" Style="{StaticResource SecondaryButton}"
-                                HorizontalAlignment="Left" Margin="0,8,0,0" Click="Import_Click"/>
-
                         <TextBlock Text="Script SQL" Style="{StaticResource SectionText}"/>
                         <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap"
                                    Text="Exécute un fichier .sql sur la base actuelle (par ex. le script PostgreSQL généré à partir d'une base de test, qui remplace les tables de l'application). Une sauvegarde est faite avant ; si le script échoue, rien n'est modifié."/>

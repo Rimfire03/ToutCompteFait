@@ -5,19 +5,6 @@ using ComptaAepby.Core.Security;
 using ComptaAepby.Core.Services;
 using Microsoft.EntityFrameworkCore;
 
-// Utilitaire : « makedb <fichier.db> <classeur.xlsx>... » crée une base à partir de classeurs Excel.
-if (args.Length >= 3 && args[0] == "makedb")
-{
-    var target = args[1];
-    if (File.Exists(target)) { Console.WriteLine("Le fichier existe déjà : " + target); return 2; }
-    var mf = new DbContextFactory(target);
-    mf.EnsureDatabaseUpToDate("makedb");
-    var mc = new Compta(mf, Session.System);
-    var rep = ExcelImporter.Import(mc, args.Skip(2));
-    Console.WriteLine(rep.ToString());
-    return 0;
-}
-
 // Utilitaire : « adduser <fichier.db> <identifiant> <mot de passe> » crée le premier administrateur (base de démonstration).
 if (args.Length >= 4 && args[0] == "adduser")
 {
@@ -487,7 +474,6 @@ Console.WriteLine("Comptes utilisateurs, mots de passe et rôles");
         Throws(() => ct.ReopenYear(y.Id, "oups"), "trésorier : réouverture refusée", "ne permet pas");
         ca.ReopenYear(y.Id, "contrôle");
         Check(ca.Year(y.Id)!.Open, "administrateur : réouverture autorisée");
-        Throws(() => ExcelImporter.Import(ct, Array.Empty<string>()), "trésorier : import Excel refusé", "ne permet pas");
 
         // Mot de passe : réinitialisation puis changement par l'intéressé.
         ca.ResetPassword(lec.Id, "Provisoire2026");
@@ -804,82 +790,6 @@ Console.WriteLine("Modèle de données pour PostgreSQL, MariaDB et SQL Server (g
         catch (Exception ex) { Check(false, $"{DatabaseProviderInfo.DisplayName(p)} : génération du schéma", ex.Message); continue; }
         Check(tables.All(t => s.Contains(t, StringComparison.OrdinalIgnoreCase)), $"{DatabaseProviderInfo.DisplayName(p)} : toutes les tables générées");
         Check(s.Contains("password_hash", StringComparison.OrdinalIgnoreCase), $"{DatabaseProviderInfo.DisplayName(p)} : table des comptes utilisateurs");
-    }
-}
-
-// ------------------------------------------------------------------ rapprochement avec les classeurs Excel
-Console.WriteLine("Import Excel et rapprochement avec les formules du classeur");
-{
-    const string root = @"G:\Mon Drive\Trésorerie";
-    var f2425 = Path.Combine(root, "2024-2025", "livre 2024-2025.xlsx");
-    var f2526 = Path.Combine(root, "2025-2026", "livre 2025-2026.xlsx");
-    var f2627 = new[] { "livre v2.xlsx", "livre2026-2027.xlsx", "livre 2026-2027.xlsx" }
-        .Select(n => Path.Combine(root, "2026-2027", n)).FirstOrDefault(File.Exists) ?? Path.Combine(root, "2026-2027", "livre v2.xlsx");
-    if (!File.Exists(f2425) || !File.Exists(f2526) || !File.Exists(f2627))
-    {
-        Console.WriteLine("  (classeurs Excel absents : rapprochement ignoré)");
-    }
-    else
-    {
-        var path = TempDb();
-        {
-            var f = NewFactory(path);
-            var c = NewCompta(f);
-            ExcelImporter.Import(c, new[] { f2627, f2425, f2526 }); // ordre volontairement mélangé
-            var years = c.Years();
-            Eq(3, years.Count, "3 exercices importés");
-            var y24 = years[0]; var y25 = years[1]; var y26 = years[2];
-            Eq("2024-2025", y24.Label, "libellé 2024-2025");
-            Eq("2025-2026", y25.Label, "libellé 2025-2026");
-            Eq("2026-2027", y26.Label, "libellé 2026-2027");
-
-            var banque = c.Accounts().First(a => a.Name == "Banque");
-            var livret = c.Accounts().First(a => a.Name == "Livret A");
-
-            var b25 = c.ComputeBilan(y25.Id);
-            decimal Cat(Bilan b, CategoryKind k, string name) =>
-                (k == CategoryKind.Product ? b.Products : b.Charges).First(x => x.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase)).Total / 100m;
-            Eq(2985.08m, Cat(b25, CategoryKind.Charge, "Investissement"), "2025-26 charges Investissement");
-            Eq(388.23m, Cat(b25, CategoryKind.Charge, "Garage"), "2025-26 charges Garage");
-            Eq(4071.56m, Cat(b25, CategoryKind.Charge, "Loto Octobre"), "2025-26 charges Loto Octobre (3 003,49 + report n-1 1 068,07)");
-            Eq(5280.79m, Cat(b25, CategoryKind.Charge, "Kermesse"), "2025-26 charges Kermesse");
-            Eq(10060m, Cat(b25, CategoryKind.Charge, "Subvention annuel"), "2025-26 charges Subvention annuel");
-            Eq(58.12m, Cat(b25, CategoryKind.Charge, "Loto n+1"), "2025-26 charges Loto n+1 (après report n+1)");
-            Eq(1310.75m, Cat(b25, CategoryKind.Product, "Adhésions"), "2025-26 produits Adhésions");
-            Eq(10854.81m, Cat(b25, CategoryKind.Product, "Loto Octobre"), "2025-26 produits Loto Octobre");
-            Eq(6519.23m, Cat(b25, CategoryKind.Product, "Loto mars"), "2025-26 produits Loto mars");
-            Eq(2559.67m, Cat(b25, CategoryKind.Product, "Locations"), "2025-26 produits Locations");
-            Eq(3251821L, b25.ChargesTotal, "2025-26 total charges (Excel 32 518,21)");
-            Eq(3792761L, b25.ProductsTotal, "2025-26 total produits (Excel 37 927,61)");
-            Eq(540940L, b25.Result, "2025-26 résultat (Excel 5 409,40)");
-            Eq(81308L, b25.Report, "2025-26 report au passif (Excel 813,08)");
-            Eq(1910587L, b25.OpeningTotal, "2025-26 ouverture (Excel 19 105,87)");
-            Eq(2246381L, b25.Accounts.First(a => a.Account.Id == banque.Id).Closing, "2025-26 solde banque (Excel 22 463,81)");
-            Eq(304646L, b25.Accounts.First(a => a.Account.Id == livret.Id).Closing, "2025-26 solde livret (Excel 3 046,46)");
-            Eq(2551027L, b25.ClosingTotal, "2025-26 actif (Excel 25 510,27)");
-            Eq(0L, b25.BalanceDifference, "2025-26 bilan équilibré dans le logiciel");
-            Eq(18192L, b25.UnallocatedGap, "2025-26 écart de ventilation = écart actif/passif d'Excel (181,92)");
-
-            var b24 = c.ComputeBilan(y24.Id);
-            Eq(3197981L + 16899L, b24.ChargesTotal, "2024-25 total charges (Excel 31 979,81 + 168,99 saisis en texte)");
-            Eq(2909453L, b24.ProductsTotal, "2024-25 total produits (Excel 29 094,53)");
-            Eq(-288528L - 16899L, b24.Result, "2024-25 résultat (Excel -2 885,28 − 168,99)");
-            Eq(1899156L, b24.Accounts.First(a => a.Account.Id == banque.Id).Closing, "2024-25 solde banque (Excel 18 991,56)");
-            Eq(11431L, b24.Accounts.First(a => a.Account.Id == livret.Id).Closing, "2024-25 solde livret (Excel 114,31)");
-            Eq(2135881L, b24.OpeningTotal, "2024-25 ouverture (Excel 21 358,81)");
-            Eq(0L, b24.BalanceDifference, "2024-25 bilan équilibré dans le logiciel");
-            Eq(1910587L, b25.OpeningTotal, "2025-26 ouvre sur la clôture 2024-25");
-
-            var b26 = c.ComputeBilan(y26.Id);
-            Eq(2551027L, b26.OpeningTotal, "2026-27 ouverture = clôture 2025-26");
-            var carried = c.Adjustments(y26.Id);
-            Eq(1, carried.Count, "2026-27 : 1 report reçu");
-            Eq(25499L, carried[0].AmountCents, "2026-27 : report 254,99");
-            Check(carried[0].CategoryId is null, "2026-27 : catégorie à choisir (non devinée)");
-            Eq(0L, b26.BalanceDifference, "2026-27 bilan équilibré");
-            Check(c.ValidationIssues(y25.Id).Any(i => i.Blocking), "2025-26 non validable tant que les écritures ne sont pas corrigées");
-        }
-        Cleanup(path);
     }
 }
 

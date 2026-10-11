@@ -11,7 +11,7 @@ Application Windows (WPF, .NET 8), un seul `.exe` autonome ; les données sont d
    vert/rouge indique si tout est ventilé. La rentabilité de l'opération concernée s'affiche pendant la saisie.
 3. **Bilan et opérations** : compte de fonctionnement, rentabilité par opération, actif/passif, contrôles, validation.
 4. **Reports entre exercices** : paiements/encaissements qui concernent un autre exercice (transmis automatiquement).
-5. **Paramètres** : produits et charges, opérations (liens produits ↔ charges), comptes, exercice, import Excel, journal.
+5. **Paramètres** : produits et charges, opérations (liens produits ↔ charges), comptes, exercice, journal.
 
 ## Règles comptables (ce que le logiciel garantit)
 
@@ -47,7 +47,7 @@ reçoit un mot de passe provisoire qu'il doit changer à sa première connexion.
 | Valider un exercice | ✔ | ✔ | — |
 | Rouvrir un exercice validé | ✔ | — | — |
 | Créer et gérer les utilisateurs | ✔ | — | — |
-| Base de données (serveur, fichier, sauvegardes, restauration), import des classeurs Excel | ✔ | — | — |
+| Base de données (serveur, fichier, sauvegardes, restauration) | ✔ | — | — |
 
 Les droits sont vérifiés par le moteur (`Compta`), pas seulement masqués dans l'interface (`RoleInfo.Has`). Le dernier
 administrateur actif ne peut être ni rétrogradé ni désactivé. Un lecteur n'occupe jamais le verrou d'écriture.
@@ -151,34 +151,19 @@ page (identique à FiltresApp) indique l'état : puce verte (accessible), orange
 > Le verrou repose sur les verrous de fichiers Windows : il fonctionne sur un **dossier partagé réseau (SMB/NAS)**,
 > pas à travers la synchronisation Google Drive / OneDrive, où chaque poste a sa propre copie du fichier.
 
-## Import des classeurs Excel
-
-Paramètres → Application → « Importer des classeurs Excel… » (ou `tools\Publish.ps1 -WithData`).
-Reprise fidèle, **sans correction silencieuse** ; les incohérences sont listées dans un rapport et restent visibles
-(lignes rouges du Livre). Ce que l'import a trouvé dans les trois classeurs fournis :
-
-| Exercice | Constat dans l'Excel | Traitement |
-|---|---|---|
-| 2025-2026 | Actif 25 510,27 ≠ passif 25 328,35 (écart 181,92 €) | 4 écritures mal ventilées (lignes 105, 106, 146, 269) restent à corriger ; `+ 2 écritures 161,59 € sans catégorie` (aller-retour) |
-| 2025-2026 | dates en 2026 pour des lignes de décembre 2025 (18/12 et 31/12) | signalées « hors exercice », à corriger |
-| 2025-2026 | ligne 271 (refacturation sans mouvement d'argent) | importée comme « Sans mouvement d'argent » |
-| 2024-2025 | 168,99 € saisis en **texte** (ligne 259), ignorés par les totaux Excel | repris comme montant (charges +168,99) |
-| 2024-2025 | écart actif/passif de 854,65 € ; reports sans catégorie | écritures non ventilées visibles, reports à affecter |
-| 2026-2027 | vide ; report 254,99 € (« lot loto » payé en 2025-2026) | reporté automatiquement, catégorie à choisir |
-
 ## Développement
 
 ```
 ComptaAepby.sln
-src/ComptaAepby.Core   moteur (règles comptables, SQLite, import Excel) — aucune dépendance d'interface
+src/ComptaAepby.Core   moteur (règles comptables, bases SQLite / serveur, import des relevés) — aucune dépendance d'interface
 src/ComptaAepby        application WPF
-tests/ComptaAepby.Tests   284 vérifications, dont le rapprochement avec les formules des classeurs Excel
-tools/Publish.ps1      tests → publication mono-fichier → signature → (option) base initiale
+tests/ComptaAepby.Tests   vérifications du moteur (clôture, ventilation, import, sauvegardes…)
+tools/Publish.ps1      tests → publication mono-fichier → signature
 tools/Sign-Release.ps1 signature avec le certificat global TomLine prod&co
 ```
 
 * Tests : `dotnet run --project tests\ComptaAepby.Tests -c Release`
-* Publication : `.\tools\Publish.ps1` (ajouter `-WithData -Workbooks a.xlsx,b.xlsx` pour créer la base)
+* Publication : `.\tools\Publish.ps1`
 * Diagnostic : `ToutCompteFait.exe --db <fichier.db> --year <libellé> --shots <dossier>` enregistre une capture de
   chaque écran (`--selftest` saisit en plus deux écritures de test : réservé à une base de démonstration).
 

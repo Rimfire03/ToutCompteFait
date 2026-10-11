@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -229,7 +229,7 @@ public partial class MainWindow : Window
     private void PromptFirstYear()
     {
         Ui.Info("Bienvenue ! Commençons par créer le premier exercice (la période comptable).\n\n" +
-                "Vous pourrez ensuite saisir les soldes de départ des comptes dans « Paramètres », ou importer vos classeurs Excel existants.",
+                "Vous pourrez ensuite saisir les soldes de départ des comptes dans « Paramètres », puis importer vos relevés bancaires depuis le Livre.",
             "Tout Compte Fait");
         CreateYearInteractive();
     }

@@ -19,7 +19,7 @@ public enum Permission
     ReopenYear,
     /// <summary>Créer et gérer les comptes utilisateurs.</summary>
     ManageUsers,
-    /// <summary>Réglages de la base (serveur, fichier, sauvegardes, restauration) et import des classeurs Excel.</summary>
+    /// <summary>Réglages de la base (serveur, fichier, sauvegardes, restauration), vidage de la base.</summary>
     ManageDatabase
 }
 
