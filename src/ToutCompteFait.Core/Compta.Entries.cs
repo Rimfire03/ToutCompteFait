@@ -8,13 +8,19 @@ public sealed partial class Compta
 {
     // ------------------------------------------------------------------ écritures du livre
 
-    /// <summary>Toutes les écritures d'un exercice, triées par date puis par ordre de saisie.</summary>
-    public List<EntryRow> Entries(long yearId)
+    /// <summary>Écritures d'un exercice, triées par date puis par ordre de saisie. Par défaut, les écritures annulées et
+    /// leurs contre-passations (effet net nul) sont masquées : tous les calculs (bilan, soldes, contrôles de clôture)
+    /// portent sur le résultat net. <paramref name="includeCancelled"/> donne le journal complet (livre, exports,
+    /// empreinte).</summary>
+    public List<EntryRow> Entries(long yearId, bool includeCancelled = false)
     {
         using var l = Open();
         var ctx = l.Ctx;
         var entries = ctx.Entries.AsNoTracking().Where(e => e.YearId == yearId)
             .OrderBy(e => e.EntryDate).ThenBy(e => e.Id).ToList();
+        var reversed = entries.Where(e => e.ReversalOfId != null).Select(e => e.ReversalOfId!.Value).ToHashSet();
+        if (!includeCancelled)
+            entries = entries.Where(e => e.ReversalOfId == null && !reversed.Contains(e.Id)).ToList();
         var allocs = (from a in ctx.Allocations.AsNoTracking()
                       join e in ctx.Entries.AsNoTracking() on a.EntryId equals e.Id
                       where e.YearId == yearId
@@ -22,7 +28,7 @@ public sealed partial class Compta
                       select a).ToList();
         var byEntry = allocs.GroupBy(a => a.EntryId)
             .ToDictionary(g => g.Key, g => g.Select(x => new Allocation(x.CategoryId, x.AmountCents)).ToList());
-        return entries.Select(e => new EntryRow(ToEntry(e),
+        return entries.Select(e => new EntryRow(ToEntry(e, reversed.Contains(e.Id)),
             byEntry.TryGetValue(e.Id, out var list) ? list : (IReadOnlyList<Allocation>)Array.Empty<Allocation>())).ToList();
     }
 
@@ -31,9 +37,45 @@ public sealed partial class Compta
         using var l = Open();
         var e = l.Ctx.Entries.AsNoTracking().FirstOrDefault(x => x.Id == id);
         if (e is null) return null;
+        var cancelled = l.Ctx.Entries.AsNoTracking().Any(x => x.ReversalOfId == id);
         var al = l.Ctx.Allocations.AsNoTracking().Where(a => a.EntryId == id).OrderBy(a => a.Id)
             .AsEnumerable().Select(a => new Allocation(a.CategoryId, a.AmountCents)).ToList();
-        return new EntryRow(ToEntry(e), al);
+        return new EntryRow(ToEntry(e, cancelled), al);
+    }
+
+    /// <summary>Refuse la modification d'une écriture annulée ou d'une écriture d'annulation.</summary>
+    private static void RequireNotFrozen(EntryRow row)
+    {
+        if (row.Entry.IsReversal)
+            throw new ComptaException($"L'écriture n° {row.Entry.Seq} est une annulation : elle n'est plus modifiable.");
+        if (row.Entry.Cancelled)
+            throw new ComptaException($"L'écriture n° {row.Entry.Seq} a été annulée : elle n'est plus modifiable.");
+    }
+
+    // ------------------------------------------------------------------ description pour le journal d'audit
+
+    /// <summary>Texte lisible d'une écriture et de sa ventilation, pour les lignes « avant / après » du journal.</summary>
+    private string DescribeEntry(Entry e, IReadOnlyList<Allocation> allocations)
+    {
+        var accounts = Accounts(true).ToDictionary(a => a.Id, a => a.Name);
+        string Acc(long? id) => id is { } v && accounts.TryGetValue(v, out var n) ? n : "—";
+        var cats = Categories(e.YearId).ToDictionary(c => c.Id, c => c.Name);
+        var sb = new System.Text.StringBuilder();
+        if (e.Seq > 0) sb.Append("n° ").Append(e.Seq).Append(" · ");
+        sb.Append(e.Date.ToString("dd/MM/yyyy")).Append(" · « ").Append(e.Label).Append(" » · ");
+        sb.Append(e.Kind switch
+        {
+            EntryKind.Transfer => $"virement {Money.Format(e.AmountCents)} € de {Acc(e.AccountId)} vers {Acc(e.ToAccountId)}",
+            EntryKind.NoCash => $"sans mouvement d'argent {Money.Format(e.AmountCents)} €",
+            EntryKind.MemberRefund => $"remboursement de {e.MemberName} {Money.Format(e.AmountCents)} € ({Acc(e.AccountId)})",
+            _ => $"{(e.Direction == Direction.In ? "entrée" : "sortie")} {Money.Format(e.AmountCents)} € ({Acc(e.AccountId)})"
+        });
+        if (allocations.Count > 0)
+            sb.Append(" · ventilation : ").Append(string.Join(" ; ", allocations.Select(a =>
+                $"{(cats.TryGetValue(a.CategoryId, out var n) ? n : "?")} {Money.Format(a.AmountCents)} €")));
+        if (e.Pointed) sb.Append(" · pointée");
+        if (!string.IsNullOrWhiteSpace(e.Note)) sb.Append(" · note : ").Append(e.Note);
+        return sb.ToString();
     }
 
     /// <summary>Écart de ventilation d'une écriture : trésorerie réelle − (produits − charges ventilés).
@@ -61,10 +103,13 @@ public sealed partial class Compta
     {
         RequireOpen(entry.YearId);
         var year = Year(entry.YearId)!;
+        EntryRow? before = null;
         if (entry.Id != 0)
         {
+            before = EntryById(entry.Id) ?? throw new ComptaException("Écriture introuvable.");
+            RequireNotFrozen(before);
             // Écriture importée de la banque : le relevé fait foi, le montant ne se modifie pas.
-            var current = EntryById(entry.Id)?.Entry;
+            var current = before.Entry;
             if (current is { FromBank: true } && current.AmountCents != entry.AmountCents)
                 throw new ComptaException($"Le montant d'une écriture importée de la banque ne peut pas être modifié : le relevé fait foi ({Money.Format(current.AmountCents)} €).".Replace("d'une","d'une"));
         }
@@ -154,21 +199,78 @@ public sealed partial class Compta
             ctx.Allocations.Add(new AllocationEntity { EntryId = e.Id, CategoryId = a.CategoryId, AmountCents = a.AmountCents });
         var id = e.Id;
         Save(ctx);
+
+        // Journal : création, ou modification avec le contenu avant / après.
+        var after = EntryById(id)!;
+        var afterText = DescribeEntry(after.Entry, after.Allocations);
+        if (before is null)
+            Log(ctx, "Écriture créée", afterText);
+        else
+        {
+            var beforeText = DescribeEntry(before.Entry, before.Allocations);
+            if (!string.Equals(beforeText, afterText, StringComparison.Ordinal))
+                Log(ctx, "Écriture modifiée", $"Avant : {beforeText}\nAprès : {afterText}");
+        }
         tx.Commit();
         return id;
     }
 
-    public void DeleteEntry(long entryId)
+    /// <summary>Écriture opposée à <paramref name="o"/> (non ajoutée au contexte ; la ventilation inversée est ajoutée
+    /// par l'appelant une fois l'identifiant connu). Même date et même montant : les soldes à toute date et le résultat
+    /// sont exactement ceux d'avant la saisie de l'original.</summary>
+    private EntryEntity BuildReversal(Entry o, string? reason)
+    {
+        var now = Now();
+        var label = $"Annulation de l'écriture n° {o.Seq} : {o.Label}";
+        var rev = new EntryEntity
+        {
+            YearId = o.YearId, EntryDate = D(o.Date), Label = label.Length > 500 ? label[..500] : label,
+            Pointed = o.Pointed, AmountCents = o.AmountCents, ReversalOfId = o.Id, CreatedAt = now, UpdatedAt = now,
+            Note = string.IsNullOrWhiteSpace(reason) ? null : "Motif : " + reason.Trim()
+        };
+        switch (o.Kind)
+        {
+            case EntryKind.Transfer:
+                rev.Kind = "TRANSFER"; rev.Direction = "OUT"; rev.AccountId = o.ToAccountId; rev.ToAccountId = o.AccountId;
+                break;
+            case EntryKind.NoCash:
+                rev.Kind = "NO_CASH"; rev.Direction = "IN";
+                break;
+            default:   // recette/dépense ordinaire ou remboursement de membre : sens inverse sur le même compte
+                rev.Kind = "NORMAL"; rev.AccountId = o.AccountId; rev.Direction = o.Direction == Direction.In ? "OUT" : "IN";
+                break;
+        }
+        return rev;
+    }
+
+    /// <summary>Annule une écriture par contre-passation : une nouvelle écriture, opposée et de même montant, est ajoutée
+    /// (même date, ventilation inversée) ; l'original est conservé. Les deux n'ont aucun effet net et restent visibles
+    /// dans le journal complet. Aucune écriture ne se supprime, ce qui garde la numérotation continue et la piste
+    /// d'audit intacte. Retourne l'identifiant de l'écriture d'annulation.</summary>
+    public long CancelEntry(long entryId, string? reason = null)
     {
         var row = EntryById(entryId) ?? throw new ComptaException("Écriture introuvable.");
         RequireOpen(row.Entry.YearId);
+        var o = row.Entry;
+        if (o.IsReversal) throw new ComptaException($"L'écriture n° {o.Seq} est déjà une annulation : elle ne peut pas être annulée.");
+        if (o.Cancelled) throw new ComptaException($"L'écriture n° {o.Seq} est déjà annulée.");
         if (RefundedAmount(entryId) > 0)
-            throw new ComptaException("Cette dépense a des remboursements liés : modifiez ou supprimez d'abord les remboursements.");
-        using var l = Open();
-        var ctx = l.Ctx;
-        ctx.Allocations.RemoveRange(ctx.Allocations.Where(a => a.EntryId == entryId));
-        ctx.Entries.Remove(ctx.Entries.First(e => e.Id == entryId));
+            throw new ComptaException("Cette dépense a des remboursements liés : modifiez ou annulez d'abord les remboursements.");
+
+        using var tx = Begin();
+        var ctx = Open().Ctx;
+        var rev = BuildReversal(o, reason);
+        ctx.Entries.Add(rev);
+        ctx.SaveChanges();
+        foreach (var a in row.Allocations)
+            ctx.Allocations.Add(new AllocationEntity { EntryId = rev.Id, CategoryId = a.CategoryId, AmountCents = -a.AmountCents });
+        var revId = rev.Id;
+        var revSeq = rev.Seq;
         Save(ctx);
+        Log(ctx, "Écriture annulée", $"{DescribeEntry(o, row.Allocations)} → contre-passation n° {revSeq}" +
+            (string.IsNullOrWhiteSpace(reason) ? "" : $" · motif : {reason.Trim()}"));
+        tx.Commit();
+        return revId;
     }
 
     /// <summary>Réinitialise la ventilation d'une écriture (toutes ses lignes sont retirées) : elle redevient « à ventiler ».
@@ -177,6 +279,7 @@ public sealed partial class Compta
     {
         var row = EntryById(entryId) ?? throw new ComptaException("Écriture introuvable.");
         RequireOpen(row.Entry.YearId);
+        RequireNotFrozen(row);
         if (row.Entry.Kind == EntryKind.Transfer)
             throw new ComptaException("Un virement entre comptes n'a pas de ventilation.");
         if (row.Allocations.Count == 0) return;
@@ -193,11 +296,17 @@ public sealed partial class Compta
     {
         var row = EntryById(entryId) ?? throw new ComptaException("Écriture introuvable.");
         RequireOpen(row.Entry.YearId);
-        using var l = Open();
-        var e = l.Ctx.Entries.First(x => x.Id == entryId);
+        RequireNotFrozen(row);
+        if (row.Entry.Pointed == pointed) return;
+        using var tx = Begin();
+        var ctx = Open().Ctx;
+        var e = ctx.Entries.First(x => x.Id == entryId);
         e.Pointed = pointed;
         e.UpdatedAt = Now();
-        Save(l.Ctx);
+        Save(ctx);
+        Log(ctx, pointed ? "Écriture pointée" : "Écriture dépointée",
+            $"n° {row.Entry.Seq} · {row.Entry.Date:dd/MM/yyyy} « {row.Entry.Label} » · {Money.Format(row.Entry.AmountCents)} €");
+        tx.Commit();
     }
 
     /// <summary>Affectation rapide : classe la totalité d'une écriture non ventilée dans une seule catégorie
@@ -208,6 +317,7 @@ public sealed partial class Compta
         var row = EntryById(entryId) ?? throw new ComptaException("Écriture introuvable.");
         var e = row.Entry;
         RequireOpen(e.YearId);
+        RequireNotFrozen(row);
         if (row.Allocations.Count > 0)
             throw new ComptaException("Cette écriture est déjà ventilée : utilisez « Modifier » pour changer sa ventilation.");
         if (e.Kind is not (EntryKind.Normal or EntryKind.MemberRefund))
@@ -216,11 +326,14 @@ public sealed partial class Compta
                   ?? throw new ComptaException("Cette catégorie n'appartient pas à l'exercice de l'écriture.");
         // produits − charges = trésorerie : produit => +net ; charge => −net.
         var amount = cat.Kind == CategoryKind.Product ? e.NetCash : -e.NetCash;
-        using var l = Open();
-        l.Ctx.Allocations.Add(new AllocationEntity { EntryId = entryId, CategoryId = categoryId, AmountCents = amount });
-        var ent = l.Ctx.Entries.First(x => x.Id == entryId);
+        using var tx = Begin();
+        var ctx = Open().Ctx;
+        ctx.Allocations.Add(new AllocationEntity { EntryId = entryId, CategoryId = categoryId, AmountCents = amount });
+        var ent = ctx.Entries.First(x => x.Id == entryId);
         ent.UpdatedAt = Now();
-        Save(l.Ctx);
+        Save(ctx);
+        Log(ctx, "Écriture affectée", $"n° {e.Seq} · {e.Date:dd/MM/yyyy} « {e.Label} » · {Money.Format(e.AmountCents)} € → {cat.Name}");
+        tx.Commit();
     }
 
     // ------------------------------------------------------------------ régularisations entre exercices
@@ -267,6 +380,7 @@ public sealed partial class Compta
             ctx.Adjustments.Add(e);
             Save(ctx);
             id = e.Id;
+            Log(ctx, "Régularisation créée", DescribeAdjustment(e));
             tx.Commit();
         }
         SyncCarry(yearId);
@@ -283,6 +397,7 @@ public sealed partial class Compta
             var a = AdjustmentEntityById(ctx, id);
             yearId = a.YearId;
             RequireOpen(a.YearId);
+            var beforeText = DescribeAdjustment(a);
             if (a.SourceId is not null)
             {
                 // Ligne issue du report automatique : seule la catégorie d'affectation est libre.
@@ -301,6 +416,9 @@ public sealed partial class Compta
                 a.Note = note;
             }
             Save(ctx);
+            var afterText = DescribeAdjustment(a);
+            if (!string.Equals(beforeText, afterText, StringComparison.Ordinal))
+                Log(ctx, "Régularisation modifiée", $"Avant : {beforeText}\nAprès : {afterText}");
             tx.Commit();
         }
         SyncCarry(yearId);
@@ -318,13 +436,28 @@ public sealed partial class Compta
             if (a.SourceId is not null)
                 throw new ComptaException("Cette ligne vient du report automatique de l'exercice précédent : modifiez-la à la source.");
             // Les copies reportées sur l'exercice suivant disparaissent avec leur source.
+            var text = DescribeAdjustment(a);
             ctx.Adjustments.RemoveRange(ctx.Adjustments.Where(x => x.SourceId == id));
             ctx.SaveChanges();
             ctx.Adjustments.Remove(a);
             Save(ctx);
+            Log(ctx, "Régularisation supprimée", text);
             tx.Commit();
         }
         SyncCarry(yearId);
+    }
+
+    private string DescribeAdjustment(AdjustmentEntity a)
+    {
+        var cat = a.CategoryId is { } cid ? ctxCategoryName(cid) : "catégorie à affecter";
+        return $"{Labels.Of(AdjFromDb(a.Type))} · « {a.Label} » · {Money.Format(a.AmountCents)} € · {cat}" +
+               (string.IsNullOrWhiteSpace(a.Note) ? "" : $" · note : {a.Note}");
+
+        string ctxCategoryName(long id)
+        {
+            using var l = Open();
+            return l.Ctx.Categories.AsNoTracking().Where(c => c.Id == id).Select(c => c.Name).FirstOrDefault() ?? "?";
+        }
     }
 
     private static string? NullIfBlank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

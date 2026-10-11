@@ -13,6 +13,19 @@ public sealed class AccountEntity
     public bool Active { get; set; } = true;
     /// <summary>Textes qui identifient ce compte dans l'en-tête d'un relevé téléchargé (séparés par « ; »).</summary>
     public string? StatementMatch { get; set; }
+    /// <summary>Numéro de compte comptable de ce compte (export FEC) ; vide = numéro automatique (512…/530…).
+    /// Donnée de paramétrage, hors périmètre de l'empreinte des exercices : modifiable à tout moment.</summary>
+    public string? AccountNumber { get; set; }
+}
+
+/// <summary>Numéro de compte comptable d'une catégorie (par genre P/C et nom, tous exercices confondus) pour l'export
+/// FEC. Table séparée des catégories (verrouillées avec leur exercice) : le plan de comptes s'enrichit après clôture
+/// sans toucher aux exercices validés.</summary>
+public sealed class CategoryAccountEntity
+{
+    public string Kind { get; set; } = "C";
+    public string Name { get; set; } = "";
+    public string AccountNumber { get; set; } = "";
 }
 
 public sealed class YearEntity
@@ -70,6 +83,12 @@ public sealed class EntryEntity
     public string? ImportRef { get; set; }
     /// <summary>Remboursement reçu : écriture de dépense d'origine (remboursement partiel ou total).</summary>
     public long? RefundOfId { get; set; }
+    /// <summary>Numéro d'ordre de l'écriture dans son exercice : séquentiel, sans trou, attribué à la création
+    /// (<see cref="AppDbContext"/>) et jamais réutilisé ; une écriture n'est jamais supprimée, elle est annulée.</summary>
+    public long Seq { get; set; }
+    /// <summary>Contre-passation : écriture annulée par celle-ci (opposée de l'original, effet net nul).
+    /// Une écriture de ce type n'est plus jamais modifiable.</summary>
+    public long? ReversalOfId { get; set; }
     public string CreatedAt { get; set; } = "";
     public string UpdatedAt { get; set; } = "";
 }
@@ -117,6 +136,10 @@ public sealed class AuditEntity
     public string UserName { get; set; } = "";
     public string Action { get; set; } = "";
     public string? Detail { get; set; }
+    /// <summary>Chaînage : empreinte de la ligne précédente (« » pour la première) et empreinte de celle-ci
+    /// (<see cref="AuditChain"/>). Une ligne chaînée ne peut plus être modifiée ni supprimée.</summary>
+    public string? PrevHash { get; set; }
+    public string? Hash { get; set; }
 }
 
 /// <summary>Compte d'accès au logiciel (mot de passe haché, jamais en clair).</summary>

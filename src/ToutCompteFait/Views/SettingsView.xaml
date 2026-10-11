@@ -208,7 +208,7 @@
 
                         <TextBlock Text="Vider la base de données" Style="{StaticResource SectionText}"/>
                         <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap"
-                                   Text="Supprime toutes les données (exercices, comptes bancaires, écritures, ventilations, justificatifs) mais conserve les comptes utilisateurs et le journal. Réservé aux administrateurs. Une sauvegarde est faite avant ; l'opération est irréversible sans cette sauvegarde."/>
+                                   Text="Supprime toutes les données (exercices, comptes bancaires, écritures, ventilations, justificatifs) mais conserve les comptes utilisateurs et le journal. Réservé aux administrateurs. Une sauvegarde est faite avant ; l'opération est irréversible sans cette sauvegarde. Si des exercices sont validés (documents comptables à conserver), leur livre et leur FEC sont d'abord archivés et une phrase de confirmation spécifique est exigée."/>
                         <Button x:Name="ResetDataButton" Content="Vider la base (conserver les utilisateurs)…" Style="{StaticResource DangerButton}"
                                 HorizontalAlignment="Left" Margin="0,8,0,0" Click="ResetData_Click"/>
 

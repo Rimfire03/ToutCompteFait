@@ -14,6 +14,41 @@ if (args.Length >= 4 && args[0] == "adduser")
     return 0;
 }
 
+// Utilitaire : « demo <fichier.db> <identifiant> <mot de passe> » crée une base de démonstration FICTIVE (administrateur,
+// deux exercices dont un validé, écritures dont une annulée) pour les captures d'écran de diagnostic de l'application.
+if (args.Length >= 4 && args[0] == "demo")
+{
+    var df = new DbContextFactory(args[1]);
+    df.EnsureDatabaseUpToDate("demo");
+    new AuthService(df).CreateFirstAdmin(args[2], args[2], args[3]);
+    var dc = new Compta(df, Session.System);
+    var y1 = dc.CreateYear(new DateOnly(2025, 9, 1), new DateOnly(2026, 8, 31));
+    var bq = dc.Accounts().First(a => a.Name == "Banque");
+    var cats1 = dc.Categories(y1.Id);
+    var p1 = cats1.First(k => k.Kind == CategoryKind.Product);
+    var c1 = cats1.First(k => k.Kind == CategoryKind.Charge);
+    dc.SetOpening(y1.Id, bq.Id, 100000);
+    dc.SaveEntry(new Entry(0, y1.Id, new DateOnly(2025, 10, 4), "Cotisations", true, EntryKind.Normal, bq.Id, Direction.In, null, 45000, null, null),
+        new[] { new Allocation(p1.Id, 45000) });
+    dc.SaveEntry(new Entry(0, y1.Id, new DateOnly(2025, 11, 12), "Assurance", true, EntryKind.Normal, bq.Id, Direction.Out, null, 18000, null, null),
+        new[] { new Allocation(c1.Id, 18000) });
+    dc.ValidateYear(y1.Id);
+    var y2 = dc.CreateYear(new DateOnly(2026, 9, 1), new DateOnly(2027, 8, 31));
+    var cats2 = dc.Categories(y2.Id);
+    var p2 = cats2.First(k => k.Kind == CategoryKind.Product);
+    var c2 = cats2.First(k => k.Kind == CategoryKind.Charge);
+    dc.SaveEntry(new Entry(0, y2.Id, new DateOnly(2026, 9, 20), "Cotisations", false, EntryKind.Normal, bq.Id, Direction.In, null, 30000, null, null),
+        new[] { new Allocation(p2.Id, 30000) });
+    var wrong = dc.SaveEntry(new Entry(0, y2.Id, new DateOnly(2026, 10, 2), "Achat saisi deux fois", false, EntryKind.Normal, bq.Id, Direction.Out, null, 5000, null, null),
+        new[] { new Allocation(c2.Id, 5000) });
+    dc.CancelEntry(wrong, "doublon");
+    dc.SaveEntry(new Entry(0, y2.Id, new DateOnly(2026, 10, 5), "Fournitures", false, EntryKind.Normal, bq.Id, Direction.Out, null, 7500, null, null),
+        new[] { new Allocation(c2.Id, 7500) });
+    Console.WriteLine($"Base de démonstration créée : {args[1]}");
+    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+    return 0;
+}
+
 // Utilitaire : « pgsql <source.db> <sortie.sql> » : génère un script PostgreSQL autonome (schéma + données) à partir d'une
 // base SQLite, sans se connecter à aucun serveur. La source n'est pas modifiée (migration sur une copie temporaire).
 if (args.Length >= 3 && args[0] == "pgsql")
@@ -86,7 +121,7 @@ if (args.Length >= 3 && args[0] == "pgsql")
             var props = e.GetProperties().Select(p => (Name: p.GetColumnName(store)!, Clr: p.ClrType)).ToList();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT " + string.Join(", ", props.Select(p => "\"" + p.Name + "\"")) + " FROM \"" + table + "\"" +
-                              (table == "entries" ? " ORDER BY (\"refund_of_id\" IS NOT NULL), \"id\"" : "");
+                              (table == "entries" ? " ORDER BY (\"refund_of_id\" IS NOT NULL OR \"reversal_of_id\" IS NOT NULL), \"id\"" : "");
             var count = 0;
             sbSql.AppendLine($"-- {table}");
             using (var rd = cmd.ExecuteReader())
@@ -299,7 +334,7 @@ Console.WriteLine("Moteur : écritures, ventilation, bilan, verrouillage");
         Eq(1, bad.EntriesToFill, "écriture à ventiler comptée");
         Eq(0L, bad.BalanceDifference, "bilan équilibré malgré l'écart (affiché au passif)");
         Throws(() => c.ValidateYear(y.Id), "validation refusée avec écart", "classer");
-        c.DeleteEntry(nvId);
+        c.CancelEntry(nvId, "saisie erronée");
 
         c.ValidateYear(y.Id);
         Check(c.Year(y.Id)!.Validated, "exercice validé");
@@ -307,7 +342,7 @@ Console.WriteLine("Moteur : écritures, ventilation, bilan, verrouillage");
         var anyEntry = c.Entries(y.Id).First().Entry;
         Throws(() => c.SaveEntry(new Entry(0, y.Id, Dt(2026, 11, 3), "après validation", false, EntryKind.Normal, banque.Id, Direction.Out, null, 100, null, null),
             new[] { new Allocation(assur.Id, 100) }), "ajout refusé (service)", "validé");
-        Throws(() => c.DeleteEntry(anyEntry.Id), "suppression refusée (service)", "validé");
+        Throws(() => c.CancelEntry(anyEntry.Id), "annulation refusée (service)", "validé");
         Throws(() => c.AddCategory(y.Id, CategoryKind.Charge, "Nouvelle"), "catégorie refusée (service)", "validé");
         Throws(() => c.SetPointed(anyEntry.Id, false), "pointage refusé (service)", "validé");
 
@@ -318,7 +353,7 @@ Console.WriteLine("Moteur : écritures, ventilation, bilan, verrouillage");
             e.AmountCents += 1;
             Throws(() => ctx.SaveChanges(), "modification refusée (garde EF sur SaveChanges)", "validé");
         }
-        Throws(() => Sql(f, "DELETE FROM entries WHERE year_id = {0}", y.Id), "suppression refusée (trigger SQL)", "validé");
+        Throws(() => Sql(f, "DELETE FROM entries WHERE year_id = {0}", y.Id), "suppression refusée (trigger SQL)");
         Throws(() => Sql(f, "UPDATE entries SET amount_cents = 1 WHERE year_id = {0}", y.Id), "modification refusée (trigger SQL)", "validé");
         Throws(() => Sql(f, "INSERT INTO allocations(entry_id,category_id,amount_cents) SELECT id,{1},5 FROM entries WHERE year_id={0} LIMIT 1", y.Id, assur.Id),
             "ajout de ventilation refusé (trigger SQL)", "validé");
@@ -463,7 +498,7 @@ Console.WriteLine("Comptes utilisateurs, mots de passe et rôles");
         Throws(() => cl.CreateUser("intrus", "X", Role.Admin, "Intrus2026"), "lecteur : création de compte refusée", "ne permet pas");
         Throws(() => cl.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 2), "x", false, EntryKind.Normal, banque.Id, Direction.Out, null, 100, null, null),
             new[] { new Allocation(cat.Id, 100) }), "lecteur : saisie refusée", "ne permet pas");
-        Throws(() => cl.DeleteEntry(id), "lecteur : suppression refusée", "ne permet pas");
+        Throws(() => cl.CancelEntry(id), "lecteur : annulation refusée", "ne permet pas");
         Throws(() => cl.AddCategory(y.Id, CategoryKind.Charge, "Nouvelle"), "lecteur : catégorie refusée", "ne permet pas");
         Throws(() => cl.CreateYear(Dt(2028, 9, 1), Dt(2029, 8, 31)), "lecteur : exercice refusé", "ne permet pas");
         Eq(1, cl.Entries(y.Id).Count, "lecteur : consultation autorisée");
@@ -1156,8 +1191,8 @@ Console.WriteLine("Justificatifs");
     Eq(0, c.Attachments(id).Count, "justificatif retiré");
     Check(before1 != c.ComputeChecksum(y.Id), "l'empreinte tient compte des justificatifs");
     var aid2 = c.AddAttachment(id, "ticket.png", bytes);
-    c.DeleteEntry(id);
-    Eq(0, c.AttachmentCounts(y.Id).Count, "suppression de l'écriture : justificatifs supprimés");
+    c.CancelEntry(id, "doublon");
+    Eq(1, c.AttachmentCounts(y.Id)[id], "écriture annulée : justificatif conservé (pièce à garder 10 ans)");
     var id2 = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 4), "Autre achat", false, EntryKind.Normal, banque.Id, Direction.Out, null, 100, null, null),
         new[] { new Allocation(ch.Id, 100) });
     c.AddAttachment(id2, "ticket2.jpg", bytes);
@@ -1188,7 +1223,7 @@ Console.WriteLine("Remboursements partiels");
     Refund(4500, dep);
     Eq(10000L, c.RefundedAmount(dep), "remboursement total atteint");
     Throws(() => Refund(1, dep), "plus rien à rembourser", "dépasse");
-    Throws(() => c.DeleteEntry(dep), "dépense remboursée non supprimable", "remboursements liés");
+    Throws(() => c.CancelEntry(dep), "dépense remboursée non annulable", "remboursements liés");
     // Modifier un remboursement : son propre montant n'est pas compté deux fois.
     c.SaveEntry(new Entry(r1, y.Id, Dt(2026, 11, 3), "Remb corrigé", false, EntryKind.Normal, banque.Id, Direction.In, null, 3000, null, null, dep),
         new[] { new Allocation(ch.Id, -3000) });
@@ -1293,7 +1328,16 @@ Console.WriteLine("Vidage de la base");
         new[] { new Allocation(ch.Id, -1000) });
     c.ValidateYear(y.Id, null, force: true);
     var users = new AuthService(f).HasUsers();
-    c.ResetDatabaseData();
+    // Exercice validé : vidage refusé, sauf phrase de confirmation ET archive exportée au préalable.
+    Throws(() => c.ResetDatabaseData(), "vidage refusé : exercice validé", "validé");
+    Throws(() => c.ResetDatabaseData("autre phrase", null), "vidage refusé : mauvaise phrase", "saisissez exactement");
+    Throws(() => c.ResetDatabaseData(Compta.ResetValidatedPhrase, null), "vidage refusé : pas d'archive", "Archive");
+    var archive = Path.Combine(Path.GetTempPath(), "tcf-archive-" + Guid.NewGuid().ToString("N"));
+    Eq(1, c.ArchiveValidatedYears(archive), "archive des exercices validés exportée");
+    Check(Compta.ArchiveFilesMissing(archive, c.Years().Where(v => v.Validated)).Count == 0, "archive complète (livre CSV + FEC)");
+    Eq(1, c.Years().Count, "refus : l'exercice est toujours là");
+    c.ResetDatabaseData("supprimer les exercices valides", archive);
+    try { Directory.Delete(archive, true); } catch { /* temporaire */ }
     Eq(0, c.Years().Count, "plus aucun exercice");
     Eq(0, c.Accounts(includeInactive: true).Count, "plus aucun compte bancaire");
     Eq(users, new AuthService(f).HasUsers(), "comptes utilisateurs conservés");
@@ -1463,6 +1507,339 @@ Console.WriteLine("Association automatique des opérations");
     try { ServerConfigFile.Read(cfgPath); } catch (ComptaException) { bad = true; }
     Check(bad, "config serveur : fichier étranger refusé");
     try { File.Delete(cfgPath); } catch { }
+}
+
+// ------------------------------------------------------------------ conformité : numérotation, annulation, journal chaîné
+Console.WriteLine("Conformité : numérotation continue et contre-passation");
+{
+    var path = TempDb();
+    {
+        var f = NewFactory(path);
+        var c = NewCompta(f);
+        var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var livret = c.Accounts().First(a => a.Name == "Livret A");
+        var cats = c.Categories(y.Id);
+        var adh = cats.First(k => k.Kind == CategoryKind.Product && k.Name == "Adhésions");
+        var assur = cats.First(k => k.Kind == CategoryKind.Charge && k.Name == "Assurance");
+
+        var e1 = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 1), "Cotisation", false, EntryKind.Normal, banque.Id, Direction.In, null, 5000, null, null),
+            new[] { new Allocation(adh.Id, 5000) });
+        var e2 = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 2), "Assurance", false, EntryKind.Normal, banque.Id, Direction.Out, null, 3000, null, null),
+            new[] { new Allocation(assur.Id, 3000) });
+        var e3 = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 3), "Virement", false, EntryKind.Transfer, banque.Id, Direction.Out, livret.Id, 1000, null, null),
+            Array.Empty<Allocation>());
+        Eq(1L, c.EntryById(e1)!.Entry.Seq, "numéro 1 attribué à la première écriture");
+        Eq(3L, c.EntryById(e3)!.Entry.Seq, "numéros séquentiels");
+
+        var before = c.ComputeBilan(y.Id);
+        var closingBank = before.Accounts.First(a => a.Account.Id == banque.Id).Closing;
+        var closingLivret = before.Accounts.First(a => a.Account.Id == livret.Id).Closing;
+
+        // Annulation : jamais de suppression, effet net nul, numérotation continue.
+        var rev = c.CancelEntry(e2, "montant erroné");
+        Eq(4L, c.EntryById(rev)!.Entry.Seq, "l'annulation reçoit le numéro suivant (sans trou)");
+        Check(c.EntryById(rev)!.Entry.IsReversal && c.EntryById(e2)!.Entry.Cancelled, "original annulé / écriture d'annulation");
+        Eq(2, c.Entries(y.Id).Count, "écriture annulée et son annulation masquées par défaut");
+        Eq(4, c.Entries(y.Id, includeCancelled: true).Count, "journal complet : annulation visible");
+        var after = c.ComputeBilan(y.Id);
+        Eq(closingBank + 3000, after.Accounts.First(a => a.Account.Id == banque.Id).Closing, "solde : la dépense annulée n'existe plus");
+        Eq(0L, after.ChargesTotal, "charges : annulation sans effet résiduel");
+        Eq(0L, after.BalanceDifference, "bilan équilibré après annulation");
+        Throws(() => c.CancelEntry(e2), "double annulation refusée", "déjà annulée");
+        Throws(() => c.CancelEntry(rev), "annulation d'une annulation refusée", "annulation");
+        Throws(() => c.SetPointed(e2, true), "écriture annulée : pointage refusé", "annulée");
+        Throws(() => c.SaveEntry(new Entry(e2, y.Id, Dt(2026, 10, 2), "Autre", false, EntryKind.Normal, banque.Id, Direction.Out, null, 3000, null, null),
+            new[] { new Allocation(assur.Id, 3000) }), "écriture annulée : modification refusée", "annulée");
+        Throws(() => c.SaveEntry(new Entry(rev, y.Id, Dt(2026, 10, 2), "Autre", false, EntryKind.Normal, banque.Id, Direction.In, null, 3000, null, null),
+            new[] { new Allocation(assur.Id, -3000) }), "écriture d'annulation : modification refusée", "annulation");
+
+        // Virement annulé : comptes rétablis.
+        c.CancelEntry(e3);
+        var b3 = c.ComputeBilan(y.Id);
+        Eq(closingBank + 3000 + 1000, b3.Accounts.First(a => a.Account.Id == banque.Id).Closing, "virement annulé : compte débité rétabli");
+        Eq(closingLivret - 1000, b3.Accounts.First(a => a.Account.Id == livret.Id).Closing, "virement annulé : compte crédité rétabli");
+
+        // Aucune suppression possible, même hors service.
+        using (var ctx = f.Create())
+        {
+            ctx.Entries.Remove(ctx.Entries.First());
+            Throws(() => ctx.SaveChanges(), "suppression refusée (garde EF)", "ne se supprime");
+        }
+        Throws(() => Sql(f, "DELETE FROM entries WHERE id = {0}", e1), "suppression refusée (trigger SQL)", "supprime");
+
+        // Journal : création, modification avant/après, annulation, avec numéros.
+        c.SaveEntry(new Entry(e1, y.Id, Dt(2026, 10, 1), "Cotisation 2026", false, EntryKind.Normal, banque.Id, Direction.In, null, 5000, null, null),
+            new[] { new Allocation(adh.Id, 5000) });
+        var log = c.AuditLog(100);
+        Check(log.Any(l => l.Action == "Écriture créée" && l.Detail!.Contains("n° 1")), "création journalisée avec son numéro");
+        Check(log.Any(l => l.Action == "Écriture modifiée" && l.Detail!.Contains("Avant :") && l.Detail.Contains("Cotisation 2026")), "modification journalisée avant/après");
+        Check(log.Any(l => l.Action == "Écriture annulée" && l.Detail!.Contains("contre-passation n° 4") && l.Detail.Contains("montant erroné")), "annulation journalisée avec motif");
+
+        // Chaîne du journal intacte.
+        var chain = c.VerifyAuditChain();
+        Check(chain.Ok && chain.Rows > 5, "journal d'audit : chaîne intacte", chain.Problem);
+        Check(chain.Unsealed == 0, "journal d'audit : aucune ligne hors chaîne");
+    }
+    Cleanup(path);
+}
+
+Console.WriteLine("Conformité : journal d'audit inaltérable");
+{
+    var path = TempDb();
+    {
+        var f = NewFactory(path);
+        var c = NewCompta(f);
+        c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+        c.AddAccount("Caisse", AccountKind.Cash);
+        Check(c.VerifyAuditChain().Ok, "chaîne intacte au départ");
+        Throws(() => Sql(f, "UPDATE audit_log SET action = 'x' WHERE id = 1"), "modification d'une ligne refusée (trigger SQL)", "modifié");
+        Throws(() => Sql(f, "DELETE FROM audit_log WHERE id = 1"), "suppression d'une ligne refusée (trigger SQL)", "purgé");
+        using (var ctx = f.Create())
+        {
+            var a = ctx.Audit.First();
+            a.Detail = "falsifié";
+            Throws(() => ctx.SaveChanges(), "modification refusée (garde EF)", "journal");
+        }
+        using (var ctx = f.Create())
+        {
+            ctx.Audit.Remove(ctx.Audit.First());
+            Throws(() => ctx.SaveChanges(), "suppression refusée (garde EF)", "journal");
+        }
+
+        // Altération hors logiciel (déclencheur retiré) : la chaîne la détecte.
+        Sql(f, "DROP TRIGGER audit_no_update");
+        Sql(f, "UPDATE audit_log SET detail = 'falsifié' WHERE id = 2");
+        var bad = c.VerifyAuditChain();
+        Check(!bad.Ok && bad.FirstBadId == 2, "altération détectée à la bonne ligne", bad.Problem);
+        Sql(f, "UPDATE audit_log SET detail = (SELECT detail FROM audit_log WHERE id = 2) WHERE id = 2");   // sans effet
+    }
+    Cleanup(path);
+}
+
+Console.WriteLine("Conformité : suppression de lignes du journal avant validation détectée");
+{
+    var path = TempDb();
+    {
+        var f = NewFactory(path);
+        var c = NewCompta(f);
+        var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var adh = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Product);
+        c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 1), "Cotisation", false, EntryKind.Normal, banque.Id, Direction.In, null, 5000, null, null),
+            new[] { new Allocation(adh.Id, 5000) });
+        c.ValidateYear(y.Id);
+        Check(c.VerifyAuditChain().Ok, "chaîne intacte après validation");
+        // Retrait (hors logiciel) des dernières lignes antérieures à la validation.
+        Sql(f, "DROP TRIGGER audit_no_delete");
+        Sql(f, "DELETE FROM audit_log WHERE action = 'Écriture créée'");
+        var r = c.VerifyAuditChain();
+        Check(!r.Ok, "lignes retirées : détecté (rupture de chaîne)", r.Problem);
+    }
+    Cleanup(path);
+}
+
+Console.WriteLine("Conformité : empreintes versionnées et évolution de la base");
+{
+    var path = TempDb();
+    {
+        var f = NewFactory(path);
+        var c = NewCompta(f);
+        var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var adh = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Product);
+        var id = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 1), "Cotisation", false, EntryKind.Normal, banque.Id, Direction.In, null, 5000, null, "note interne"),
+            new[] { new Allocation(adh.Id, 5000) });
+        c.AddAttachment(id, "recu.txt", System.Text.Encoding.UTF8.GetBytes("reçu"));
+        c.ValidateYear(y.Id);
+        Eq(IntegritySeal.Current, c.IntegritySealVersion(y.Id), "empreinte à la formule courante");
+        Check(c.ComputeChecksum(y.Id).StartsWith("v2:"), "empreinte préfixée par sa version");
+
+        // L'empreinte v2 couvre la note, la référence d'import et le CONTENU des justificatifs.
+        Sql(f, "DROP TRIGGER lock_entries_upd");
+        Sql(f, "UPDATE entries SET note = 'modifiée' WHERE id = {0}", id);
+        Check(!c.VerifyIntegrity(y.Id), "v2 : modification de la note détectée");
+        Sql(f, "UPDATE entries SET note = 'note interne' WHERE id = {0}", id);
+        Check(c.VerifyIntegrity(y.Id), "v2 : note rétablie, empreinte conforme");
+        Sql(f, "DROP TRIGGER lock_attachments_upd");
+        Sql(f, "UPDATE attachments SET data = X'00112233' WHERE entry_id = {0}", id);
+        Check(!c.VerifyIntegrity(y.Id), "v2 : contenu d'un justificatif remplacé : détecté");
+        f.EnsureDatabaseUpToDate("test");   // recrée les déclencheurs
+    }
+    {
+        // Exercice scellé avec la formule v1 (ancienne version du logiciel) : toujours vérifiable, mis à niveau sans perte.
+        var f = NewFactory(TempDb());
+        var c = NewCompta(f);
+        var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var adh = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Product);
+        var id = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 1), "Cotisation", false, EntryKind.Normal, banque.Id, Direction.In, null, 5000, null, null),
+            new[] { new Allocation(adh.Id, 5000) });
+        c.ValidateYear(y.Id);
+        var v1 = (string)typeof(Compta).GetMethod("ComputeChecksumV1", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .Invoke(c, new object[] { y.Id })!;
+        Sql(f, "UPDATE fiscal_years SET checksum = {0} WHERE id = {1}", v1, y.Id);    // seule l'empreinte est réinscriptible
+        Eq(1, c.IntegritySealVersion(y.Id), "empreinte d'ancienne version reconnue");
+        Check(c.VerifyIntegrity(y.Id), "ancienne formule : exercice toujours conforme");
+        Throws(() => Sql(f, "UPDATE fiscal_years SET label = 'autre' WHERE id = {0}", y.Id), "exercice validé : libellé toujours verrouillé", "validé");
+        Eq(1, c.UpgradeIntegritySeals(), "mise à niveau de l'empreinte");
+        Eq(IntegritySeal.Current, c.IntegritySealVersion(y.Id), "empreinte à la formule courante");
+        Check(c.VerifyIntegrity(y.Id), "conforme après mise à niveau");
+        Check(c.AuditLog(20).Any(l => l.Action == "Empreinte d'exercice mise à niveau"), "mise à niveau tracée");
+        Eq(0, c.UpgradeIntegritySeals(), "idempotent");
+        Check(c.VerifyAuditChain().Ok, "journal toujours intact");
+
+        // Un exercice altéré n'est jamais « blanchi » par la mise à niveau.
+        var f2 = NewFactory(TempDb());
+        var c2 = NewCompta(f2);
+        var y2 = c2.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+        var b2 = c2.Accounts().First(a => a.Name == "Banque");
+        var a2 = c2.Categories(y2.Id).First(k => k.Kind == CategoryKind.Product);
+        var i2 = c2.SaveEntry(new Entry(0, y2.Id, Dt(2026, 10, 1), "Cotisation", false, EntryKind.Normal, b2.Id, Direction.In, null, 5000, null, null),
+            new[] { new Allocation(a2.Id, 5000) });
+        c2.ValidateYear(y2.Id);
+        var v1b = (string)typeof(Compta).GetMethod("ComputeChecksumV1", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .Invoke(c2, new object[] { y2.Id })!;
+        Sql(f2, "UPDATE fiscal_years SET checksum = {0} WHERE id = {1}", v1b, y2.Id);
+        Sql(f2, "DROP TRIGGER lock_entries_upd");
+        Sql(f2, "UPDATE entries SET amount_cents = 1 WHERE id = {0}", i2);
+        Eq(0, c2.UpgradeIntegritySeals(), "exercice altéré : aucune mise à niveau");
+        Check(!c2.VerifyIntegrity(y2.Id), "exercice altéré : alerte conservée");
+    }
+    Cleanup(path);
+}
+
+Console.WriteLine("Conformité : migration d'une base contenant un exercice validé");
+{
+    var path = TempDb();
+    {
+        var f = NewFactory(path);
+        var c = NewCompta(f);
+        var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var adh = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Product);
+        c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 1), "Cotisation A", false, EntryKind.Normal, banque.Id, Direction.In, null, 5000, null, null),
+            new[] { new Allocation(adh.Id, 5000) });
+        c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 2), "Cotisation B", false, EntryKind.Normal, banque.Id, Direction.In, null, 2500, null, null),
+            new[] { new Allocation(adh.Id, 2500) });
+        c.ValidateYear(y.Id);
+        // Exercice scellé « à l'ancienne » : formule v1 + écritures sans numéro + journal sans chaînage, version 5.
+        var v1 = (string)typeof(Compta).GetMethod("ComputeChecksumV1", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .Invoke(c, new object[] { y.Id })!;
+        Sql(f, "UPDATE fiscal_years SET checksum = {0} WHERE id = {1}", v1, y.Id);
+        Sql(f, "DROP TRIGGER lock_entries_upd");
+        Sql(f, "DROP INDEX ux_entries_seq");
+        Sql(f, "UPDATE entries SET seq = 0");
+        Sql(f, "DROP TRIGGER audit_no_update");
+        Sql(f, "UPDATE audit_log SET hash = NULL, prev_hash = NULL");
+        Sql(f, "PRAGMA user_version = 5");
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        // Mise à jour du logiciel : les migrations doivent pouvoir compléter l'exercice validé (verrous levés le temps
+        // de la migration), puis tout est reverrouillé et l'empreinte reste exacte.
+        var f2 = new DbContextFactory(path);
+        f2.EnsureDatabaseUpToDate("test");
+        var c2 = NewCompta(f2);
+        Eq(DbContextFactory.LatestVersion, f2.GetDatabaseVersion(), "base migrée à la dernière version");
+        var rows = c2.Entries(y.Id);
+        Eq(1L, rows[0].Entry.Seq, "écritures de l'exercice validé numérotées (1)");
+        Eq(2L, rows[1].Entry.Seq, "écritures de l'exercice validé numérotées (2)");
+        Check(c2.Year(y.Id)!.Validated, "exercice toujours validé");
+        Check(c2.VerifyIntegrity(y.Id), "empreinte v1 toujours exacte après migration");
+        Check(c2.VerifyAuditChain().Ok, "journal d'avant migration scellé et chaîné");
+        Throws(() => Sql(f2, "UPDATE entries SET amount_cents = 1 WHERE year_id = {0}", y.Id), "exercice reverrouillé après migration", "validé");
+        Throws(() => Sql(f2, "DELETE FROM audit_log WHERE id = 1"), "journal reverrouillé après migration", "purgé");
+        Eq(1, c2.UpgradeIntegritySeals(), "mise à niveau de l'empreinte après migration");
+        Check(c2.VerifyIntegrity(y.Id), "empreinte v2 conforme");
+        // Le logiciel continue d'évoluer : numéros de compte (paramétrage) modifiables sur exercice validé.
+        c2.SetCategoryAccountNumber(CategoryKind.Product, adh.Name, "756000");
+        Check(c2.VerifyIntegrity(y.Id), "numéro de compte saisi : empreinte inchangée");
+        Check(c2.ExportFec(y.Id).Contains("756000\t" + adh.Name), "FEC : numéro de compte saisi utilisé");
+    }
+    Cleanup(path);
+}
+
+Console.WriteLine("Conformité : numérotation à la clôture avec écritures déplacées");
+{
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    var adh = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Product);
+    long Add(DateOnly d, string l) => c.SaveEntry(new Entry(0, y.Id, d, l, false, EntryKind.Normal, banque.Id, Direction.In, null, 1000, null, null),
+        new[] { new Allocation(adh.Id, 1000) });
+    Add(Dt(2026, 10, 1), "A");
+    var late = Add(Dt(2027, 2, 15), "B tardive");
+    Add(Dt(2026, 11, 1), "C");
+    var cancelled = Add(Dt(2027, 3, 1), "D tardive annulée");
+    c.CancelEntry(cancelled);
+    c.ValidateYear(y.Id, Dt(2027, 1, 31));
+    var rows = c.Entries(y.Id, includeCancelled: true);
+    Eq(2, rows.Count, "exercice clôturé : seules les écritures avant la clôture");
+    Check(rows.Select(r => r.Entry.Seq).SequenceEqual(new long[] { 1, 2 }), "exercice clôturé : numérotation sans trou");
+    var next = c.NextYear(c.Year(y.Id)!)!;
+    var moved = c.Entries(next.Id, includeCancelled: true);
+    Eq(3, moved.Count, "exercice suivant : écritures déplacées (annulation comprise)");
+    Check(moved.Select(r => r.Entry.Seq).OrderBy(s => s).SequenceEqual(new long[] { 1, 2, 3 }), "exercice suivant : numérotation continue");
+    Check(c.VerifyIntegrity(y.Id), "empreinte conforme après déplacement et renumérotation");
+    Check(c.AuditLog(20).Any(l => l.Action == "Exercice validé" && l.Detail!.Contains("numéros (ancien→nouveau)")), "renumérotation tracée");
+}
+
+Console.WriteLine("Conformité : exports (livre-journal, FEC)");
+{
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    var livret = c.Accounts().First(a => a.Name == "Livret A");
+    c.SetOpening(y.Id, banque.Id, 100000);
+    var cats = c.Categories(y.Id);
+    var adh = cats.First(k => k.Kind == CategoryKind.Product && k.Name == "Adhésions");
+    var assur = cats.First(k => k.Kind == CategoryKind.Charge && k.Name == "Assurance");
+    c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 1), "Cotisations; \"été\"", true, EntryKind.Normal, banque.Id, Direction.In, null, 12345, null, null),
+        new[] { new Allocation(adh.Id, 12345) });
+    var bad = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 2), "Assurance (erreur)", false, EntryKind.Normal, banque.Id, Direction.Out, null, 4000, null, null),
+        new[] { new Allocation(assur.Id, 4000) });
+    c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 3), "Virement livret", false, EntryKind.Transfer, banque.Id, Direction.Out, livret.Id, 2000, null, null),
+        Array.Empty<Allocation>());
+    c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 4), "Non classé", false, EntryKind.Normal, banque.Id, Direction.Out, null, 700, null, null),
+        Array.Empty<Allocation>(), strict: false);
+    c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 5), "Remb. Julien", false, EntryKind.MemberRefund, banque.Id, Direction.Out, null, 900, "Julien", null),
+        new[] { new Allocation(assur.Id, 900) });
+    c.CancelEntry(bad, "erreur de saisie");
+    c.AddAdjustment(y.Id, AdjustmentType.ToNext, CategoryKind.Charge, assur.Id, "Assurance 2027", 1500, "Assurance");
+
+    var csv = c.ExportLedgerCsv(y.Id);
+    var csvLines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+    Eq(1 + 6, csvLines.Length, "CSV : en-tête + 6 lignes (annulation comprise)");
+    Check(csvLines[0].StartsWith("N°;Date;Libellé"), "CSV : en-tête");
+    Check(csvLines[1].Contains("\"Cotisations; \"\"été\"\"\""), "CSV : champs échappés");
+    Check(csv.Contains("123,45"), "CSV : montants à la virgule");
+    Check(csv.Contains(";Annulée;") && csv.Contains(";Annulation;"), "CSV : annulations signalées");
+
+    var pdf = c.ExportLedgerPdf(y.Id, "Association test");
+    var head = System.Text.Encoding.Latin1.GetString(pdf, 0, 8);
+    var tail = System.Text.Encoding.Latin1.GetString(pdf, pdf.Length - 8, 8);
+    Check(head.StartsWith("%PDF-1.4") && tail.Contains("%%EOF"), "PDF : structure valide");
+
+    var fec = c.ExportFec(y.Id);
+    var fecLines = fec.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+    Eq(18, fecLines[0].Split('\t').Length, "FEC : 18 colonnes en en-tête");
+    Check(fecLines.Skip(1).All(l => l.Split('\t').Length == 18), "FEC : 18 colonnes sur chaque ligne");
+    decimal Dec(string s) => decimal.Parse(s.Replace(',', '.'), System.Globalization.CultureInfo.InvariantCulture);
+    var debit = fecLines.Skip(1).Sum(l => Dec(l.Split('\t')[11]));
+    var credit = fecLines.Skip(1).Sum(l => Dec(l.Split('\t')[12]));
+    Eq(debit, credit, "FEC : débit total = crédit total");
+    foreach (var g in fecLines.Skip(1).GroupBy(l => l.Split('\t')[2]))
+        if (g.Sum(l => Dec(l.Split('\t')[11])) != g.Sum(l => Dec(l.Split('\t')[12])))
+            Check(false, "FEC : écriture n° " + g.Key + " déséquilibrée");
+    Check(fecLines.Skip(1).Any(l => l.Split('\t')[0] == "AN"), "FEC : à-nouveaux de l'exercice");
+    Check(fecLines.Skip(1).Any(l => l.Split('\t')[4] == "471000"), "FEC : écriture non classée sur compte d'attente");
+    Check(fecLines.Skip(1).Any(l => l.Split('\t')[4] == "486000"), "FEC : régularisation (charge constatée d'avance)");
+    Check(fecLines.Skip(1).Select(l => l.Split('\t')[3]).All(d => d.Length == 8), "FEC : dates AAAAMMJJ");
+    Eq("000000000FEC20270831.txt", Compta.FecFileName(null, y.End), "FEC : nom de fichier sans SIREN");
+    Eq("123456789FEC20270831.txt", Compta.FecFileName("123 456 789", y.End), "FEC : nom de fichier avec SIREN");
+    Throws(() => c.SetCategoryAccountNumber(CategoryKind.Charge, "Assurance", "12"), "numéro de compte trop court refusé", "3 à 20");
 }
 
 Console.WriteLine(failures == 0 ? $"TOUT EST OK ({checks} vérifications)" : $"{failures} ECHEC(S) sur {checks} vérifications");

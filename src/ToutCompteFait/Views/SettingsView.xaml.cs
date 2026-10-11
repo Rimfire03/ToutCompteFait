@@ -407,8 +407,17 @@ public partial class SettingsView : UserControl, IPage
             if (DatabaseWriteTracking.ReadLastWrite(ctx) is { } at) last = at.ToString("dd/MM/yyyy HH:mm");
         }
         catch { /* base momentanément indisponible */ }
+        var chainText = "";
+        try
+        {
+            var chain = _c.VerifyAuditChain();
+            chainText = chain.Ok
+                ? $" · journal d'audit intact ({chain.Rows} ligne(s))"
+                : $" · ⚠ JOURNAL D'AUDIT ALTÉRÉ : {chain.Problem}" + (chain.FirstBadId is { } bad ? $" (ligne {bad})" : "");
+        }
+        catch { /* base momentanément indisponible */ }
         DbDetails.Text = $"Version du schéma : {version} · dernière saisie enregistrée : {last} · " +
-                         (App.IsReadOnly ? "ce poste est en lecture seule" : "ce poste a l'accès en écriture");
+                         (App.IsReadOnly ? "ce poste est en lecture seule" : "ce poste a l'accès en écriture") + chainText;
 
         BackupsGrid.ItemsSource = BackupService.List();
 
@@ -661,7 +670,42 @@ public partial class SettingsView : UserControl, IPage
         var word = PromptWindow.Ask(Window.GetWindow(this), "Confirmation",
             "Pour confirmer, tapez le mot VIDER (en majuscules) :", okText: "Vider la base");
         if (word is null || word.Trim() != "VIDER") { Ui.Info("Confirmation incorrecte : rien n'a été modifié."); return; }
-        var safety = await RunWithSafetyBackupAsync("avant-vidage", () => _c.ResetDatabaseData(),
+
+        // Exercices validés : documents comptables à conserver. Garde-fou renforcé : archive exportée (livre CSV, PDF et
+        // FEC de chaque exercice) à côté de la sauvegarde, puis phrase de confirmation spécifique.
+        string? confirmation = null;
+        string? archiveFolder = null;
+        var validated = _c.Years().Where(y => y.Validated).ToList();
+        if (validated.Count > 0)
+        {
+            var labels = string.Join(", ", validated.Select(y => y.Label));
+            if (!Ui.Confirm(
+                    $"ATTENTION : {validated.Count} exercice(s) VALIDÉ(S) ({labels}).\n\n" +
+                    "Ce sont des documents comptables à conserver 10 ans. Avant de les supprimer, le logiciel va exporter pour chacun " +
+                    "le livre-journal (CSV et PDF) et le FEC dans un dossier d'archive, à côté des sauvegardes.\n\nContinuer ?",
+                    "Exercices validés"))
+                return;
+            archiveFolder = System.IO.Path.Combine(DbContextFactory.BackupDirectory,
+                "Archive-exercices-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+            try
+            {
+                var n = await Task.Run(() => _c.ArchiveValidatedYears(archiveFolder, App.Settings.OrganizationName));
+                Ui.Info($"{n} exercice(s) archivé(s) dans :\n{archiveFolder}\n\nConservez ce dossier avec la sauvegarde complète.");
+            }
+            catch (Exception ex)
+            {
+                Ui.Error("Archivage impossible : opération annulée, rien n'a été modifié.\n" + ex.InnermostMessage());
+                return;
+            }
+            confirmation = PromptWindow.Ask(Window.GetWindow(this), "Suppression d'exercices validés",
+                $"Pour supprimer aussi les exercices validés, tapez exactement :\n{Compta.ResetValidatedPhrase}", okText: "Supprimer");
+            if (confirmation is null || !string.Equals(confirmation.Trim(), Compta.ResetValidatedPhrase, StringComparison.OrdinalIgnoreCase))
+            {
+                Ui.Info("Phrase incorrecte : rien n'a été modifié (l'archive reste disponible).");
+                return;
+            }
+        }
+        var safety = await RunWithSafetyBackupAsync("avant-vidage", () => _c.ResetDatabaseData(confirmation, archiveFolder),
             "Sauvegarde préalable impossible : opération annulée, rien n'a été modifié.",
             "Le vidage a échoué, la base n'a pas été modifiée :");
         if (safety is null) return;

@@ -9,7 +9,7 @@ public enum Role { Reader = 0, Treasurer = 1, Admin = 2 }
 /// <summary>Droits fins vérifiés par le service comptable (jamais seulement par l'interface).</summary>
 public enum Permission
 {
-    /// <summary>Saisir, modifier, supprimer des écritures et des reports ; importer un relevé bancaire.</summary>
+    /// <summary>Saisir, modifier, annuler des écritures et des reports ; importer un relevé bancaire.</summary>
     WriteLedger,
     /// <summary>Créer un exercice, gérer produits/charges/opérations/comptes, soldes d'ouverture.</summary>
     ManageStructure,

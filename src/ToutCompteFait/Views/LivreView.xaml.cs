@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -49,6 +50,9 @@ public sealed class LivreRow
 
     public IReadOnlyList<CategoryOption> Options { get; init; } = Array.Empty<CategoryOption>();
     public bool IsTransfer { get; init; }
+
+    /// <summary>Écriture annulée ou écriture d'annulation : conservée, grisée, plus modifiable.</summary>
+    public bool IsFrozen { get; init; }
     public required EntryRow Source { get; init; }
 }
 
@@ -117,7 +121,7 @@ public partial class LivreView : UserControl, IPage
     {
         _loading = true;
         var keep = (EntriesGrid.SelectedItem as LivreRow)?.Id;
-        var rows = _c.Entries(_year.Id);
+        var rows = _c.Entries(_year.Id, includeCancelled: ShowCancelled.IsChecked == true);
         var catList = _c.Categories(_year.Id);
         var cats = catList.ToDictionary(c => c.Id);
         var accounts = _c.Accounts(includeInactive: true).ToDictionary(a => a.Id);
@@ -146,8 +150,8 @@ public partial class LivreView : UserControl, IPage
         {
             n++;
             var e = r.Entry;
-            var gap = Compta.Imbalance(e, r.Allocations, cats);
-            var needs = Compta.NeedsAllocation(r);
+            var gap = e.Frozen ? 0 : Compta.Imbalance(e, r.Allocations, cats);
+            var needs = Compta.NeedsAllocation(r) && !e.Frozen;
             if (needs) toFill++;
             else if (gap != 0) problems++;
 
@@ -204,10 +208,16 @@ public partial class LivreView : UserControl, IPage
             if (needs) breakdown = "À ventiler";
             else if (gap != 0) breakdown = (breakdown.Length > 0 ? breakdown + " · " : "") + $"⚠ reste {Money.Format(gap)}";
             if (e.Kind == EntryKind.Transfer && breakdown.Length == 0) breakdown = "Virement interne";
+            if (e.Cancelled) breakdown = "ANNULÉE" + (breakdown.Length > 0 ? " · " + breakdown : "");
+            else if (e.IsReversal) breakdown = "Annulation" + (breakdown.Length > 0 ? " · " + breakdown : "");
+            if (e.Frozen)
+                tips.Add(e.Cancelled
+                    ? $"Écriture n° {e.Seq} annulée par une écriture inverse : conservée pour la piste d'audit, elle n'est plus modifiable."
+                    : $"Écriture n° {e.Seq} : annulation d'une autre écriture (même montant, sens inverse). L'ensemble n'a aucun effet sur les comptes.");
 
             list.Add(new LivreRow
             {
-                Id = e.Id, Number = n, DateText = e.Date.ToString("dd/MM/yyyy"), Label = e.Label,
+                Id = e.Id, Number = e.Seq > 0 ? (int)e.Seq : n, IsFrozen = e.Frozen, DateText = e.Date.ToString("dd/MM/yyyy"), Label = e.Label,
                 Pointed = e.Pointed, AccountText = accText,
                 InText = transferAll ? "" : Money.FormatOrBlank(inC),
                 OutText = transferAll ? "" : Money.FormatOrBlank(outC),
@@ -310,9 +320,10 @@ public partial class LivreView : UserControl, IPage
 
     private void Grid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        EditButton.IsEnabled = _canWrite && Selected is not null;
-        DeleteButton.IsEnabled = _canWrite && Selected is not null;
-        ResetButton.IsEnabled = _canWrite && Selected is { Source.Allocations.Count: > 0 };
+        var live = Selected is { IsFrozen: false };
+        EditButton.IsEnabled = _canWrite && live;
+        DeleteButton.IsEnabled = _canWrite && live;
+        ResetButton.IsEnabled = _canWrite && Selected is { IsFrozen: false, Source.Allocations.Count: > 0 };
     }
 
     private void Grid_DoubleClick(object sender, MouseButtonEventArgs e)
@@ -388,10 +399,79 @@ public partial class LivreView : UserControl, IPage
 
     private void Delete_Click(object sender, RoutedEventArgs e)
     {
-        if (Selected is not { } row) return;
+        if (Selected is not { IsFrozen: false } row) return;
         var en = row.Source.Entry;
-        if (!Ui.Confirm($"Supprimer définitivement cette écriture ?\n\n{en.Date:dd/MM/yyyy} — {en.Label}\n{Money.Format(en.AmountCents)} €")) return;
-        if (Ui.Try(() => _c.DeleteEntry(en.Id))) Reload();
+        var reason = PromptWindow.Ask(Window.GetWindow(this), "Annuler l'écriture",
+            $"Annuler l'écriture n° {en.Seq} ?\n\n{en.Date:dd/MM/yyyy} — {en.Label}\n{Money.Format(en.AmountCents)} €\n\n" +
+            "Une écriture ne se supprime jamais : une écriture inverse est ajoutée (même date, même montant, sens opposé). " +
+            "L'original reste dans le livre (case « Annulations ») et les deux n'ont aucun effet sur les comptes.\n\n" +
+            "Motif de l'annulation (facultatif) :", "", "Annuler l'écriture");
+        if (reason is null) return;
+        if (Ui.Try(() => _c.CancelEntry(en.Id, reason))) Reload();
+    }
+
+    private void ShowCancelled_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_loading) Reload();
+    }
+
+    // ------------------------------------------------------------------ exports
+
+    private void Export_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = new ContextMenu { PlacementTarget = ExportButton };
+        void Item(string header, Action action)
+        {
+            var mi = new MenuItem { Header = header };
+            mi.Click += (_, _) => action();
+            menu.Items.Add(mi);
+        }
+        Item("Livre-journal (PDF)…", () => ExportFile("pdf"));
+        Item("Livre-journal (CSV pour tableur)…", () => ExportFile("csv"));
+        Item("FEC — Fichier des Écritures Comptables (contrôle fiscal)…", () => ExportFile("fec"));
+        menu.Items.Add(new Separator());
+        Item("Numéros de compte comptables (FEC)…", () =>
+        {
+            new AccountNumbersWindow { Owner = Window.GetWindow(this) }.ShowDialog();
+        });
+        menu.IsOpen = true;
+    }
+
+    private void ExportFile(string kind)
+    {
+        var settings = App.Settings;
+        var fileLabel = _year.Label.Replace('/', '-');
+        string defaultName;
+        string filter;
+        switch (kind)
+        {
+            case "pdf": defaultName = $"Livre-journal {fileLabel}.pdf"; filter = "PDF (*.pdf)|*.pdf"; break;
+            case "csv": defaultName = $"Livre-journal {fileLabel}.csv"; filter = "CSV (*.csv)|*.csv"; break;
+            default:
+                if (string.IsNullOrWhiteSpace(settings.Siren))
+                {
+                    var siren = PromptWindow.Ask(Window.GetWindow(this), "Export FEC",
+                        "Le nom du fichier FEC commence par le numéro SIREN de l'association (9 chiffres). " +
+                        "Laissez vide si vous ne l'avez pas : le fichier s'appellera « 000000000FEC… » et pourra être renommé.\n\nSIREN :",
+                        "", "Continuer");
+                    if (siren is null) return;
+                    settings.Siren = new string(siren.Where(char.IsDigit).ToArray());
+                    settings.Save();
+                }
+                defaultName = Compta.FecFileName(settings.Siren, _year.End); filter = "FEC (*.txt)|*.txt"; break;
+        }
+        var dlg = new Microsoft.Win32.SaveFileDialog { FileName = defaultName, Filter = filter, Title = "Exporter" };
+        if (dlg.ShowDialog() != true) return;
+        var ok = Ui.Try(() =>
+        {
+            switch (kind)
+            {
+                case "pdf": File.WriteAllBytes(dlg.FileName, _c.ExportLedgerPdf(_year.Id, settings.OrganizationName)); break;
+                case "csv": File.WriteAllText(dlg.FileName, _c.ExportLedgerCsv(_year.Id), new System.Text.UTF8Encoding(true)); break;
+                default: File.WriteAllText(dlg.FileName, _c.ExportFec(_year.Id), new System.Text.UTF8Encoding(false)); break;
+            }
+        });
+        if (ok) Ui.Info("Export enregistré :\n" + dlg.FileName);
     }
 
     /// <summary>Un relevé déposé sur le Livre ouvre directement l'import avec ce fichier.</summary>

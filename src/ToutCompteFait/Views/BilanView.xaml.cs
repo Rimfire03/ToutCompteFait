@@ -171,11 +171,15 @@ public partial class BilanView : UserControl, IPage
         else
         {
             var ok = _c.VerifyIntegrity(_year.Id);
+            var chain = _c.VerifyAuditChain();
             IssuesCard.Visibility = Visibility.Visible;
-            IssuesTitle.Text = ok
-                ? $"🔒 Exercice validé le {_year.ValidatedAt:dd/MM/yyyy} par {_year.ValidatedBy} : données verrouillées, empreinte de contrôle conforme."
-                : "⚠ ATTENTION : le contenu de cet exercice validé ne correspond plus à l'empreinte enregistrée à la validation. La base a été modifiée en dehors du logiciel.";
-            IssuesTitle.Foreground = new SolidColorBrush(ok ? Color.FromRgb(0x04, 0x78, 0x57) : Color.FromRgb(0xB9, 0x1C, 0x1C));
+            IssuesTitle.Text = !ok
+                ? "⚠ ATTENTION : le contenu de cet exercice validé ne correspond plus à l'empreinte enregistrée à la validation. La base a été modifiée en dehors du logiciel."
+                : !chain.Ok
+                    ? $"⚠ ATTENTION : le journal d'audit a été altéré ({chain.Problem}). Le contenu de l'exercice {_year.Label} reste conforme à son empreinte."
+                    : $"🔒 Exercice validé le {_year.ValidatedAt:dd/MM/yyyy} par {_year.ValidatedBy} : données verrouillées, empreinte de contrôle conforme, " +
+                      $"journal d'audit intact ({chain.Rows} ligne(s) chaînées).";
+            IssuesTitle.Foreground = new SolidColorBrush(ok && chain.Ok ? Color.FromRgb(0x04, 0x78, 0x57) : Color.FromRgb(0xB9, 0x1C, 0x1C));
             IssuesList.ItemsSource = null;
         }
     }

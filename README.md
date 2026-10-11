@@ -32,6 +32,44 @@ Application Windows (WPF, .NET 8), un seul `.exe` autonome ; les données sont d
   Une réouverture exceptionnelle est possible (motif obligatoire, tracée dans le journal, refusée si l'exercice
   suivant est validé).
 
+## Conformité comptable et fiscale (piste d'audit)
+
+* **Numérotation continue** : chaque écriture reçoit un numéro d'ordre dans son exercice (1, 2, 3…), sans trou ni
+  réutilisation. À la clôture, les écritures déplacées vers l'exercice suivant sont renumérotées et l'exercice clôturé
+  est renuméroté sans trou (tracé au journal).
+* **Aucune suppression** : une écriture s'**annule** par une contre-passation (écriture inverse, même date, même
+  montant) ; l'original reste dans le livre (case « Annulations »). Effet net nul sur les comptes. Les justificatifs
+  restent attachés.
+* **Journal d'audit chaîné** : chaque ligne porte le SHA-256 de son contenu et de la ligne précédente ; modification,
+  insertion ou retrait de lignes sont détectés (Paramètres, Bilan). Les lignes ne se modifient ni ne se suppriment
+  (garde du logiciel + déclencheurs SQLite). Chaque création, modification (avant / après), annulation, pointage,
+  affectation, import et régularisation y est consigné avec le numéro de l'écriture.
+* **Empreinte des exercices validés** (v2) : couvre en plus la note, la référence d'import, la date de saisie, les
+  annulations, les régularisations et le **contenu de chaque justificatif**. Les empreintes d'ancienne version restent
+  vérifiables ; elles sont mises à niveau automatiquement (après vérification, tracé) à l'ouverture suivante.
+* **Exports** (bouton « Exporter » du Livre) : livre-journal PDF ou CSV, et **FEC** (Fichier des Écritures Comptables,
+  18 colonnes, débit = crédit contrôlé) pour un contrôle fiscal ou un expert-comptable. Les numéros de compte des
+  produits, charges et comptes bancaires se saisissent dans « Numéros de compte comptable » (à défaut : numéros
+  automatiques de classe 6, 7 et 5) ; ils restent modifiables même sur un exercice validé.
+* **Vidage de la base** : refusé tant qu'un exercice validé existe, sauf archive exportée (livre CSV, PDF et FEC) et
+  phrase de confirmation spécifique, puis consigné au journal.
+* Hors périmètre : comptabilité d'engagement complète (plan comptable associatif ANC 2018-06), reçus fiscaux de dons.
+  Le FEC est généré à partir d'une comptabilité de trésorerie : à faire valider par l'expert-comptable de l'association.
+
+## Évolution du logiciel et de la base après clôture
+
+Un exercice validé n'empêche pas la base d'évoluer :
+
+* Les **migrations** (`DatabaseMigrations`) lèvent les verrous SQLite le temps de leur exécution (transaction + sauvegarde
+  préalable), puis les recréent ; elles peuvent donc ajouter des colonnes, des tables, des index et compléter des données
+  de **tous** les exercices, y compris validés. Une migration ne doit jamais changer un montant, une date, un libellé ni
+  une ventilation d'un exercice validé (l'empreinte le signalerait).
+* La **formule d'empreinte est versionnée** (`IntegritySeal`) : chaque exercice est vérifié avec la formule inscrite
+  dans son empreinte, les anciennes formules sont figées et conservées. Protéger de nouvelles données = nouvelle formule,
+  jamais modification d'une ancienne.
+* Les données de **paramétrage** (numéros de compte, réglages d'export) vivent hors des tables verrouillées et de
+  l'empreinte : elles s'enrichissent à tout moment.
+
 ## Comptes, mots de passe et rôles
 
 Le logiciel s'ouvre sur un écran de connexion. Au tout premier lancement (aucun compte), il propose de créer
@@ -42,7 +80,7 @@ reçoit un mot de passe provisoire qu'il doit changer à sa première connexion.
 | Droit | Administrateur | Trésorier | Lecteur |
 |---|---|---|---|
 | Consulter livre, bilan, reports, exporter | ✔ | ✔ | ✔ |
-| Saisir, modifier, supprimer des écritures et des reports ; importer un relevé bancaire | ✔ | ✔ | — |
+| Saisir, modifier, annuler des écritures et des reports ; importer un relevé bancaire | ✔ | ✔ | — |
 | Créer un exercice, gérer produits/charges/opérations/comptes bancaires | ✔ | ✔ | — |
 | Valider un exercice | ✔ | ✔ | — |
 | Rouvrir un exercice validé | ✔ | — | — |

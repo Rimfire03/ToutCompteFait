@@ -295,6 +295,9 @@ public partial class App : Application
         if (gotLock)
         {
             try { Compta.SyncAllCarries(); } catch (ComptaException) { /* signalé par les écrans concernés */ }
+            // Évolution du logiciel : l'empreinte des exercices validés passe à la formule courante (après vérification
+            // de l'ancienne, tracée au journal). Un exercice altéré n'est jamais réécrit.
+            try { Compta.UpgradeIntegritySeals(); } catch (Exception) { /* sans gravité : refait au prochain démarrage */ }
             Compta.RecordLogin();
         }
         return true;

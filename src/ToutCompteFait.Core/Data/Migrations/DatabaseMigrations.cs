@@ -20,6 +20,9 @@ internal static class DatabaseMigrations
         (3, "Justificatifs joints aux écritures", AddAttachments),
         (4, "Remboursements reçus liés à la dépense d'origine", AddRefundLink),
         (5, "Identifiants de relevé bancaire sur les comptes (détection à l'import)", AddStatementMatch),
+        (6, "Numérotation continue des écritures et contre-passation (annulation sans suppression)", AddEntrySequence),
+        (7, "Journal d'audit chaîné par empreintes (inaltérable)", AddAuditChain),
+        (8, "Numéros de compte comptable pour l'export FEC", AddAccountNumbers),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -35,6 +38,9 @@ internal static class DatabaseMigrations
         (3, "Justificatifs joints aux écritures", AddAttachments),
         (4, "Remboursements reçus liés à la dépense d'origine", AddRefundLink),
         (5, "Identifiants de relevé bancaire sur les comptes (détection à l'import)", AddStatementMatch),
+        (6, "Numérotation continue des écritures et contre-passation (annulation sans suppression)", AddEntrySequence),
+        (7, "Journal d'audit chaîné par empreintes (inaltérable)", AddAuditChain),
+        (8, "Numéros de compte comptable pour l'export FEC", AddAccountNumbers),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -155,6 +161,133 @@ internal static class DatabaseMigrations
             _ => throw new NotSupportedException()
         };
         ctx.Database.ExecuteSqlRaw(sql);
+    }
+
+    // ------------------------------------------------------------------ v6 : numérotation continue + contre-passation
+
+    /// <summary>Ajoute <c>entries.seq</c> (numéro séquentiel dans l'exercice, rempli ici pour l'existant dans l'ordre de
+    /// saisie) et <c>entries.reversal_of_id</c> (écriture annulée par une contre-passation). Touche aussi les écritures
+    /// des exercices validés : sans effet sur leur empreinte (la formule v1 n'inclut pas ces colonnes, voir
+    /// <see cref="IntegritySeal"/>), et les déclencheurs de verrouillage sont retirés avant toute migration.</summary>
+    private static void AddEntrySequence(AppDbContext ctx)
+    {
+        var q = (string n) => ServerSql.Q(ctx.Provider, n);
+        if (!ServerSql.ColumnExists(ctx, "entries", "seq"))
+        {
+            var sql = ctx.Provider switch
+            {
+                DatabaseProvider.Sqlite => """ALTER TABLE "entries" ADD COLUMN "seq" INTEGER NOT NULL DEFAULT 0;""",
+                DatabaseProvider.PostgreSql => """ALTER TABLE "entries" ADD COLUMN "seq" bigint NOT NULL DEFAULT 0;""",
+                DatabaseProvider.MariaDb => "ALTER TABLE `entries` ADD COLUMN `seq` bigint NOT NULL DEFAULT 0;",
+                DatabaseProvider.SqlServer => "ALTER TABLE [entries] ADD [seq] bigint NOT NULL CONSTRAINT [DF_entries_seq] DEFAULT 0;",
+                _ => throw new NotSupportedException()
+            };
+            ctx.Database.ExecuteSqlRaw(sql);
+        }
+        if (!ServerSql.ColumnExists(ctx, "entries", "reversal_of_id"))
+        {
+            var sql = ctx.Provider switch
+            {
+                DatabaseProvider.Sqlite => """ALTER TABLE "entries" ADD COLUMN "reversal_of_id" INTEGER NULL REFERENCES "entries" ("id");""",
+                DatabaseProvider.PostgreSql => """ALTER TABLE "entries" ADD COLUMN "reversal_of_id" bigint NULL REFERENCES "entries" ("id");""",
+                DatabaseProvider.MariaDb => "ALTER TABLE `entries` ADD COLUMN `reversal_of_id` bigint NULL, ADD CONSTRAINT `FK_entries_entries_reversal_of_id` FOREIGN KEY (`reversal_of_id`) REFERENCES `entries` (`id`);",
+                DatabaseProvider.SqlServer => "ALTER TABLE [entries] ADD [reversal_of_id] bigint NULL CONSTRAINT [FK_entries_entries_reversal_of_id] FOREIGN KEY REFERENCES [entries] ([id]);",
+                _ => throw new NotSupportedException()
+            };
+            ctx.Database.ExecuteSqlRaw(sql);
+        }
+
+        // Numéro = rang de saisie (identifiant croissant) dans l'exercice, à partir de 1.
+        var t = q("entries");
+        var backfill = ctx.Provider == DatabaseProvider.MariaDb
+            // MariaDB/MySQL refuse une sous-requête sur la table mise à jour : jointure sur une table dérivée.
+            ? $"UPDATE {t} e JOIN (SELECT a.id AS id, COUNT(*) AS rk FROM {t} a JOIN {t} b ON b.year_id = a.year_id AND b.id <= a.id " +
+              $"GROUP BY a.id) r ON r.id = e.id SET e.seq = r.rk WHERE e.seq = 0"
+            : $"UPDATE {t} SET {q("seq")} = (SELECT COUNT(*) FROM {t} e2 WHERE e2.{q("year_id")} = {t}.{q("year_id")} " +
+              $"AND e2.{q("id")} <= {t}.{q("id")}) WHERE {q("seq")} = 0";
+        ctx.Database.ExecuteSqlRaw(backfill);
+
+        if (!ServerSql.IndexExists(ctx, "entries", "ux_entries_seq"))
+            ctx.Database.ExecuteSqlRaw($"CREATE UNIQUE INDEX {q("ux_entries_seq")} ON {t} ({q("year_id")}, {q("seq")});");
+        if (!ServerSql.IndexExists(ctx, "entries", "ix_entries_reversal"))
+            ctx.Database.ExecuteSqlRaw($"CREATE INDEX {q("ix_entries_reversal")} ON {t} ({q("reversal_of_id")});");
+    }
+
+    // ------------------------------------------------------------------ v7 : journal d'audit chaîné
+
+    /// <summary>Ajoute les colonnes d'empreinte du journal. Les lignes existantes restent sans empreinte : elles sont
+    /// scellées par <see cref="AuditChain.SealLegacy"/> à l'ouverture suivante (SHA-256 non disponible en SQL portable).</summary>
+    private static void AddAuditChain(AppDbContext ctx)
+    {
+        foreach (var column in new[] { "prev_hash", "hash" })
+        {
+            if (ServerSql.ColumnExists(ctx, "audit_log", column)) continue;
+            var sql = ctx.Provider switch
+            {
+                DatabaseProvider.Sqlite => $"ALTER TABLE \"audit_log\" ADD COLUMN \"{column}\" TEXT NULL;",
+                DatabaseProvider.PostgreSql => $"ALTER TABLE \"audit_log\" ADD COLUMN \"{column}\" varchar(64) NULL;",
+                DatabaseProvider.MariaDb => $"ALTER TABLE `audit_log` ADD COLUMN `{column}` varchar(64) NULL;",
+                DatabaseProvider.SqlServer => $"ALTER TABLE [audit_log] ADD [{column}] nvarchar(64) NULL;",
+                _ => throw new NotSupportedException()
+            };
+            ctx.Database.ExecuteSqlRaw(sql);
+        }
+    }
+
+    // ------------------------------------------------------------------ v8 : numéros de compte (FEC)
+
+    private static void AddAccountNumbers(AppDbContext ctx)
+    {
+        if (!ServerSql.ColumnExists(ctx, "accounts", "account_number"))
+        {
+            var sql = ctx.Provider switch
+            {
+                DatabaseProvider.Sqlite => """ALTER TABLE "accounts" ADD COLUMN "account_number" TEXT NULL;""",
+                DatabaseProvider.PostgreSql => """ALTER TABLE "accounts" ADD COLUMN "account_number" varchar(20) NULL;""",
+                DatabaseProvider.MariaDb => "ALTER TABLE `accounts` ADD COLUMN `account_number` varchar(20) NULL;",
+                DatabaseProvider.SqlServer => "ALTER TABLE [accounts] ADD [account_number] nvarchar(20) NULL;",
+                _ => throw new NotSupportedException()
+            };
+            ctx.Database.ExecuteSqlRaw(sql);
+        }
+        if (ServerSql.TableExists(ctx, "category_accounts")) return;
+        var create = ctx.Provider switch
+        {
+            DatabaseProvider.Sqlite => """
+                CREATE TABLE "category_accounts" (
+                    "kind" TEXT NOT NULL,
+                    "name" TEXT NOT NULL,
+                    "account_number" TEXT NOT NULL,
+                    CONSTRAINT "PK_category_accounts" PRIMARY KEY ("kind", "name")
+                );
+                """,
+            DatabaseProvider.PostgreSql => """
+                CREATE TABLE "category_accounts" (
+                    "kind" varchar(1) NOT NULL,
+                    "name" varchar(200) NOT NULL,
+                    "account_number" varchar(20) NOT NULL,
+                    CONSTRAINT "PK_category_accounts" PRIMARY KEY ("kind", "name")
+                );
+                """,
+            DatabaseProvider.MariaDb => """
+                CREATE TABLE `category_accounts` (
+                    `kind` varchar(1) NOT NULL,
+                    `name` varchar(200) NOT NULL,
+                    `account_number` varchar(20) NOT NULL,
+                    CONSTRAINT `PK_category_accounts` PRIMARY KEY (`kind`, `name`)
+                );
+                """,
+            DatabaseProvider.SqlServer => """
+                CREATE TABLE [category_accounts] (
+                    [kind] nvarchar(1) NOT NULL,
+                    [name] nvarchar(200) NOT NULL,
+                    [account_number] nvarchar(20) NOT NULL,
+                    CONSTRAINT [PK_category_accounts] PRIMARY KEY ([kind], [name])
+                );
+                """,
+            _ => throw new NotSupportedException()
+        };
+        ctx.Database.ExecuteSqlRaw(create);
     }
 
     // ------------------------------------------------------------------ v2 : comptes utilisateurs (SQLite)

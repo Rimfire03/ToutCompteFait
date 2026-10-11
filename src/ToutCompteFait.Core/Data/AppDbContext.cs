@@ -23,6 +23,7 @@ public class AppDbContext : DbContext
     public DatabaseProvider Provider => _target.Provider;
 
     public DbSet<AccountEntity> Accounts => Set<AccountEntity>();
+    public DbSet<CategoryAccountEntity> CategoryAccounts => Set<CategoryAccountEntity>();
     public DbSet<YearEntity> Years => Set<YearEntity>();
     public DbSet<YearOpeningEntity> YearOpenings => Set<YearOpeningEntity>();
     public DbSet<OperationEntity> Operations => Set<OperationEntity>();
@@ -76,6 +77,8 @@ public class AppDbContext : DbContext
     {
         if (_readOnly && _target.IsServer) throw ReadOnlyGuard.Error();
         YearLockGuard.Enforce(this);
+        AssignEntrySequence();
+        AuditChain.Stamp(this);
 
         var changed = Provider != DatabaseProvider.Sqlite && ChangeTracker.HasChanges()
                       && ChangeTracker.Entries().Any(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted
@@ -83,6 +86,20 @@ public class AppDbContext : DbContext
         var result = base.SaveChanges(acceptAllChangesOnSuccess);
         if (changed && result > 0) DatabaseWriteTracking.StampServer(this);
         return result;
+    }
+
+    /// <summary>Numérote les écritures ajoutées : numéro suivant dans l'exercice, sans trou ni réutilisation. Ici et non dans
+    /// le service, pour couvrir toute création (saisie, import bancaire, contre-passation) quel que soit l'appelant.
+    /// Le poste rédacteur étant unique (verrou d'écriture), le plus grand numéro lu est fiable.</summary>
+    private void AssignEntrySequence()
+    {
+        var added = ChangeTracker.Entries<EntryEntity>()
+            .Where(e => e.State == EntityState.Added && e.Entity.Seq == 0).Select(e => e.Entity).ToList();
+        foreach (var g in added.GroupBy(e => e.YearId))
+        {
+            var max = Entries.AsNoTracking().Where(x => x.YearId == g.Key).Max(x => (long?)x.Seq) ?? 0;
+            foreach (var e in g) e.Seq = ++max;
+        }
     }
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -97,7 +114,17 @@ public class AppDbContext : DbContext
             e.Property(x => x.Position).HasColumnName("position");
             e.Property(x => x.Active).HasColumnName("active");
             e.Property(x => x.StatementMatch).HasColumnName("statement_match").HasMaxLength(500);
+            e.Property(x => x.AccountNumber).HasColumnName("account_number").HasMaxLength(20);
             e.HasIndex(x => x.Name).IsUnique();
+        });
+
+        b.Entity<CategoryAccountEntity>(e =>
+        {
+            e.ToTable("category_accounts");
+            e.HasKey(x => new { x.Kind, x.Name });
+            e.Property(x => x.Kind).HasColumnName("kind").HasMaxLength(1).IsRequired();
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            e.Property(x => x.AccountNumber).HasColumnName("account_number").HasMaxLength(20).IsRequired();
         });
 
         b.Entity<YearEntity>(e =>
@@ -173,13 +200,18 @@ public class AppDbContext : DbContext
             e.Property(x => x.Note).HasColumnName("note").HasMaxLength(1000);
             e.Property(x => x.ImportRef).HasColumnName("import_ref").HasMaxLength(300);
             e.Property(x => x.RefundOfId).HasColumnName("refund_of_id");
+            e.Property(x => x.Seq).HasColumnName("seq");
+            e.Property(x => x.ReversalOfId).HasColumnName("reversal_of_id");
             e.Property(x => x.CreatedAt).HasColumnName("created_at").HasMaxLength(30).IsRequired();
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasMaxLength(30).IsRequired();
             e.HasIndex(x => new { x.YearId, x.EntryDate, x.Id }).HasDatabaseName("ix_entries_year");
+            e.HasIndex(x => new { x.YearId, x.Seq }).IsUnique().HasDatabaseName("ux_entries_seq");
+            e.HasIndex(x => x.ReversalOfId).HasDatabaseName("ix_entries_reversal");
             e.HasOne<YearEntity>().WithMany().HasForeignKey(x => x.YearId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<AccountEntity>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<AccountEntity>().WithMany().HasForeignKey(x => x.ToAccountId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<EntryEntity>().WithMany().HasForeignKey(x => x.RefundOfId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<EntryEntity>().WithMany().HasForeignKey(x => x.ReversalOfId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<AllocationEntity>(e =>
@@ -241,6 +273,8 @@ public class AppDbContext : DbContext
             e.Property(x => x.UserName).HasColumnName("user_name").HasMaxLength(200).IsRequired();
             e.Property(x => x.Action).HasColumnName("action").HasMaxLength(200).IsRequired();
             e.Property(x => x.Detail).HasColumnName("detail");
+            e.Property(x => x.PrevHash).HasColumnName("prev_hash").HasMaxLength(64);
+            e.Property(x => x.Hash).HasColumnName("hash").HasMaxLength(64);
         });
 
         b.Entity<UserEntity>(e =>
@@ -289,6 +323,7 @@ internal static class YearLockGuard
     {
         var years = new HashSet<long>();
         var allocationEntryIds = new HashSet<long>();
+        var modifiedEntryIds = new HashSet<long>();
 
         foreach (var e in ctx.ChangeTracker.Entries())
         {
@@ -296,19 +331,45 @@ internal static class YearLockGuard
 
             long? Orig(string prop) => e.State == EntityState.Added ? null : e.OriginalValues.GetValue<long>(prop);
             long? Curr(string prop) => e.State == EntityState.Deleted ? null : e.CurrentValues.GetValue<long>(prop);
+            bool OnlyModified(params string[] allowed) =>
+                e.Properties.Where(p => p.IsModified).Select(p => p.Metadata.Name).All(n => allowed.Contains(n));
 
             switch (e.Entity)
             {
                 case YearEntity y:
-                    // Seule la transition d'état (validation / réouverture) peut toucher un exercice validé.
+                    // Seule la transition d'état (validation / réouverture) peut toucher un exercice validé ; seule
+                    // l'empreinte peut être réécrite (changement de version de la formule : voir IntegritySeal).
                     if (e.State == EntityState.Deleted && e.OriginalValues.GetValue<string>("Status") == "VALIDATED")
                         throw new ComptaException("Exercice validé : suppression impossible.");
                     if (e.State == EntityState.Modified
-                        && e.OriginalValues.GetValue<string>("Status") == "VALIDATED" && y.Status == "VALIDATED")
+                        && e.OriginalValues.GetValue<string>("Status") == "VALIDATED" && y.Status == "VALIDATED"
+                        && !OnlyModified("Checksum"))
                         throw new ComptaException("Exercice validé : modification impossible.");
                     break;
 
+                case AuditEntity:
+                    // Journal : ajout seulement. Seule exception, le scellement d'une ligne d'avant le chaînage.
+                    if (e.State == EntityState.Deleted)
+                        throw new ComptaException("Le journal d'audit ne peut pas être modifié ni purgé.");
+                    if (e.State == EntityState.Modified
+                        && (e.OriginalValues.GetValue<string?>("Hash") is not null || !OnlyModified("Hash", "PrevHash")))
+                        throw new ComptaException("Le journal d'audit ne peut pas être modifié ni purgé.");
+                    break;
+
                 case EntryEntity or CategoryEntity or OperationEntity or AdjustmentEntity or YearOpeningEntity:
+                    if (e.Entity is EntryEntity)
+                    {
+                        if (e.State == EntityState.Deleted)
+                            throw new ComptaException("Une écriture ne se supprime jamais : elle s'annule par une écriture de contre-passation.");
+                        // Changement d'exercice à la clôture (YearId, Seq) : seule modification tolérée sur une écriture
+                        // d'annulation ou annulée.
+                        if (e.State == EntityState.Modified && !OnlyModified("YearId", "Seq"))
+                        {
+                            if (e.OriginalValues.GetValue<long?>("ReversalOfId") is not null)
+                                throw new ComptaException("Une écriture d'annulation n'est plus modifiable.");
+                            modifiedEntryIds.Add(e.OriginalValues.GetValue<long>("Id"));
+                        }
+                    }
                     foreach (var id in new[] { Orig("YearId"), Curr("YearId") })
                         if (id is { } v) years.Add(v);
                     break;
@@ -318,6 +379,13 @@ internal static class YearLockGuard
                         if (id is { } v) allocationEntryIds.Add(v);
                     break;
             }
+        }
+
+        if (modifiedEntryIds.Count > 0)
+        {
+            var ids = modifiedEntryIds.ToList();
+            if (ctx.Set<EntryEntity>().AsNoTracking().Any(x => x.ReversalOfId != null && ids.Contains(x.ReversalOfId.Value)))
+                throw new ComptaException("Cette écriture a été annulée : elle n'est plus modifiable.");
         }
 
         if (allocationEntryIds.Count > 0)

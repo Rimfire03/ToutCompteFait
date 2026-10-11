@@ -177,7 +177,8 @@ public sealed partial class Compta
         "NORMAL" => EntryKind.Normal, "TRANSFER" => EntryKind.Transfer, "NO_CASH" => EntryKind.NoCash, _ => EntryKind.MemberRefund
     };
 
-    private static Account ToAccount(AccountEntity a) => new(a.Id, a.Name, AccountKindFromDb(a.Kind), a.Position, a.Active, a.StatementMatch);
+    private static Account ToAccount(AccountEntity a) => new(a.Id, a.Name, AccountKindFromDb(a.Kind), a.Position, a.Active, a.StatementMatch,
+        a.AccountNumber);
 
     private static FiscalYear ToYear(YearEntity y) => new(y.Id, y.Label, ParseDate(y.StartDate), ParseDate(y.EndDate),
         y.Status == "VALIDATED", y.ValidatedAt is null ? null : ParseStamp(y.ValidatedAt), y.ValidatedBy);
@@ -186,9 +187,10 @@ public sealed partial class Compta
 
     private static Category ToCategory(CategoryEntity c) => new(c.Id, c.YearId, CatKindFromDb(c.Kind), c.Name, c.Position, c.OperationId);
 
-    private static Entry ToEntry(EntryEntity e) => new(e.Id, e.YearId, ParseDate(e.EntryDate), e.Label, e.Pointed,
+    private static Entry ToEntry(EntryEntity e, bool cancelled = false) => new(e.Id, e.YearId, ParseDate(e.EntryDate), e.Label, e.Pointed,
         EntryKindFromDb(e.Kind), e.AccountId, e.Direction == "IN" ? Direction.In : Direction.Out, e.ToAccountId,
-        e.AmountCents, e.MemberName, e.Note, e.RefundOfId, e.ImportRef is { } r && r.StartsWith("banque", StringComparison.Ordinal));
+        e.AmountCents, e.MemberName, e.Note, e.RefundOfId, e.ImportRef is { } r && r.StartsWith("banque", StringComparison.Ordinal),
+        e.Seq, e.ReversalOfId, cancelled);
 
     private static Adjustment ToAdjustment(AdjustmentEntity a) => new(a.Id, a.YearId, AdjFromDb(a.Type), CatKindFromDb(a.Kind),
         a.CategoryId, a.Label, a.AmountCents, a.TargetName, a.SourceId, a.Note);

@@ -44,8 +44,10 @@ public sealed partial class Compta
     }
 
     /// <summary>Fusionne deux écritures en un seul virement entre comptes : l'écriture de sortie devient le virement
-    /// (du compte débité vers le compte crédité), l'écriture d'entrée est supprimée. Les ventilations des deux écritures
-    /// sont retirées (un virement n'a ni produit ni charge) ; les justificatifs sont conservés sur le virement.</summary>
+    /// (du compte débité vers le compte crédité), l'écriture d'entrée est annulée par contre-passation (jamais
+    /// supprimée : la numérotation reste continue). Un virement n'a ni produit ni charge : la ventilation de la sortie est
+    /// retirée et celle de l'entrée est neutralisée par sa contre-passation ; les justificatifs sont conservés sur le
+    /// virement.</summary>
     public void MergeIntoTransfer(long outEntryId, long inEntryId)
     {
         var o = EntryById(outEntryId) ?? throw new ComptaException("Écriture introuvable.");
@@ -64,20 +66,31 @@ public sealed partial class Compta
         var ctx = Open().Ctx;
         var outE = ctx.Entries.First(e => e.Id == outEntryId);
         var inE = ctx.Entries.First(e => e.Id == inEntryId);
+        var beforeOut = DescribeEntry(o.Entry, o.Allocations);
+        var beforeIn = DescribeEntry(i.Entry, i.Allocations);
+
+        // 1. L'entrée est annulée par contre-passation (ventilation inversée, effet net nul).
+        var reversal = BuildReversal(i.Entry, "fusion en virement entre comptes");
+        ctx.Entries.Add(reversal);
+        ctx.SaveChanges();
+        foreach (var a in i.Allocations)
+            ctx.Allocations.Add(new AllocationEntity { EntryId = reversal.Id, CategoryId = a.CategoryId, AmountCents = -a.AmountCents });
+
+        // 2. La sortie devient le virement.
         outE.Kind = "TRANSFER";
         outE.Direction = "OUT";
         outE.ToAccountId = inE.AccountId;
         outE.MemberName = null;
         outE.Pointed = outE.Pointed || inE.Pointed;
         outE.UpdatedAt = Now();
-        ctx.Allocations.RemoveRange(ctx.Allocations.Where(a => a.EntryId == outEntryId || a.EntryId == inEntryId));
+        ctx.Allocations.RemoveRange(ctx.Allocations.Where(a => a.EntryId == outEntryId));
         ctx.SaveChanges();
         foreach (var a in ctx.Attachments.Where(x => x.EntryId == inEntryId).ToList()) a.EntryId = outEntryId;
-        ctx.SaveChanges();
-        ctx.Entries.Remove(inE);
-        Log(ctx, "Virement entre comptes fusionné",
-            $"{o.Entry.Date:dd/MM/yyyy} « {o.Entry.Label} » : {Money.Format(o.Entry.AmountCents)} € de {Account(o.Entry.AccountId!.Value)?.Name} vers {Account(i.Entry.AccountId!.Value)?.Name}");
         Save(ctx);
+        Log(ctx, "Virement entre comptes fusionné",
+            $"{o.Entry.Date:dd/MM/yyyy} « {o.Entry.Label} » : {Money.Format(o.Entry.AmountCents)} € de {Account(o.Entry.AccountId!.Value)?.Name} vers {Account(i.Entry.AccountId!.Value)?.Name}" +
+            $"\nSortie n° {o.Entry.Seq} devenue virement (avant : {beforeOut})" +
+            $"\nEntrée n° {i.Entry.Seq} annulée par la contre-passation n° {reversal.Seq} (avant : {beforeIn})");
         tx.Commit();
     }
 }

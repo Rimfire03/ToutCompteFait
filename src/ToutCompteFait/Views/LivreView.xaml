@@ -20,18 +20,21 @@
         </StackPanel>
 
         <!-- Barre d'outils -->
-        <DockPanel Grid.Row="1" Margin="0,12,0,8">
-            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+        <StackPanel Grid.Row="1" Margin="0,12,0,8">
+            <WrapPanel>
                 <Button x:Name="AddButton" Content="＋  Nouvelle écriture" Style="{StaticResource PrimaryButton}" Click="Add_Click"/>
                 <Button x:Name="EditButton" Content="Modifier" Style="{StaticResource SecondaryButton}" Click="Edit_Click"/>
                 <Button x:Name="MergeTransfersButton" Content="Fusionner les virements en double" Style="{StaticResource SecondaryButton}" Click="MergeTransfers_Click"
                         ToolTip="Un virement entre deux comptes apparaît deux fois (une sortie et une entrée) quand les deux relevés ont été importés : ce bouton les fusionne en un seul virement."/>
                 <Button x:Name="ResetButton" Content="Réinitialiser la ventilation" Style="{StaticResource SecondaryButton}" Click="Reset_Click"
                         ToolTip="Retire toute la ventilation de la ligne sélectionnée : elle redevient « à ventiler » (le montant, la date et le libellé ne changent pas)."/>
-                <Button x:Name="DeleteButton" Content="Supprimer" Style="{StaticResource DangerButton}" Click="Delete_Click"/>
+                <Button x:Name="DeleteButton" Content="Annuler l'écriture" Style="{StaticResource DangerButton}" Click="Delete_Click"
+                        ToolTip="Une écriture ne se supprime jamais : elle est annulée par une écriture inverse (contre-passation). L'original reste visible avec « Annulations »."/>
                 <Button x:Name="BankButton" Content="🏦  Importer un relevé bancaire…" Style="{StaticResource SecondaryButton}" Click="BankImport_Click"/>
-            </StackPanel>
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="ExportButton" Content="Exporter ▾" Style="{StaticResource SecondaryButton}" Click="Export_Click"
+                        ToolTip="Livre-journal en PDF ou CSV, Fichier des Écritures Comptables (FEC) pour un contrôle fiscal ou un expert-comptable."/>
+            </WrapPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
                 <TextBlock Text="Compte :" VerticalAlignment="Center" Margin="0,0,6,0"/>
                 <ComboBox x:Name="AccountFilter" Width="150" DisplayMemberPath="Name" SelectionChanged="Filter_Changed"/>
                 <TextBox x:Name="SearchBox" Width="170" Margin="10,0,0,0" TextChanged="Filter_TextChanged"
@@ -40,9 +43,10 @@
                           ToolTip="N'afficher que les écritures sans produit ni charge (jaune)"/>
                 <CheckBox x:Name="OnlyIssues" Content="À corriger" Margin="12,0,0,0" Click="Filter_Click"
                           ToolTip="N'afficher que les écritures dont la ventilation est incohérente (rouge)"/>
+                <CheckBox x:Name="ShowCancelled" Content="Annulations" Margin="12,0,0,0" Click="ShowCancelled_Click"
+                          ToolTip="Afficher aussi les écritures annulées et leurs écritures d'annulation (grisées). Le numéro d'ordre est continu."/>
             </StackPanel>
-            <Border/>
-        </DockPanel>
+        </StackPanel>
 
         <StackPanel Grid.Row="2">
             <Border x:Name="FillBanner" Background="#FEF9C3" BorderBrush="#FDE047" BorderThickness="1"
@@ -78,6 +82,10 @@
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsTransfer}" Value="True">
                                 <Setter Property="Foreground" Value="#64748B"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsFrozen}" Value="True">
+                                <Setter Property="Foreground" Value="#94A3B8"/>
+                                <Setter Property="Background" Value="#F1F5F9"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>

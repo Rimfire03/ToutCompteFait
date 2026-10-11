@@ -190,6 +190,8 @@ public sealed partial class Compta
                                       "indiquez pour chacune de la rapprocher, de créer une nouvelle écriture ou de l'ignorer.");
 
         int created = 0, updated = 0, pointed = 0, unchanged = 0, skipped = 0, aligned = 0, transfers = 0;
+        var createdEntities = new List<EntryEntity>();
+        var changes = new List<string>();
         var matchedEntries = new HashSet<long>();
         foreach (var l in plan.Lines)
             if (l.Status is BankLineStatus.LabelUpdated or BankLineStatus.Unchanged && l.EntryId is { } id) matchedEntries.Add(id);
@@ -250,7 +252,7 @@ public sealed partial class Compta
                 {
                     var year = Year(p.YearId!.Value)!;
                     if (year.Validated) { skipped++; break; } // exercice validé depuis le calcul du plan
-                    ctx.Entries.Add(new EntryEntity
+                    var fresh = new EntryEntity
                     {
                         YearId = year.Id,
                         EntryDate = D(p.Line.Date),
@@ -263,7 +265,9 @@ public sealed partial class Compta
                         ImportRef = p.Line.ExternalId is { Length: > 0 } id ? "banque:" + id : "banque",
                         CreatedAt = now,
                         UpdatedAt = now
-                    });
+                    };
+                    ctx.Entries.Add(fresh);
+                    createdEntities.Add(fresh);
                     created++;
                     break;
                 }
@@ -279,6 +283,7 @@ public sealed partial class Compta
                         var lineAccount = plan.AccountId;
                         var otherAccount = e.AccountId!.Value;
                         var lineReceives = p.Line.AmountCents > 0;
+                        changes.Add($"n° {e.Seq} : « {e.Label} » devenue virement entre comptes ({Money.Format(e.AmountCents)} €)");
                         e.Kind = "TRANSFER";
                         e.Direction = "OUT";
                         e.AccountId = lineReceives ? otherAccount : lineAccount;
@@ -296,6 +301,7 @@ public sealed partial class Compta
                     if (e.ImportRef is null) { e.ImportRef = "banque"; changed = true; }
                     if (status == BankLineStatus.LabelUpdated && e.Label != p.Line.Label)
                     {
+                        changes.Add($"n° {e.Seq} : « {e.Label} » → « {p.Line.Label} »");
                         e.Label = p.Line.Label;
                         changed = true;
                         updated++;
@@ -313,6 +319,7 @@ public sealed partial class Compta
                         var y = Year(e.YearId);
                         if (y is not null && y.Contains(p.Line.Date))
                         {
+                            changes.Add($"n° {e.Seq} : date {ParseDate(e.EntryDate):dd/MM/yyyy} → {p.Line.Date:dd/MM/yyyy}");
                             e.EntryDate = D(p.Line.Date);
                             changed = true;
                             aligned++;
@@ -324,10 +331,22 @@ public sealed partial class Compta
             }
         }
         Save(ctx);
-        Log(ctx, "Relevé bancaire importé",
-            $"{Account(plan.AccountId)?.Name} : {created} créée(s), {updated} intitulé(s) mis à jour, {pointed} pointée(s)" +
-            (aligned > 0 ? $", {aligned} date(s) alignée(s)" : "") + (transfers > 0 ? $", {transfers} virement(s) entre comptes reconnu(s)" : "") +
-            $", {skipped} ignorée(s)");
+        // Détail pour la piste d'audit : numéros des écritures créées (numérotation continue) et intitulés remplacés.
+        var detail = new System.Text.StringBuilder();
+        detail.Append($"{Account(plan.AccountId)?.Name} : {created} créée(s), {updated} intitulé(s) mis à jour, {pointed} pointée(s)");
+        if (aligned > 0) detail.Append($", {aligned} date(s) alignée(s)");
+        if (transfers > 0) detail.Append($", {transfers} virement(s) entre comptes reconnu(s)");
+        detail.Append($", {skipped} ignorée(s)");
+        foreach (var g in createdEntities.GroupBy(c => c.YearId))
+        {
+            var label = Year(g.Key)?.Label ?? g.Key.ToString();
+            var seqs = g.Select(c => c.Seq).OrderBy(s => s).ToList();
+            detail.Append($"\nExercice {label} : écritures créées n° {string.Join(", ", seqs.Take(60))}" +
+                          (seqs.Count > 60 ? $" … ({seqs.Count} au total)" : ""));
+        }
+        foreach (var c in changes.Take(60)) detail.Append("\nÉcriture ").Append(c);
+        if (changes.Count > 60) detail.Append($"\n… {changes.Count - 60} autre(s) modification(s)");
+        Log(ctx, "Relevé bancaire importé", detail.ToString());
         tx.Commit();
         return new BankImportResult(created, updated, pointed, unchanged, skipped, aligned, transfers);
     }

@@ -76,6 +76,20 @@ internal static class ServerSql
         return ctx.Database.SqlQueryRaw<int>(sql, table, column).AsEnumerable().First() > 0;
     }
 
+    /// <summary>L'index existe-t-il (schéma courant) ?</summary>
+    public static bool IndexExists(AppDbContext ctx, string table, string index)
+    {
+        var sql = ctx.Provider switch
+        {
+            DatabaseProvider.Sqlite => "SELECT count(*) AS \"Value\" FROM sqlite_master WHERE type = 'index' AND name = {0}",
+            DatabaseProvider.PostgreSql => """SELECT count(*)::int AS "Value" FROM pg_indexes WHERE schemaname = current_schema() AND indexname = {0}""",
+            DatabaseProvider.MariaDb => "SELECT CAST(count(*) AS SIGNED) AS `Value` FROM information_schema.statistics WHERE table_schema = DATABASE() AND index_name = {0} AND table_name = {1}",
+            DatabaseProvider.SqlServer => "SELECT CAST(count(*) AS int) AS [Value] FROM sys.indexes WHERE name = {0} AND object_id = OBJECT_ID({1})",
+            _ => throw new NotSupportedException()
+        };
+        return ctx.Database.SqlQueryRaw<int>(sql, index, table).AsEnumerable().First() > 0;
+    }
+
     /// <summary>La base du serveur contient-elle déjà les tables de l'application ?</summary>
     public static bool HasAppTables(AppDbContext ctx) => TableExists(ctx, "fiscal_years");
 }

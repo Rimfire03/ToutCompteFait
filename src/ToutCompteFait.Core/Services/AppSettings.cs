@@ -20,6 +20,11 @@ public sealed class AppSettings
     /// <summary>Paramètres de connexion au serveur (mot de passe chiffré DPAPI).</summary>
     public DbConnectionInfo DatabaseServer { get; set; } = new();
 
+    /// <summary>Nom de l'association (en-tête des livres exportés) et SIREN (nom du fichier FEC). Réglages d'export,
+    /// propres au poste : ils ne font partie d'aucun exercice.</summary>
+    public string? OrganizationName { get; set; }
+    public string? Siren { get; set; }
+
     /// <summary>Libellé du dernier exercice affiché.</summary>
     public string? LastYear { get; set; }
 

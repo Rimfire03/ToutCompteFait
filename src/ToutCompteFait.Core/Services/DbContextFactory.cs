@@ -210,12 +210,18 @@ public class DbContextFactory
         var pending = DatabaseMigrations.All.Where(m => m.Version > current).ToList();
         if (pending.Count == 0)
         {
+            AuditChain.SealLegacy(ctx);
             SqliteTriggers.EnsureYearLocks(ctx);
             DatabaseWriteTracking.EnsureTriggers(ctx);
             return;
         }
 
         BackupTo(ctx, $"avant-maj-v{current}");
+        // Mode maintenance : les verrous des exercices validés (déclencheurs) sont levés pour que la migration puisse
+        // compléter ou corriger la structure et les données de TOUS les exercices ; ils sont recréés juste après.
+        // Garde-fou : la migration est dans une transaction, et les exercices validés sont revérifiés ensuite par leur
+        // empreinte (Compta.VerifyIntegrity) à l'ouverture suivante.
+        SqliteTriggers.Drop(ctx);
         var reached = current;
         foreach (var migration in pending)
         {
@@ -236,6 +242,7 @@ public class DbContextFactory
             ctx.ChangeTracker.Clear();
         }
 
+        AuditChain.SealLegacy(ctx);
         SqliteTriggers.EnsureYearLocks(ctx);
         DatabaseWriteTracking.EnsureTriggers(ctx);
     }
@@ -285,6 +292,7 @@ public class DbContextFactory
             ctx.ChangeTracker.Clear();
         }
         if (reached < LatestVersion) WriteVersion(ctx, LatestVersion, appVersion);
+        AuditChain.SealLegacy(ctx);
     }
 
     // ------------------------------------------------------------------ sauvegardes

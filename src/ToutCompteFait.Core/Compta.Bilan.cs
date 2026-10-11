@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using ToutCompteFait.Core.Data;
 using ToutCompteFait.Core.Security;
 using Microsoft.EntityFrameworkCore;
 
@@ -200,9 +201,9 @@ public sealed partial class Compta
         return issues;
     }
 
-    /// <summary>Empreinte (SHA-256) du contenu comptable d'un exercice : permet de détecter toute modification
-    /// faite hors du logiciel après la validation.</summary>
-    public string ComputeChecksum(long yearId)
+    /// <summary>Formule d'empreinte v1 (exercices validés avant l'introduction des versions). FIGÉE : ne jamais la
+    /// modifier, les empreintes déjà enregistrées doivent rester vérifiables ; voir <see cref="IntegritySeal"/>.</summary>
+    internal string ComputeChecksumV1(long yearId)
     {
         var sb = new StringBuilder();
         var y = Year(yearId) ?? throw new ComptaException("Exercice introuvable.");
@@ -242,17 +243,6 @@ public sealed partial class Compta
                 sb.Append("T|").Append(a.Id).Append('|').Append(a.EntryId).Append('|').Append(a.FileName).Append('|').Append(a.SizeBytes).Append('\n');
         }
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString())));
-    }
-
-    /// <summary>True si le contenu d'un exercice validé est toujours conforme à l'empreinte enregistrée.</summary>
-    public bool VerifyIntegrity(long yearId)
-    {
-        var y = Year(yearId);
-        if (y is null || !y.Validated) return true;
-        string? stored;
-        using (var l = Open())
-            stored = l.Ctx.Years.AsNoTracking().Where(x => x.Id == yearId).Select(x => x.Checksum).FirstOrDefault();
-        return stored is not null && string.Equals(stored, ComputeChecksum(yearId), StringComparison.Ordinal);
     }
 
     /// <summary>Valide (clôture) un exercice à la date de clôture indiquée (par défaut : la fin prévue de l'exercice).
@@ -319,6 +309,7 @@ public sealed partial class Compta
 
         // 2. Écritures après la date de clôture : déplacées dans l'exercice suivant.
         var moved = 0;
+        var moveDetail = "";
         var closingText = D(closing);
         using (var l = Open())
             moved = l.Ctx.Entries.AsNoTracking().Count(e => e.YearId == yearId && string.Compare(e.EntryDate, closingText) > 0);
@@ -331,16 +322,29 @@ public sealed partial class Compta
                 var end2 = days is >= 358 and <= 372 ? start2.AddYears(1).AddDays(-1) : start2.AddDays(days);
                 next = CreateYear(start2, end2, cloneStructure: true);
             }
-            MoveEntriesToNextYear(yearId, next.Id, closingText);
+            moveDetail = MoveEntriesToNextYear(yearId, next.Id, closingText);
         }
 
         // Dernier report vers l'exercice suivant avant verrouillage.
         SyncCarry(yearId);
         var b = ComputeBilan(yearId);
+        string? auditHead;
+        long entryCount, lastSeq;
+        using (var l = Open())
+        {
+            // Empreinte du dernier maillon du journal : la suppression de lignes antérieures à la validation est
+            // ainsi détectable plus tard (AuditChain.Verify).
+            auditHead = AuditChain.Head(l.Ctx);
+            entryCount = l.Ctx.Entries.AsNoTracking().Count(x => x.YearId == yearId);
+            lastSeq = l.Ctx.Entries.AsNoTracking().Where(x => x.YearId == yearId).Max(x => (long?)x.Seq) ?? 0;
+        }
         var snapshot = JsonSerializer.Serialize(new
         {
             year = b.Year.Label,
             closingDate = closingText,
+            entryCount,
+            lastSeq,
+            auditHead,
             opening = b.OpeningTotal,
             closing = b.ClosingTotal,
             products = b.ProductsTotal,
@@ -360,7 +364,7 @@ public sealed partial class Compta
         e.ClosingJson = snapshot;
         Save(ctx);
         Log(ctx, "Exercice validé", $"{b.Year.Label} — clôture au {closing:dd/MM/yyyy}" +
-            (moved > 0 ? $", {moved} écriture(s) déplacée(s) vers l'exercice suivant" : "") +
+            (moved > 0 ? $", {moved} écriture(s) déplacée(s) vers l'exercice suivant ({moveDetail}) ; numérotation de l'exercice clôturé rétablie sans trou" : "") +
             (forcedIssues.Count > 0 ? $" — CLÔTURE FORCÉE par un administrateur malgré {forcedIssues.Count} point(s) bloquant(s)" : "") +
             (forcedNote is not null ? " ; " + forcedNote : ""));
         tx.Commit();
@@ -368,11 +372,11 @@ public sealed partial class Compta
 
     /// <summary>Déplace les écritures de <paramref name="fromYearId"/> datées après <paramref name="afterDate"/> (yyyy-MM-dd)
     /// vers <paramref name="toYearId"/>, en rattachant leur ventilation aux catégories de même nom (créées si absentes).</summary>
-    private void MoveEntriesToNextYear(long fromYearId, long toYearId, string afterDate)
+    private string MoveEntriesToNextYear(long fromYearId, long toYearId, string afterDate)
     {
         var ctx = Open().Ctx;
         var entries = ctx.Entries.Where(e => e.YearId == fromYearId && string.Compare(e.EntryDate, afterDate) > 0).ToList();
-        if (entries.Count == 0) return;
+        if (entries.Count == 0) return "";
         var ids = entries.Select(e => e.Id).ToList();
         var allocs = ctx.Allocations.Where(a => ids.Contains(a.EntryId)).ToList();
 
@@ -405,7 +409,33 @@ public sealed partial class Compta
 
         foreach (var a in allocs)
             if (map.TryGetValue(a.CategoryId, out var nid)) a.CategoryId = nid;
-        foreach (var e in entries) e.YearId = toYearId;
+        // Numérotation : les écritures déplacées reprennent à la suite de l'exercice d'accueil (ordre d'origine) ; le
+        // numéro d'origine est conservé dans le journal (voir ValidateYear).
+        var nextSeq = ctx.Entries.AsNoTracking().Where(x => x.YearId == toYearId).Max(x => (long?)x.Seq) ?? 0;
+        var moves = new List<string>();
+        foreach (var e in entries.OrderBy(e => e.Seq).ThenBy(e => e.Id))
+        {
+            moves.Add($"{e.Seq}→{nextSeq + 1}");
+            e.YearId = toYearId;
+            e.Seq = ++nextSeq;
+        }
+        Save(ctx);
+        RenumberYear(ctx, fromYearId);
+        return "numéros (ancien→nouveau) : " + string.Join(", ", moves.Take(100)) + (moves.Count > 100 ? " …" : "");
+    }
+
+    /// <summary>Rétablit une numérotation sans trou (1…n, dans l'ordre existant) après le départ d'écritures vers
+    /// l'exercice suivant. Utilisé uniquement à la clôture, juste avant l'empreinte : à partir de la validation, la
+    /// numérotation est figée. Deux temps (valeurs négatives provisoires) pour respecter l'unicité
+    /// (exercice, numéro).</summary>
+    private static void RenumberYear(AppDbContext ctx, long yearId)
+    {
+        var rows = ctx.Entries.Where(e => e.YearId == yearId).OrderBy(e => e.Seq).ThenBy(e => e.Id).ToList();
+        var changes = rows.Select((e, i) => (Entry: e, Wanted: i + 1L)).Where(x => x.Entry.Seq != x.Wanted).ToList();
+        if (changes.Count == 0) return;
+        foreach (var c in changes) c.Entry.Seq = -c.Entry.Id;
+        ctx.SaveChanges();
+        foreach (var c in changes) c.Entry.Seq = c.Wanted;
         Save(ctx);
     }
     /// <summary>Rouvre un exercice validé (correction exceptionnelle, réservée à l'administrateur). Refusé si

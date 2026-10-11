@@ -56,6 +56,9 @@ public static class DatabaseCopier
         {
             try
             {
+                // Verrous SQLite (exercices validés, journal, écritures) levés le temps de la copie, puis recréés :
+                // la copie reproduit à l'identique une base déjà cohérente, y compris le chaînage du journal.
+                SqliteTriggers.Drop(dst);
                 if (hasAnyRow)
                 {
                     progress?.Report("Vidage de la base de destination...");
@@ -89,6 +92,7 @@ public static class DatabaseCopier
                     dst.Set<YearEntity>().Where(y => ids.Contains(y.Id)).ExecuteUpdate(s => s.SetProperty(y => y.Status, "VALIDATED"));
                     s_validatedYears.Clear();
                 }
+                SqliteTriggers.EnsureYearLocks(dst);
                 tx.Commit();
             }
             catch
@@ -165,7 +169,8 @@ public static class DatabaseCopier
         }
         // Écritures : celles qui en référencent une autre (remboursement lié) passent après leur dépense d'origine.
         if (typeof(T) == typeof(ToutCompteFait.Core.Data.EntryEntity))
-            rows = rows.Cast<ToutCompteFait.Core.Data.EntryEntity>().OrderBy(e => e.RefundOfId is null ? 0 : 1).ThenBy(e => e.Id)
+            rows = rows.Cast<ToutCompteFait.Core.Data.EntryEntity>()
+                .OrderBy(e => e.RefundOfId is null && e.ReversalOfId is null ? 0 : 1).ThenBy(e => e.Id)
                 .Cast<T>().ToList();
 
         var table = entity.GetTableName()!;
