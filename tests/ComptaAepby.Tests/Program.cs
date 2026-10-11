@@ -40,14 +40,20 @@ if (args.Length >= 3 && args[0] == "pgsql")
     var sbSql = new System.Text.StringBuilder();
     var inv = System.Globalization.CultureInfo.InvariantCulture;
     sbSql.AppendLine("-- Tout Compte Fait : script PostgreSQL (schéma + données) généré le " + DateTime.Now.ToString("yyyy-MM-dd HH:mm", inv));
-    sbSql.AppendLine("-- À exécuter sur une base VIDE (ex. psql -f ou l'éditeur SQL de votre outil d'administration).");
+    sbSql.AppendLine("-- À exécuter depuis le logiciel (Paramètres → Base de données → Exécuter un script SQL), ou avec psql -f.");
     sbSql.AppendLine("-- Tout est dans une seule transaction : en cas d'erreur, rien n'est appliqué.");
     sbSql.AppendLine("SET client_encoding = 'UTF8';");
     sbSql.AppendLine("BEGIN;");
     sbSql.AppendLine();
-    sbSql.AppendLine("-- 1. Schéma de l'application");
+    sbSql.AppendLine("-- 1. Schéma de l'application (les tables existantes de l'application sont d'abord supprimées :");
+    sbSql.AppendLine("--    le script fonctionne aussi sur une base déjà initialisée par le logiciel)");
     using (var scriptCtx = new ServerScriptContext(DatabaseProvider.PostgreSql))
+    {
+        foreach (var t in scriptCtx.Model.GetEntityTypes().Select(e => e.GetTableName()).Where(n => n is not null).Distinct())
+            sbSql.AppendLine($"DROP TABLE IF EXISTS \"{t}\" CASCADE;");
+        sbSql.AppendLine("DROP TABLE IF EXISTS \"DbInfo\" CASCADE;");
         sbSql.AppendLine(scriptCtx.Database.GenerateCreateScript().Trim());
+    }
     sbSql.AppendLine();
     sbSql.AppendLine("-- 2. Table technique (version du schéma, verrou d'écriture)");
     sbSql.AppendLine("CREATE TABLE IF NOT EXISTS \"DbInfo\" (\"Key\" varchar(100) NOT NULL PRIMARY KEY, \"Value\" text NOT NULL);");
@@ -1106,6 +1112,24 @@ Console.WriteLine("Relevé multi-comptes (mise en page Caisse d'Épargne)");
     var bs = StatementLayoutParser.ParseSections(new[] { broken });
     Check(!StatementChecker.Evaluate(bs[0]).CanImport && StatementChecker.Evaluate(bs[^1]).CanImport,
         "chiffre faux : seul le compte concerné est bloqué");
+}
+
+// ---- Script SQL exécuté depuis l'application
+{
+    var sqlDb = Path.Combine(Path.GetTempPath(), "tcf-sqlscript-" + Guid.NewGuid().ToString("N") + ".db");
+    var sqlFactory = new DbContextFactory(sqlDb);
+    sqlFactory.EnsureDatabaseUpToDate("test");
+    SqlScriptRunner.Run(sqlFactory, "CREATE TABLE zz_test (a INTEGER, b TEXT);\nINSERT INTO zz_test VALUES (1, 'a;b {x}');\nINSERT INTO zz_test VALUES (2, 'l''apostrophe');");
+    using (var c1 = sqlFactory.Create())
+        Eq(2, c1.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM zz_test").AsEnumerable().First(), "script SQL : 2 lignes insérées");
+    var failed = false;
+    try { SqlScriptRunner.Run(sqlFactory, "INSERT INTO zz_test VALUES (3, 'x');\nINSERT INTO table_inconnue VALUES (1);"); }
+    catch { failed = true; }
+    using (var c2 = sqlFactory.Create())
+        Check(failed && c2.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM zz_test").AsEnumerable().First() == 2,
+            "script SQL en erreur : tout est annulé");
+    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+    try { File.Delete(sqlDb); } catch { }
 }
 
 Console.WriteLine(failures == 0 ? $"TOUT EST OK ({checks} vérifications)" : $"{failures} ECHEC(S) sur {checks} vérifications");

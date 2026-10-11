@@ -202,6 +202,12 @@
                         <Button x:Name="ImportButton" Content="Importer des classeurs Excel…" Style="{StaticResource SecondaryButton}"
                                 HorizontalAlignment="Left" Margin="0,8,0,0" Click="Import_Click"/>
 
+                        <TextBlock Text="Script SQL" Style="{StaticResource SectionText}"/>
+                        <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap"
+                                   Text="Exécute un fichier .sql sur la base actuelle (par ex. le script PostgreSQL généré à partir d'une base de test, qui remplace les tables de l'application). Une sauvegarde est faite avant ; si le script échoue, rien n'est modifié."/>
+                        <Button x:Name="SqlScriptButton" Content="Exécuter un script SQL…" Style="{StaticResource DangerButton}"
+                                HorizontalAlignment="Left" Margin="0,8,0,0" Click="SqlScript_Click"/>
+
                         <TextBlock Text="Journal des opérations sensibles" Style="{StaticResource SectionText}"/>
                         <DataGrid x:Name="AuditGrid" MaxHeight="280">
                             <DataGrid.Columns>
