@@ -112,6 +112,18 @@ public partial class App : Application
             if (e.Args[i] == "--password") cliPassword = e.Args[i + 1];
         }
 
+        var frIdx = Array.IndexOf(e.Args, "--firstrunshots");
+        if (frIdx >= 0 && frIdx + 1 < e.Args.Length)
+        {
+            var frDir = e.Args[frIdx + 1];
+            _ = Dispatcher.InvokeAsync(async () =>
+            {
+                await FirstRunShotsAsync(frDir);
+                Shutdown(0);
+            });
+            return;
+        }
+
         var uiIdx = Array.IndexOf(e.Args, "--ocrui");
         if (uiIdx >= 0 && uiIdx + 2 < e.Args.Length)
         {
@@ -336,39 +348,47 @@ public partial class App : Application
 
     // ------------------------------------------------------------------ choix du fichier / du serveur
 
-    /// <summary>Premier lancement / fichier introuvable : créer une base vide ou choisir un fichier existant.</summary>
+    /// <summary>Premier lancement / fichier introuvable : se connecter à une base distante, créer une base locale vide
+    /// ou choisir un fichier existant.</summary>
     private static bool EnsureDatabaseFileSelected()
     {
         while (!File.Exists(Settings.ResolvedDatabasePath))
         {
-            var choice = MessageBox.Show(
-                $"Aucune base de données trouvée à l'emplacement :\n{Settings.ResolvedDatabasePath}\n\n" +
-                "Oui : créer une nouvelle base vide à cet emplacement.\n" +
-                "Non : choisir un fichier de base existant (.db).\n" +
-                "Annuler : fermer le logiciel.",
-                "Base de données introuvable", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-            if (choice == MessageBoxResult.Yes) return true; // créée juste après par EnsureDatabaseUpToDate
-            if (choice == MessageBoxResult.No)
+            var first = new FirstRunWindow(Settings.ResolvedDatabasePath);
+            if (first.ShowDialog() != true) return false;
+
+            switch (first.Choice)
             {
-                var dlg = new Microsoft.Win32.OpenFileDialog
-                {
-                    Title = "Choisir une base de données existante",
-                    Filter = "Base Tout Compte Fait (*.db)|*.db|Tous les fichiers (*.*)|*.*"
-                };
-                if (dlg.ShowDialog() == true)
-                {
-                    Settings.DatabasePath = dlg.FileName;
-                    Settings.Save();
+                case FirstRunChoice.CreateLocal:
+                    return true; // créée juste après par EnsureDatabaseUpToDate
+
+                case FirstRunChoice.OpenFile:
+                    var dlg = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Title = "Choisir une base de données existante",
+                        Filter = "Base Tout Compte Fait (*.db)|*.db|Tous les fichiers (*.*)|*.*"
+                    };
+                    if (dlg.ShowDialog() == true)
+                    {
+                        Settings.DatabasePath = dlg.FileName;
+                        Settings.Save();
+                        Target = Settings.ResolvedTarget;
+                    }
+                    continue;
+
+                case FirstRunChoice.ConnectServer:
+                    var server = new DatabaseServerWindow(firstRun: true);
+                    if (server.ShowDialog() != true) continue;   // retour au choix
                     Target = Settings.ResolvedTarget;
-                }
-                continue;
+                    return EnsureServerReachable();
+
+                default:
+                    return false;
             }
-            return false;
         }
         Target = Settings.ResolvedTarget;
         return true;
     }
-
     /// <summary>Mode serveur : vérifie que le serveur répond. En cas d'échec, propose de réessayer, de revenir au
     /// fichier SQLite local ou de quitter.</summary>
     private static bool EnsureServerReachable()

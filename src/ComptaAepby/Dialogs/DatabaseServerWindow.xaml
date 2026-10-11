@@ -5,10 +5,10 @@
         WindowStartupLocation="CenterOwner" Background="{StaticResource BrushBackground}">
     <StackPanel Margin="24">
         <TextBlock Text="Base de données" Style="{StaticResource TitleText}"/>
-        <TextBlock Style="{StaticResource MutedText}"
+        <TextBlock x:Name="Intro" Style="{StaticResource MutedText}" TextWrapping="Wrap"
                    Text="Le logiciel peut utiliser un fichier SQLite (local ou sur un partage réseau) ou un serveur de base de données. Un serveur est conseillé dès que plusieurs personnes utilisent le logiciel. Changer de base redémarre le logiciel."/>
 
-        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+        <StackPanel x:Name="ModeRow" Orientation="Horizontal" Margin="0,16,0,0">
             <RadioButton x:Name="FileMode" Content="Fichier SQLite" Checked="Mode_Changed"/>
             <RadioButton x:Name="ServerMode" Content="Serveur de base de données" Checked="Mode_Changed"/>
         </StackPanel>

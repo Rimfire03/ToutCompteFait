@@ -16,9 +16,13 @@ public partial class DatabaseServerWindow : Window
     }
 
     private bool _loading = true;
+    private readonly bool _firstRun;
 
-    public DatabaseServerWindow()
+    /// <param name="firstRun">Premier lancement (aucune base) : seul le serveur est proposé ; « Enregistrer » applique le
+    /// choix et ferme la fenêtre sans redémarrer (le démarrage continue sur le serveur).</param>
+    public DatabaseServerWindow(bool firstRun = false)
     {
+        _firstRun = firstRun;
         InitializeComponent();
         ProviderCombo.ItemsSource = new[] { DatabaseProvider.PostgreSql, DatabaseProvider.MariaDb, DatabaseProvider.SqlServer }
             .Select(p => new ProviderItem(p)).ToList();
@@ -31,7 +35,18 @@ public partial class DatabaseServerWindow : Window
         UserBox.Text = s.UserName;
         PasswordBox.Password = s.Password;
         SslBox.IsChecked = s.UseSsl;
-        (App.Settings.UseDatabaseServer ? ServerMode : FileMode).IsChecked = true;
+        (App.Settings.UseDatabaseServer || firstRun ? ServerMode : FileMode).IsChecked = true;
+        if (firstRun)
+        {
+            Title = "Se connecter à une base distante";
+            ModeRow.Visibility = Visibility.Collapsed;
+            MigrateButton.Visibility = Visibility.Collapsed;
+            SaveButton.Content = "Utiliser ce serveur";
+            if (!s.UseSsl && string.IsNullOrWhiteSpace(s.UserName)) SslBox.IsChecked = true;
+            Intro.Text = "Indiquez le serveur de base de données qui contient (ou contiendra) les données. Testez la connexion, puis " +
+                         "validez : si la base du serveur est vide, elle est initialisée au démarrage et vous créez le premier administrateur ; " +
+                         "si elle contient déjà des données, vous vous connectez avec un compte existant.";
+        }
         _loading = false;
         UpdateState();
     }
@@ -54,7 +69,7 @@ public partial class DatabaseServerWindow : Window
     {
         if (ServerPanel is null) return;
         ServerPanel.Visibility = ServerMode.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-        MigrateButton.IsEnabled = !App.IsReadOnly && !App.Target.IsServer;
+        MigrateButton.IsEnabled = !_firstRun && !App.IsReadOnly && !App.Target.IsServer;
         Hint.Text = Provider switch
         {
             DatabaseProvider.PostgreSql => "PostgreSQL : le serveur et la base peuvent être créés à l'avance ; si la base n'existe pas, le logiciel la crée (droit « créer des bases » nécessaire).",
@@ -170,6 +185,14 @@ public partial class DatabaseServerWindow : Window
         {
             var info = ReadForm();
             if (info is null) return;
+            if (_firstRun)
+            {
+                App.Settings.DatabaseServer = info;
+                App.Settings.UseDatabaseServer = true;
+                App.Settings.Save();
+                DialogResult = true;
+                return;
+            }
             if (!Ui.Confirm($"Utiliser le serveur {info.Describe()} ?\n\nLe logiciel va redémarrer. Si la base du serveur est vide, elle sera initialisée " +
                             "(pensez à copier d'abord les données actuelles).", "Changer de base de données"))
                 return;
