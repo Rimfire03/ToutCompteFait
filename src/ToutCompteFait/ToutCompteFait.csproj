@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -10,14 +10,14 @@
     <AssemblyName>ToutCompteFait</AssemblyName>
     <RootNamespace>ToutCompteFait</RootNamespace>
     <InvariantGlobalization>false</InvariantGlobalization>
-    <Version>1.0.13</Version>
+    <Version>1.1.0</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Company>TomLine prod&amp;co</Company>
     <Product>Tout Compte Fait</Product>
-    <Copyright>© TomLine prod&amp;co by Thomas Guidez</Copyright>
+    <Copyright>Â© TomLine prod&amp;co by Thomas Guidez</Copyright>
   </PropertyGroup>
 
-  <!-- Canal de la build (posé par tools\Release.ps1 -Channel dev : -p:ReleaseChannel=dev) : lu par App.DisplayVersion. -->
+  <!-- Canal de la build (posÃ© par tools\Release.ps1 -Channel dev : -p:ReleaseChannel=dev) : lu par App.DisplayVersion. -->
   <ItemGroup Condition="'$(ReleaseChannel)' != ''">
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>ReleaseChannel</_Parameter1>
@@ -27,7 +27,7 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
-    <!-- Texte des PDF numériques (sans OCR) ; l'OCR et le rendu des pages utilisent Windows (Windows.Media.Ocr / Windows.Data.Pdf). -->
+    <!-- Texte des PDF numÃ©riques (sans OCR) ; l'OCR et le rendu des pages utilisent Windows (Windows.Media.Ocr / Windows.Data.Pdf). -->
     <PackageReference Include="PdfPig" Version="0.1.9" />
   </ItemGroup>
 
