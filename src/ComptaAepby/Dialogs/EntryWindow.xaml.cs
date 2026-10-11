@@ -61,6 +61,7 @@ public partial class EntryWindow : Window
         _init = true;
         ApplyModeVisibility();
         _init = false;
+        SyncSingleRow();
         RefreshStatus();
         Loaded += (_, _) => (existing is null ? LabelBox : AmountBox).Focus();
     }
@@ -105,7 +106,7 @@ public partial class EntryWindow : Window
         };
         AllocHelp.Text = m == Mode.NoCash
             ? "Saisissez le produit ET la charge (montants positifs et égaux : le total des produits doit égaler le total des charges)."
-            : "Indiquez où va l'argent. Plusieurs lignes possibles si l'opération touche plusieurs catégories ; le total doit être égal au montant.";
+            : "Indiquez où va l'argent. Une seule ligne reprend le montant de l'opération ; ajoutez des lignes si elle touche plusieurs catégories (le total doit être égal au montant).";
         AmountLabel.Text = m == Mode.NoCash ? "Montant refacturé (€)" : "Montant (€)";
     }
 
@@ -162,6 +163,7 @@ public partial class EntryWindow : Window
         {
             if (_rows.Count == 1) { combo.SelectedItem = null; amount.Text = ""; row.AmountTouched = false; }
             else { _rows.Remove(row); AllocPanel.Children.Remove(root); }
+            SyncSingleRow();
             RefreshStatus();
         };
         _rows.Add(row);
@@ -171,7 +173,9 @@ public partial class EntryWindow : Window
 
     private void AddAlloc_Click(object sender, RoutedEventArgs e)
     {
+        // Passer à plusieurs lignes : la première garde le montant total jusqu'à ce qu'on le réduise.
         var r = AddAllocRow();
+        SyncSingleRow();
         // Propose directement le reste à ventiler.
         if (TryDraft(out var entry, out var allocs, out _) && entry is not null)
         {
@@ -184,10 +188,21 @@ public partial class EntryWindow : Window
     private void Amount_Changed(object sender, TextChangedEventArgs e)
     {
         if (_init) return;
-        // Une seule ligne de ventilation non modifiée à la main : elle suit le montant.
-        if (_rows.Count == 1 && !_rows[0].AmountTouched && Money.TryParse(AmountBox.Text, out var cents) && cents > 0)
-            _rows[0].Amount.Text = Money.Format(cents);
+        SyncSingleRow();
         RefreshStatus();
+    }
+
+    /// <summary>Une seule ligne de ventilation : elle est forcément égale au montant de l'opération (suit le montant,
+    /// non modifiable). Dès qu'il y a plusieurs lignes, les montants se saisissent librement.</summary>
+    private void SyncSingleRow()
+    {
+        var single = _rows.Count == 1;
+        foreach (var r in _rows) r.Amount.IsReadOnly = single;
+        if (single && Money.TryParse(AmountBox.Text, out var cents) && cents > 0)
+        {
+            var text = Money.Format(cents);
+            if (_rows[0].Amount.Text != text) _rows[0].Amount.Text = text;
+        }
     }
 
     /// <summary>Signe appliqué à un montant saisi pour que les produits comptent en plus et les charges en moins
