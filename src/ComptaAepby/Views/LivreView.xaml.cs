@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -31,6 +31,9 @@ public sealed class LivreRow
 
     /// <summary>Ventilation incohérente avec le montant, ou date hors exercice : à corriger (rouge).</summary>
     public bool Problem { get; init; }
+
+    /// <summary>Explication affichée en info-bulle sur la ligne quand elle est à ventiler ou à corriger (sinon null).</summary>
+    public string? ProblemTip { get; init; }
 
     /// <summary>Aucune ventilation : à classer en produit ou en charge (jaune).</summary>
     public bool ToFill { get; init; }
@@ -162,6 +165,22 @@ public partial class LivreView : UserControl, IPage
             }
             running += effect;
 
+            var tips = new List<string>();
+            if (needs)
+                tips.Add($"Aucune ventilation : cette écriture de {Money.Format(Math.Abs(e.NetCash))} € n'est classée dans aucun produit ni aucune charge. " +
+                         "Choisissez la catégorie dans la colonne « Ventilation » (ou « Modifier »).");
+            else if (gap != 0)
+            {
+                var absGap = Money.Format(Math.Abs(gap));
+                tips.Add(e.Kind == EntryKind.NoCash
+                    ? $"Opération sans mouvement : le total des produits et celui des charges doivent être égaux (écart de {absGap} €). Corrigez avec « Modifier »."
+                    : gap > 0
+                        ? $"La ventilation ne couvre pas tout le montant : il reste {absGap} € à ventiler. Complétez ou ajoutez une ligne avec « Modifier »."
+                        : $"La ventilation dépasse le montant de l'écriture de {absGap} € (ou une catégorie est du mauvais type : produit au lieu de charge). Corrigez avec « Modifier ».");
+            }
+            if (!_year.Contains(e.Date))
+                tips.Add($"La date {e.Date:dd/MM/yyyy} est hors de l'exercice ({_year.Start:dd/MM/yyyy} → {_year.End:dd/MM/yyyy}) : corrigez la date.");
+
             var transferAll = e.Kind == EntryKind.Transfer && accountFilter is null;
             var breakdown = string.Join(" · ", r.Allocations.Select(a =>
                 $"{cats[a.CategoryId].Name} {Money.Format(a.AmountCents)}"));
@@ -179,6 +198,7 @@ public partial class LivreView : UserControl, IPage
                 BalanceText = Money.Format(running), Breakdown = breakdown,
                 Problem = (!needs && gap != 0) || !_year.Contains(e.Date),
                 ToFill = needs,
+                ProblemTip = tips.Count > 0 ? string.Join("\n", tips) : null,
                 CanAssign = needs && _canWrite,
                 Options = e.Direction == Direction.In ? inOptions : outOptions,
                 IsTransfer = e.Kind == EntryKind.Transfer, Source = r
