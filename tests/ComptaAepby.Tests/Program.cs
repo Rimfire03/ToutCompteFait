@@ -1168,6 +1168,25 @@ Console.WriteLine("Clôture à une date choisie");
     try { File.Delete(sqlDb); } catch { }
 }
 
+// ---- Fichier de configuration du serveur
+{
+    var cfgPath = Path.Combine(Path.GetTempPath(), "tcf-config-" + Guid.NewGuid().ToString("N") + ServerConfigFile.Extension);
+    var src = new DbConnectionInfo { Provider = DatabaseProvider.MariaDb, Host = "srv.exemple", Port = 3307, Database = "tcf", UserName = "u", UseSsl = true };
+    src.Password = "secret-é";
+    ServerConfigFile.Write(cfgPath, src, includePassword: false);
+    var noPwd = ServerConfigFile.Read(cfgPath);
+    Check(noPwd.Provider == DatabaseProvider.MariaDb && noPwd.Host == "srv.exemple" && noPwd.Port == 3307 && noPwd.Database == "tcf"
+          && noPwd.UserName == "u" && noPwd.UseSsl && noPwd.Password == "", "config serveur : aller-retour sans mot de passe");
+    Check(!File.ReadAllText(cfgPath).Contains("secret"), "config serveur : mot de passe absent du fichier");
+    ServerConfigFile.Write(cfgPath, src, includePassword: true);
+    Eq("secret-é", ServerConfigFile.Read(cfgPath).Password, "config serveur : mot de passe inclus sur demande");
+    File.WriteAllText(cfgPath, "{\"foo\":1}");
+    var bad = false;
+    try { ServerConfigFile.Read(cfgPath); } catch (ComptaException) { bad = true; }
+    Check(bad, "config serveur : fichier étranger refusé");
+    try { File.Delete(cfgPath); } catch { }
+}
+
 Console.WriteLine(failures == 0 ? $"TOUT EST OK ({checks} vérifications)" : $"{failures} ECHEC(S) sur {checks} vérifications");
 return failures == 0 ? 0 : 1;
 

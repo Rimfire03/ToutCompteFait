@@ -3,7 +3,7 @@ using System.Windows.Controls;
 
 namespace ComptaAepby.Dialogs;
 
-public enum FirstRunChoice { Cancel, CreateLocal, OpenFile, ConnectServer }
+public enum FirstRunChoice { Cancel, CreateLocal, OpenFile, ConnectServer, LoadConfig }
 
 /// <summary>Premier lancement (aucune base trouvée) : créer une base locale vide, ouvrir un fichier existant ou se
 /// connecter à une base distante (serveur PostgreSQL, MariaDB / MySQL, SQL Server).</summary>
@@ -43,6 +43,9 @@ public sealed class FirstRunWindow : Window
         root.Children.Add(MakeChoice("Se connecter à une base distante (serveur)",
             "PostgreSQL, MariaDB / MySQL ou SQL Server : les données sont sur le serveur, partagées entre les postes.",
             FirstRunChoice.ConnectServer, primary: true));
+        root.Children.Add(MakeChoice("Charger un fichier de configuration…",
+            "Fichier .tcfconfig remis par l'administrateur : il contient les informations du serveur.",
+            FirstRunChoice.LoadConfig, primary: false));
         root.Children.Add(MakeChoice("Créer une nouvelle base vide sur ce poste",
             "Fichier SQLite local à l'emplacement ci-dessus ; vous créerez ensuite le compte administrateur.",
             FirstRunChoice.CreateLocal, primary: false));

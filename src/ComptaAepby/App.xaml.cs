@@ -376,6 +376,12 @@ public partial class App : Application
                     }
                     continue;
 
+                case FirstRunChoice.LoadConfig:
+                    var loaded = ConfigLoader.Pick(null);
+                    if (loaded is null) continue;
+                    Settings.DatabaseServer = loaded;   // préremplit la fenêtre (mot de passe à saisir s'il manque)
+                    goto case FirstRunChoice.ConnectServer;
+
                 case FirstRunChoice.ConnectServer:
                     var server = new DatabaseServerWindow(firstRun: true);
                     if (server.ShowDialog() != true) continue;   // retour au choix

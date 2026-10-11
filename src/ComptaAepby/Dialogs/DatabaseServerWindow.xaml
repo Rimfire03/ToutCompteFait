@@ -32,6 +32,8 @@
             <TextBlock x:Name="Hint" Style="{StaticResource MutedText}" Margin="0,8,0,0"/>
             <WrapPanel Margin="0,12,0,0">
                 <Button x:Name="TestButton" Content="Tester la connexion" Style="{StaticResource SecondaryButton}" Click="Test_Click"/>
+                <Button x:Name="ExportButton" Content="Générer le fichier de configuration…" Style="{StaticResource SecondaryButton}" Click="ExportConfig_Click"/>
+                <Button x:Name="ImportButton" Content="Charger un fichier de configuration…" Style="{StaticResource SecondaryButton}" Click="ImportConfig_Click"/>
                 <Button x:Name="MigrateButton" Content="Copier les données actuelles vers ce serveur" Style="{StaticResource SecondaryButton}" Click="Migrate_Click"/>
             </WrapPanel>
             <TextBlock x:Name="ResultText" TextWrapping="Wrap" Margin="0,8,0,0"/>
