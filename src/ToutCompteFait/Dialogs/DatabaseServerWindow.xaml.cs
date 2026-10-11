@@ -123,32 +123,8 @@ public partial class DatabaseServerWindow : Window
     private void ExportConfig_Click(object sender, RoutedEventArgs e)
     {
         var info = ReadForm();
-        if (info is null) return;
-        var includePassword = info.Password.Length > 0 &&
-            Ui.Confirm("Inclure le mot de passe du serveur dans le fichier ?\n\n" +
-                       "Oui : le nouvel utilisateur n'aura rien à saisir, mais le mot de passe sera lisible en clair dans le fichier " +
-                       "(à ne transmettre que par un canal sûr).\n" +
-                       "Non : il devra saisir le mot de passe lui-même au premier lancement.", "Mot de passe dans le fichier");
-        var dlg = new Microsoft.Win32.SaveFileDialog
-        {
-            Title = "Générer le fichier de configuration",
-            FileName = ServerConfigFile.DefaultFileName,
-            Filter = "Configuration Tout Compte Fait (*" + ServerConfigFile.Extension + ")|*" + ServerConfigFile.Extension
-        };
-        if (dlg.ShowDialog(this) != true) return;
-        try
-        {
-            ServerConfigFile.Write(dlg.FileName, info, includePassword);
-            Ui.Info("Fichier de configuration généré :\n" + dlg.FileName + "\n\n" +
-                    "Il ne contient que les informations du serveur" + (includePassword ? " (mot de passe compris)." : " (sans le mot de passe).") +
-                    "\nAu premier lancement, le nouvel utilisateur choisit « Charger un fichier de configuration ».");
-        }
-        catch (Exception ex)
-        {
-            Ui.Error("Impossible d'écrire le fichier : " + Describe(ex));
-        }
+        if (info is not null) ConfigLoader.Export(this, info);
     }
-
     private void ImportConfig_Click(object sender, RoutedEventArgs e)
     {
         var info = ConfigLoader.Pick(this);
