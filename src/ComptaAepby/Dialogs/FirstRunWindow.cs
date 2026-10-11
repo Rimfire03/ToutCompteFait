@@ -21,6 +21,10 @@ public sealed class FirstRunWindow : Window
         Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushBackground");
 
         var root = new StackPanel { Margin = new Thickness(24) };
+        root.Children.Add(new ComptaAepby.Controls.AppLogo
+        {
+            Width = 72, Height = 72, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 10)
+        });
         root.Children.Add(new TextBlock
         {
             Text = "Où se trouvent vos données ?",
