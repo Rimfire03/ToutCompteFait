@@ -805,7 +805,8 @@ Console.WriteLine("Import Excel et rapprochement avec les formules du classeur")
     const string root = @"G:\Mon Drive\Trésorerie";
     var f2425 = Path.Combine(root, "2024-2025", "livre 2024-2025.xlsx");
     var f2526 = Path.Combine(root, "2025-2026", "livre 2025-2026.xlsx");
-    var f2627 = Path.Combine(root, "2026-2027", "livre v2.xlsx");
+    var f2627 = new[] { "livre v2.xlsx", "livre2026-2027.xlsx", "livre 2026-2027.xlsx" }
+        .Select(n => Path.Combine(root, "2026-2027", n)).FirstOrDefault(File.Exists) ?? Path.Combine(root, "2026-2027", "livre v2.xlsx");
     if (!File.Exists(f2425) || !File.Exists(f2526) || !File.Exists(f2627))
     {
         Console.WriteLine("  (classeurs Excel absents : rapprochement ignoré)");
