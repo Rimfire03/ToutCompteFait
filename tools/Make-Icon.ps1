@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-    Genere src\ComptaAepby\Assets\app.ico (logo « camembert » de Tout Compte Fait, assets\logos\logo-12-camembert.svg)
-    et src\ComptaAepby\Assets\logo.png (256 px) avec System.Drawing.
+    Genere src\ToutCompteFait\Assets\app.ico (logo « camembert » de Tout Compte Fait, assets\logos\logo-12-camembert.svg)
+    et src\ToutCompteFait\Assets\logo.png (256 px) avec System.Drawing.
 #>
 Add-Type -AssemblyName System.Drawing
 $root = Split-Path -Parent $PSScriptRoot
-$assets = Join-Path $root "src\ComptaAepby\Assets"
+$assets = Join-Path $root "src\ToutCompteFait\Assets"
 
 function Col([string]$hex) { [System.Drawing.ColorTranslator]::FromHtml($hex) }
 

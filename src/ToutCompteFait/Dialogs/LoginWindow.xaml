@@ -1,0 +1,47 @@
+﻿<Window x:Class="ToutCompteFait.Dialogs.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctl="clr-namespace:ToutCompteFait.Controls"
+        Title="Tout Compte Fait — Connexion" Width="440" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource BrushBackground}">
+    <StackPanel Margin="28">
+        <ctl:AppLogo Width="72" Height="72" HorizontalAlignment="Left" Margin="0,0,0,10"/>
+        <TextBlock Text="Tout Compte Fait" FontSize="26" FontWeight="Bold"/>
+        <TextBlock x:Name="SubTitle" Style="{StaticResource MutedText}" Margin="0,2,0,0"/>
+
+        <Border x:Name="SetupNote" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6"
+                Padding="10,8" Margin="0,16,0,0" Visibility="Collapsed">
+            <TextBlock TextWrapping="Wrap" Foreground="#1E3A8A"
+                       Text="Premier lancement : aucun compte n'existe. Créez le compte administrateur ; c'est lui qui créera ensuite les comptes du trésorier et des lecteurs."/>
+        </Border>
+
+        <TextBlock Text="Identifiant" Margin="0,18,0,4"/>
+        <TextBox x:Name="UserBox"/>
+
+        <StackPanel x:Name="DisplayPanel" Visibility="Collapsed">
+            <TextBlock Text="Nom affiché (facultatif)" Margin="0,12,0,4"/>
+            <TextBox x:Name="DisplayBox"/>
+        </StackPanel>
+
+        <TextBlock Text="Mot de passe" Margin="0,12,0,4"/>
+        <PasswordBox x:Name="PasswordBox" FontSize="13" Padding="6,5"/>
+
+        <CheckBox x:Name="RememberBox" Margin="0,10,0,0"
+                  Content="Mémoriser mon mot de passe sur ce poste"
+                  ToolTip="Le mot de passe est chiffré pour votre session Windows. À ne pas cocher sur un poste partagé."/>
+
+        <StackPanel x:Name="ConfirmPanel" Visibility="Collapsed">
+            <TextBlock Text="Confirmer le mot de passe" Margin="0,12,0,4"/>
+            <PasswordBox x:Name="ConfirmBox" FontSize="13" Padding="6,5"/>
+            <TextBlock Style="{StaticResource MutedText}" Margin="0,6,0,0"
+                       Text="8 caractères minimum, avec au moins une lettre et un chiffre."/>
+        </StackPanel>
+
+        <TextBlock x:Name="ErrorText" Foreground="{StaticResource BrushDangerDark}" Margin="0,12,0,0" TextWrapping="Wrap"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button Content="Quitter" Style="{StaticResource SecondaryButton}" IsCancel="True"/>
+            <Button x:Name="OkButton" Content="Se connecter" Style="{StaticResource PrimaryButton}" IsDefault="True" Margin="0" Click="Ok_Click"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

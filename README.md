@@ -134,7 +134,7 @@ stable, Dev = préversions), « Vérifier maintenant », « Télécharger et ins
   contient aucune base et crée les dossiers de données vides.
 * Si la base a été mise à jour par une version plus récente que le logiciel, la mise à jour est proposée avant le refus
   d'ouvrir (rien n'est modifié).
-* Publier une version : incrémenter `<Version>` dans `src\ComptaAepby\ComptaAepby.csproj`, committer, pousser, puis
+* Publier une version : incrémenter `<Version>` dans `src\ToutCompteFait\ToutCompteFait.csproj`, committer, pousser, puis
   `.\tools\Release.ps1`. Le script lance les tests, publie, signe, zippe, construit et signe le `.msi`
   (WiX 4 : `dotnet tool install --global wix --version 4.0.6` puis `wix extension add -g WixToolset.Util.wixext/4.0.6`),
   **refuse de continuer si le dossier, le zip ou le MSI contient une base de données**, et crée la release avec les
@@ -154,15 +154,15 @@ page (identique à FiltresApp) indique l'état : puce verte (accessible), orange
 ## Développement
 
 ```
-ComptaAepby.sln
-src/ComptaAepby.Core   moteur (règles comptables, bases SQLite / serveur, import des relevés) — aucune dépendance d'interface
-src/ComptaAepby        application WPF
-tests/ComptaAepby.Tests   vérifications du moteur (clôture, ventilation, import, sauvegardes…)
+ToutCompteFait.sln
+src/ToutCompteFait.Core   moteur (règles comptables, bases SQLite / serveur, import des relevés) — aucune dépendance d'interface
+src/ToutCompteFait        application WPF
+tests/ToutCompteFait.Tests   vérifications du moteur (clôture, ventilation, import, sauvegardes…)
 tools/Publish.ps1      tests → publication mono-fichier → signature
 tools/Sign-Release.ps1 signature avec le certificat global TomLine prod&co
 ```
 
-* Tests : `dotnet run --project tests\ComptaAepby.Tests -c Release`
+* Tests : `dotnet run --project tests\ToutCompteFait.Tests -c Release`
 * Publication : `.\tools\Publish.ps1`
 * Diagnostic : `ToutCompteFait.exe --db <fichier.db> --year <libellé> --shots <dossier>` enregistre une capture de
   chaque écran (`--selftest` saisit en plus deux écritures de test : réservé à une base de démonstration).

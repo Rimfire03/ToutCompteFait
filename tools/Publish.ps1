@@ -17,7 +17,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $out = Join-Path $root "dist\ToutCompteFait"
 
 Write-Host "== Tests du moteur"
-& dotnet run --project (Join-Path $root "tests\ComptaAepby.Tests") -c Release --nologo -v q
+& dotnet run --project (Join-Path $root "tests\ToutCompteFait.Tests") -c Release --nologo -v q
 if ($LASTEXITCODE -ne 0) { throw "Les tests ont echoue : publication annulee." }
 
 Write-Host "== dotnet publish"
@@ -25,7 +25,7 @@ Write-Host "== dotnet publish"
 if (Test-Path $out) {
     Get-ChildItem $out -File | ForEach-Object { $_.Delete() }
 }
-& dotnet publish (Join-Path $root "src\ComptaAepby\ComptaAepby.csproj") -c Release -r win-x64 `
+& dotnet publish (Join-Path $root "src\ToutCompteFait\ToutCompteFait.csproj") -c Release -r win-x64 `
     --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:EnableCompressionInSingleFile=true -o $out --nologo -v q
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish a echoue (code $LASTEXITCODE)." }

@@ -1,0 +1,205 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
+namespace ToutCompteFait.Core.Services;
+
+/// <summary>Réglages locaux du poste, dans un petit fichier JSON à côté de l'exécutable (logiciel portable).
+/// Les DONNÉES sont dans la base (fichier SQLite ou serveur), jamais dans l'exécutable ni dans ce fichier.</summary>
+public sealed class AppSettings
+{
+    private const string FileName = "ToutCompteFait.settings.json";
+    private const string DirectoryName = "ToutCompteFait";
+
+    /// <summary>Chemin du fichier SQLite (absolu, ou relatif au dossier de l'exécutable). Vide = Donnees\compta.db.</summary>
+    public string? DatabasePath { get; set; }
+
+    /// <summary>Utiliser un serveur de base de données (réglages dans <see cref="DatabaseServer"/>) au lieu du fichier.</summary>
+    public bool UseDatabaseServer { get; set; }
+
+    /// <summary>Paramètres de connexion au serveur (mot de passe chiffré DPAPI).</summary>
+    public DbConnectionInfo DatabaseServer { get; set; } = new();
+
+    /// <summary>Libellé du dernier exercice affiché.</summary>
+    public string? LastYear { get; set; }
+
+    /// <summary>Dernier nom d'utilisateur saisi à la connexion (confort : jamais le mot de passe).</summary>
+    public string? LastUserName { get; set; }
+
+    /// <summary>Mot de passe mémorisé à la connexion pour <see cref="LastUserName"/> : chiffré DPAPI (session Windows
+    /// courante), base64 ; jamais en clair. Vide = non mémorisé. Voir <see cref="SetRememberedPassword"/>.</summary>
+    public string? RememberedPassword { get; set; }
+
+    private static readonly byte[] PasswordEntropy = Encoding.UTF8.GetBytes("ToutCompteFait.login");
+
+    /// <summary>Mémorise (ou oublie, si null/vide) le mot de passe de connexion de ce poste.</summary>
+    public void SetRememberedPassword(string? password)
+    {
+        RememberedPassword = string.IsNullOrEmpty(password)
+            ? null
+            : Convert.ToBase64String(ProtectedData.Protect(Encoding.UTF8.GetBytes(password), PasswordEntropy, DataProtectionScope.CurrentUser));
+    }
+
+    /// <summary>Mot de passe mémorisé en clair, ou chaîne vide (rien de mémorisé, ou réglage venant d'une autre session Windows).</summary>
+    public string GetRememberedPassword()
+    {
+        if (string.IsNullOrEmpty(RememberedPassword)) return "";
+        try
+        {
+            return Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(RememberedPassword), PasswordEntropy, DataProtectionScope.CurrentUser));
+        }
+        catch (Exception ex) when (ex is CryptographicException or FormatException)
+        {
+            return "";
+        }
+    }
+
+    /// <summary>Vérification des mises à jour (releases GitHub) au démarrage ; canal « Main » (stable) ou « Dev ».</summary>
+    public bool AutoUpdateEnabled { get; set; } = true;
+    public string UpdateChannel { get; set; } = UpdateChannels.Main;
+
+    // Sauvegarde automatique planifiée (voir BackupSchedule) et nombre de sauvegardes conservées (0 = illimité).
+    public bool AutoBackupEnabled { get; set; }
+    public string AutoBackupFrequency { get; set; } = BackupSchedule.Daily;
+    public string AutoBackupTime { get; set; } = "02:00";
+    public int AutoBackupDayOfWeek { get; set; } = (int)DayOfWeek.Monday;
+    public int AutoBackupDayOfMonth { get; set; } = 1;
+    public int MaxBackupsToKeep { get; set; } = 30;
+    public DateTime? AutoBackupLastRun { get; set; }
+
+    /// <summary>Noms des sauvegardes protégées contre la purge automatique.</summary>
+    public List<string> ProtectedBackups { get; set; } = new();
+
+    // ------------------------------------------------------------------ emplacements
+
+    public static string AppDirectory => AppContext.BaseDirectory;
+
+    /// <summary>Dossier des sauvegardes : <c>Sauvegardes</c> à côté de l'exécutable (ou du fichier de réglages).</summary>
+    public static string BackupDirectoryPath
+    {
+        get
+        {
+            // Version installée (MSI) : Sauvegardes\ à côté du programme, inscriptible pour tous les utilisateurs.
+            var shared = Path.Combine(AppDirectory, "Sauvegardes");
+            return Directory.Exists(shared) && CanWrite(shared) ? shared : Path.Combine(DataRoot, "Sauvegardes");
+        }
+    }
+
+    /// <summary>Base des chemins relatifs (base SQLite) : le dossier <c>Donnees</c> du programme s'il existe et est
+    /// inscriptible (version installée, partagé entre les utilisateurs du poste), sinon <see cref="DataRoot"/>.</summary>
+    private static string DataBase
+    {
+        get
+        {
+            var shared = Path.Combine(AppDirectory, "Donnees");
+            return Directory.Exists(shared) && CanWrite(shared) ? AppDirectory : DataRoot;
+        }
+    }
+
+    /// <summary>Dossier de travail du logiciel : celui de l'exécutable s'il est inscriptible, sinon %LOCALAPPDATA%.</summary>
+    public static string DataRoot
+    {
+        get
+        {
+            if (CanWrite(AppDirectory)) return AppDirectory;
+            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var dir = Path.Combine(local, DirectoryName);
+            if (!Directory.Exists(dir) && FormerDataDirectory(local, dir) is { } former)
+            {
+                // Dossier de travail d'une version antérieure (autre nom) : repris tel quel (réglages, bases, sauvegardes).
+                try { Directory.Move(former, dir); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return former; }
+            }
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+    }
+
+    /// <summary>Dossier de travail d'une version antérieure du logiciel sous %LOCALAPPDATA% (un dossier « Compta… » qui
+    /// contient un fichier de réglages ou un dossier Donnees), s'il y en a un.</summary>
+    private static string? FormerDataDirectory(string localAppData, string current)
+    {
+        try
+        {
+            return Directory.EnumerateDirectories(localAppData, "Compta*")
+                .FirstOrDefault(d => !string.Equals(d, current, StringComparison.OrdinalIgnoreCase)
+                                     && (Directory.EnumerateFiles(d, "*.settings.json").Any()
+                                         || Directory.Exists(Path.Combine(d, "Donnees"))));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Fichier de réglages : <see cref="FileName"/>, ou — repris sous ce nom — celui d'une version antérieure.</summary>
+    private static string SettingsPath
+    {
+        get
+        {
+            var root = DataRoot;
+            var path = Path.Combine(root, FileName);
+            if (File.Exists(path)) return path;
+            try
+            {
+                var former = Directory.EnumerateFiles(root, "*.settings.json").FirstOrDefault();
+                if (former is not null)
+                {
+                    try { File.Move(former, path); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return former; }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // dossier illisible : chemin par défaut
+            }
+            return path;
+        }
+    }
+
+    private static bool CanWrite(string dir)
+    {
+        try
+        {
+            var probe = Path.Combine(dir, ".write-test-" + Guid.NewGuid().ToString("N"));
+            File.WriteAllText(probe, "x");
+            File.Delete(probe);
+            return true;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>Chemin absolu du fichier SQLite.</summary>
+    public string ResolvedDatabasePath
+    {
+        get
+        {
+            var p = string.IsNullOrWhiteSpace(DatabasePath) ? Path.Combine("Donnees", "compta.db") : DatabasePath;
+            return Path.GetFullPath(Path.IsPathRooted(p) ? p : Path.Combine(DataBase, p));
+        }
+    }
+
+    /// <summary>Base à ouvrir : serveur ou fichier SQLite selon les réglages.</summary>
+    public DbTarget ResolvedTarget =>
+        UseDatabaseServer ? DbTarget.ForServer(DatabaseServer) : DbTarget.ForFile(ResolvedDatabasePath);
+
+    public static AppSettings Load()
+    {
+        try
+        {
+            var p = SettingsPath;
+            if (File.Exists(p)) return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(p)) ?? new AppSettings();
+        }
+        catch { /* réglages illisibles : valeurs par défaut */ }
+        return new AppSettings();
+    }
+
+    public void Save()
+    {
+        try
+        {
+            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch { /* non bloquant */ }
+    }
+}

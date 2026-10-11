@@ -24,7 +24,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $wixExe = Join-Path $env:USERPROFILE ".dotnet\tools\wix.exe"
 if (-not (Test-Path $wixExe)) { $wixExe = (Get-Command wix -ErrorAction Stop).Source }
-$ico = Join-Path $root "src\ComptaAepby\Assets\app.ico"
+$ico = Join-Path $root "src\ToutCompteFait\Assets\app.ico"
 if (-not (Test-Path (Join-Path $PublishDir "ToutCompteFait.exe"))) { throw "ToutCompteFait.exe introuvable dans $PublishDir." }
 
 $data = @(Get-ChildItem $PublishDir -Recurse -Force | Where-Object {

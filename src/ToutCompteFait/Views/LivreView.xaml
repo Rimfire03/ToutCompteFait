@@ -1,0 +1,167 @@
+<UserControl x:Class="ToutCompteFait.Views.LivreView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:ToutCompteFait.Views">
+    <UserControl.Resources>
+        <v:InvertBoolToVisibilityConverter x:Key="InvertBoolToVis"/>
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock x:Name="TitleText" Style="{StaticResource TitleText}"/>
+            <TextBlock x:Name="SubText" Style="{StaticResource MutedText}"/>
+        </StackPanel>
+
+        <!-- Barre d'outils -->
+        <DockPanel Grid.Row="1" Margin="0,12,0,8">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                <Button x:Name="AddButton" Content="＋  Nouvelle écriture" Style="{StaticResource PrimaryButton}" Click="Add_Click"/>
+                <Button x:Name="EditButton" Content="Modifier" Style="{StaticResource SecondaryButton}" Click="Edit_Click"/>
+                <Button x:Name="ResetButton" Content="Réinitialiser la ventilation" Style="{StaticResource SecondaryButton}" Click="Reset_Click"
+                        ToolTip="Retire toute la ventilation de la ligne sélectionnée : elle redevient « à ventiler » (le montant, la date et le libellé ne changent pas)."/>
+                <Button x:Name="DeleteButton" Content="Supprimer" Style="{StaticResource DangerButton}" Click="Delete_Click"/>
+                <Button x:Name="BankButton" Content="🏦  Importer un relevé bancaire…" Style="{StaticResource SecondaryButton}" Click="BankImport_Click"/>
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                <TextBlock Text="Compte :" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <ComboBox x:Name="AccountFilter" Width="150" DisplayMemberPath="Name" SelectionChanged="Filter_Changed"/>
+                <TextBox x:Name="SearchBox" Width="170" Margin="10,0,0,0" TextChanged="Filter_TextChanged"
+                         ToolTip="Rechercher dans le libellé, la catégorie ou le montant"/>
+                <CheckBox x:Name="OnlyToFill" Content="À ventiler" Margin="12,0,0,0" Click="Filter_Click"
+                          ToolTip="N'afficher que les écritures sans produit ni charge (jaune)"/>
+                <CheckBox x:Name="OnlyIssues" Content="À corriger" Margin="12,0,0,0" Click="Filter_Click"
+                          ToolTip="N'afficher que les écritures dont la ventilation est incohérente (rouge)"/>
+            </StackPanel>
+            <Border/>
+        </DockPanel>
+
+        <StackPanel Grid.Row="2">
+            <Border x:Name="FillBanner" Background="#FEF9C3" BorderBrush="#FDE047" BorderThickness="1"
+                    CornerRadius="6" Padding="12,8" Margin="0,0,0,8" Visibility="Collapsed">
+                <TextBlock x:Name="FillText" Foreground="#713F12" TextWrapping="Wrap"/>
+            </Border>
+            <Border x:Name="IssueBanner" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1"
+                    CornerRadius="6" Padding="12,8" Margin="0,0,0,8" Visibility="Collapsed">
+                <TextBlock x:Name="IssueText" Foreground="#991B1B" TextWrapping="Wrap"/>
+            </Border>
+        </StackPanel>
+
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="290"/>
+            </Grid.ColumnDefinitions>
+
+            <DataGrid x:Name="EntriesGrid" MouseDoubleClick="Grid_DoubleClick" SelectionChanged="Grid_SelectionChanged">
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background" Value="White"/>
+                        <Setter Property="ToolTip" Value="{Binding ProblemTip}"/>
+                        <Setter Property="ToolTipService.InitialShowDelay" Value="200"/>
+                        <Setter Property="ToolTipService.ShowDuration" Value="20000"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Problem}" Value="True">
+                                <Setter Property="Background" Value="#FEF2F2"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ToFill}" Value="True">
+                                <Setter Property="Background" Value="#FEF9C3"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsTransfer}" Value="True">
+                                <Setter Property="Foreground" Value="#64748B"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="N°" Binding="{Binding Number}" Width="42" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                    <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="84" ElementStyle="{StaticResource LeftCell}"/>
+                    <DataGridTextColumn Header="Libellé" Binding="{Binding Label}" Width="*" MinWidth="170" ElementStyle="{StaticResource LeftCell}"/>
+                    <DataGridTemplateColumn Header="Pointé" Width="56">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox IsChecked="{Binding Pointed, Mode=OneWay}" HorizontalAlignment="Center"
+                                          Click="Pointed_Click"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Compte" Binding="{Binding AccountText}" Width="120" ElementStyle="{StaticResource LeftCell}"/>
+                    <DataGridTextColumn Header="Entrée" Binding="{Binding InText}" Width="88" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                    <DataGridTextColumn Header="Sortie" Binding="{Binding OutText}" Width="88" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                    <DataGridTextColumn Header="Solde" Binding="{Binding BalanceText}" Width="96" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                    <DataGridTextColumn Header="Remboursement" Binding="{Binding RefundText}" Width="170" ElementStyle="{StaticResource LeftCell}"/>
+                    <DataGridTextColumn Header="Justif." Binding="{Binding AttachText}" Width="58" ElementStyle="{StaticResource LeftCell}"/>
+                    <DataGridTemplateColumn Header="Ventilation" Width="250">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <TextBlock Text="{Binding Breakdown}" Style="{StaticResource LeftCellPad}">
+                                        <TextBlock.Visibility>
+                                            <Binding Path="CanAssign" Converter="{StaticResource InvertBoolToVis}"/>
+                                        </TextBlock.Visibility>
+                                    </TextBlock>
+                                    <ComboBox ItemsSource="{Binding Options}" SelectedIndex="0" DropDownClosed="Assign_DropDownClosed"
+                                              Margin="6,2,2,2" FontSize="12.5"
+                                              ToolTip="Choisissez le produit ou la charge : toute l'écriture y est classée. Pour répartir sur plusieurs catégories, utilisez « Modifier ».">
+                                        <ComboBox.Visibility>
+                                            <Binding Path="CanAssign" Converter="{StaticResource BoolToVis}"/>
+                                        </ComboBox.Visibility>
+                                    </ComboBox>
+                                </Grid>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Rentabilité des opérations, en direct -->
+            <Border Grid.Column="2" Style="{StaticResource Card}">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top">
+                        <TextBlock Text="Rentabilité des opérations" Style="{StaticResource SectionText}" Margin="0,0,0,2"/>
+                        <TextBlock Style="{StaticResource MutedText}"
+                                   Text="Produits liés − charges liées, mis à jour à chaque saisie. Les liens se règlent dans Paramètres."/>
+                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                        <ItemsControl x:Name="OperationsList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="0,7">
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding ResultText}" FontWeight="Bold"
+                                                           Foreground="{Binding ResultBrush}"/>
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding Detail}" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- Soldes -->
+        <Border Grid.Row="4" Style="{StaticResource Card}" Margin="0,10,0,0" Padding="12,8">
+            <WrapPanel x:Name="BalancesPanel"/>
+        </Border>
+    </Grid>
+</UserControl>
+
+
+
+
+
+
+
+

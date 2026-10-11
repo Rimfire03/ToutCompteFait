@@ -14,7 +14,7 @@
 
 ## Release
 
-- Incrémenter `<Version>` dans `src\ComptaAepby\ComptaAepby.csproj`, committer et pousser, puis lancer
+- Incrémenter `<Version>` dans `src\ToutCompteFait\ToutCompteFait.csproj`, committer et pousser, puis lancer
   `.\tools\Release.ps1` (options : `-NotesFile`, `-Notes`, `-NoPublish`, `-Channel dev`). Il vérifie l'arbre, lance
   les tests, publie (mono-fichier win-x64), signe avec le certificat global « TomLine prod&co », zippe
   (`ToutCompteFait-v<version>-win-x64.zip`, exécutable à la racine), construit le MSI signé

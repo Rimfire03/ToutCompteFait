@@ -3,7 +3,7 @@
     Release complete de Tout Compte Fait : controles, publish, signature, zip, release GitHub.
 
 .DESCRIPTION
-    Version = <Version> de src\ComptaAepby\ComptaAepby.csproj (a incrementer et committer AVANT).
+    Version = <Version> de src\ToutCompteFait\ToutCompteFait.csproj (a incrementer et committer AVANT).
     Etapes : controles (arbre propre, commits pousses, tag libre) -> tests -> dotnet publish -> signature
     (tools\Sign-Release.ps1) -> zip ToutCompteFait-v<version>-win-x64.zip -> MSI ToutCompteFait-v<version>-win-x64.msi
     (tools\Build-Installer.ps1) -> notes (fournies, ou generees en local
@@ -29,7 +29,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$csproj = Join-Path $root "src\ComptaAepby\ComptaAepby.csproj"
+$csproj = Join-Path $root "src\ToutCompteFait\ToutCompteFait.csproj"
 $publishDir = Join-Path $root "dist\release"
 
 function Git { $ErrorActionPreference = "Continue"; & git.exe -C $root @args 2>&1 | ForEach-Object { "$_" } }
@@ -59,7 +59,7 @@ if (-not $NoPublish) {
 
 # --- Tests (le moteur comptable ne doit jamais etre publie casse)
 Step "tests"
-& dotnet run --project (Join-Path $root "tests\ComptaAepby.Tests") -c Release --nologo -v q | Select-Object -Last 1 | ForEach-Object { Write-Host "  $_" }
+& dotnet run --project (Join-Path $root "tests\ToutCompteFait.Tests") -c Release --nologo -v q | Select-Object -Last 1 | ForEach-Object { Write-Host "  $_" }
 if ($LASTEXITCODE -ne 0) { throw "Les tests ont echoue : release annulee." }
 
 # --- Publish
@@ -134,7 +134,7 @@ $log
 
 # --- Version du schema de base (derniere migration de DatabaseMigrations.All) : marqueur lu par l'application
 # pour ne proposer un retour Dev -> Main que si la base est compatible.
-$migText = [IO.File]::ReadAllText((Join-Path $root "src\ComptaAepby.Core\Data\Migrations\DatabaseMigrations.cs"))
+$migText = [IO.File]::ReadAllText((Join-Path $root "src\ToutCompteFait.Core\Data\Migrations\DatabaseMigrations.cs"))
 $allBlock = [regex]::Match($migText, 'All\s*=\s*\r?\n\s*\{(?<b>.*?)\r?\n\s*\};', 'Singleline')
 $schema = $null
 if ($allBlock.Success) {
