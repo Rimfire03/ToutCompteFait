@@ -47,6 +47,7 @@ public static class Money
         if (!decimal.TryParse(s, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
                 CultureInfo.InvariantCulture, out var value)) return false;
         if (decimal.Round(value, 2) != value) return false; // plus de 2 décimales
+        if (Math.Abs(value) > 9_000_000_000_000m) return false; // identifiant ou numéro, pas un montant
         cents = FromDecimal(value);
         return true;
     }

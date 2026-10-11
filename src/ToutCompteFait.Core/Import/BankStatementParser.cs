@@ -124,10 +124,31 @@ public static class BankStatementParser
                 if (Regex.IsMatch(label, "debut|initial|ouverture|precedent|ancien")) opening ??= amount;
                 else if (Regex.IsMatch(label, @"\bfin\b|final|cloture|nouveau|arrete")) closing ??= amount;
             }
-            // Période : dates de l'en-tête (« du … au … ») sinon étendue des opérations.
-            var dates = Regex.Matches(StatementHeader(text), @"\b\d{1,2}/\d{1,2}/\d{4}\b").Select(m => m.Value)
-                .Select(s => TryParseDate(s, out var d) ? (DateOnly?)d : null).Where(d => d is not null).Select(d => d!.Value).ToList();
-            if (dates.Count >= 2) { start = dates.Min(); end = dates.Max(); }
+            // Période : « entre le … et le … » / « du … au … » dans l'en-tête, sinon toutes les dates de l'en-tête,
+            // sinon étendue des opérations.
+            var header = StatementHeader(text);
+            var range = Regex.Match(header, @"(?:entre le|du)\s+(\d{1,2}/\d{1,2}/\d{4})\s+(?:et le|au)\s+(\d{1,2}/\d{1,2}/\d{4})", RegexOptions.IgnoreCase);
+            if (range.Success && TryParseDate(range.Groups[1].Value, out var rs) && TryParseDate(range.Groups[2].Value, out var re))
+            {
+                start = rs;
+                end = re;
+            }
+            else
+            {
+                var dates = Regex.Matches(header, @"\b\d{1,2}/\d{1,2}/\d{4}\b").Select(m => m.Value)
+                    .Select(s => TryParseDate(s, out var d) ? (DateOnly?)d : null).Where(d => d is not null).Select(d => d!.Value).ToList();
+                if (dates.Count >= 2) { start = dates.Min(); end = dates.Max(); }
+            }
+            // « Solde au 12/10/2026 2 273,63 € » (Crédit Agricole) : solde du compte à cette date, après les opérations listées.
+            if (closing is null)
+            {
+                var at = Regex.Match(header, @"solde\s+au\s+(\d{1,2}/\d{1,2}/\d{4})\s*:?\s*([+\-]?\d[\d\s\u00A0\u202F.,]*)\s*€?", RegexOptions.IgnoreCase);
+                if (at.Success && TryParseDate(at.Groups[1].Value, out var balDate) && TryParseAmount(at.Groups[2].Value.Trim(), out var bal))
+                {
+                    closing = bal;
+                    if (end is null || balDate > end) end = balDate;
+                }
+            }
         }
         if (lines.Count > 0)
         {
@@ -177,55 +198,58 @@ public static class BankStatementParser
 
     public static BankCsvTable ReadCsv(string text)
     {
-        var sample = text.Split('\n').Take(30).ToList();
         char best = ';';
         var bestScore = -1;
         foreach (var d in new[] { ';', '\t', ',' })
         {
-            // Un bon séparateur donne le même nombre de colonnes (> 1) sur la plupart des lignes.
-            var counts = sample.Where(l => l.Trim().Length > 0).Select(l => Split(l, d).Length).ToList();
+            // Un bon séparateur donne le même nombre de colonnes (> 1) sur la plupart des enregistrements.
+            var counts = ParseRecords(text, d, 40).Select(r => r.Length).ToList();
             if (counts.Count == 0) continue;
             var mode = counts.GroupBy(c => c).OrderByDescending(g => g.Count()).First();
             // Lignes × colonnes : un petit fichier avec des virgules décimales ne doit pas battre un vrai tableau à « ; ».
             var score = mode.Key > 1 ? mode.Count() * mode.Key : 0;
             if (score > bestScore) { bestScore = score; best = d; }
         }
-
-        var rows = new List<string[]>();
-        foreach (var line in text.Split('\n'))
-        {
-            var l = line.TrimEnd('\r');
-            if (l.Trim().Length == 0) continue;
-            rows.Add(Split(l, best).Select(c => c.Trim()).ToArray());
-        }
-        return new BankCsvTable { Rows = rows, Delimiter = best };
+        return new BankCsvTable { Rows = ParseRecords(text, best, int.MaxValue), Delimiter = best };
     }
 
-    private static string[] Split(string line, char delimiter)
+    /// <summary>Enregistrements CSV : un champ entre guillemets peut contenir des retours à la ligne (libellés sur
+    /// plusieurs lignes du Crédit Agricole) ; les enregistrements vides sont ignorés.</summary>
+    private static List<string[]> ParseRecords(string text, char delimiter, int max)
     {
+        var rows = new List<string[]>();
         var fields = new List<string>();
         var sb = new StringBuilder();
         var quoted = false;
-        for (var i = 0; i < line.Length; i++)
+
+        void EndRecord()
         {
-            var ch = line[i];
+            fields.Add(sb.ToString().Trim());
+            sb.Clear();
+            if (fields.Any(f => f.Length > 0)) rows.Add(fields.ToArray());
+            fields.Clear();
+        }
+
+        for (var i = 0; i < text.Length && rows.Count < max; i++)
+        {
+            var ch = text[i];
             if (quoted)
             {
                 if (ch == '"')
                 {
-                    if (i + 1 < line.Length && line[i + 1] == '"') { sb.Append('"'); i++; }
+                    if (i + 1 < text.Length && text[i + 1] == '"') { sb.Append('"'); i++; }
                     else quoted = false;
                 }
                 else sb.Append(ch);
             }
-            else if (ch == '"') quoted = true;
-            else if (ch == delimiter) { fields.Add(sb.ToString()); sb.Clear(); }
-            else sb.Append(ch);
+            else if (ch == '"' && sb.ToString().Trim().Length == 0) { quoted = true; sb.Clear(); }
+            else if (ch == delimiter) { fields.Add(sb.ToString().Trim()); sb.Clear(); }
+            else if (ch == '\n') EndRecord();
+            else if (ch != '\r') sb.Append(ch);
         }
-        fields.Add(sb.ToString());
-        return fields.ToArray();
+        if (rows.Count < max && (sb.Length > 0 || fields.Count > 0)) EndRecord();
+        return rows;
     }
-
     private static readonly string[] DateKeys = { "date" };
     private static readonly string[] LabelKeys = { "libell", "intitul", "opération", "operation", "description", "label", "détail", "detail", "objet", "nature" };
     private static readonly string[] DebitKeys = { "débit", "debit", "sortie", "retrait" };

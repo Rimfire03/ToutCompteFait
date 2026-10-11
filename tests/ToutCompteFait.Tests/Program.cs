@@ -1400,7 +1400,29 @@ Console.WriteLine("Soldes du relevé");
     Eq(Dt(2026, 9, 1), bo.Start, "OFX : début de période");
     Check(bo.Opening is null, "OFX : pas de solde d'ouverture inventé");
 }
-// ---- Virements entre comptes : une seule écriture
+// ---- Format Crédit Agricole : en-tête libre, libellés sur plusieurs lignes entre guillemets, Débit/Crédit positifs
+Console.WriteLine("Format Crédit Agricole");
+{
+    const string csv = "\nTéléchargement du 12/10/2026;\n\n\nM.OU MME DUPONT JEAN\nCompte de Dépôt carte n° 12345678901;\nSolde au 12/10/2026 2 273,63 €\n\n" +
+        "Liste des opérations du compte entre le 01/01/2026 et le 11/10/2026;\n\nDate;Libellé;Débit euros;Crédit euros;\n" +
+        "09/10/2026;\"Prélèvement\nAMAZON PAYMENTS - Amazon - 405-0000000-0000000 REF1\n\n)FEFFUMNBNT1QH1SDUJXHLDIC-WVAK\nDE94ZZZ00000561653\nREF1\";25,49;;\n" +
+        "08/10/2026;\"Paiement par carte\nX0000 BOULANGERIE   06/10\n\n\n\";4,50;;\n" +
+        "05/10/2026;\"Virement en votre faveur\nASSO ADHESION 123456789012345678901234567890\";;100,00;\n" +
+        "02/01/2026;\"Chèque emis\n0000001/0000000/000000000\n\n\n\";150,00;;\n";
+    var table = BankStatementParser.ReadCsv(csv);
+    var map = BankStatementParser.DetectMapping(table)!;
+    var warn = new List<string>();
+    var lines = BankStatementParser.ParseCsv(table, map, warn);
+    Eq(4, lines.Count, "CA : 4 opérations lues malgré les libellés multi-lignes");
+    Eq(0, warn.Count, "CA : aucun avertissement");
+    Eq(-2549L, lines[0].AmountCents, "CA : débit positif lu comme sortie");
+    Eq(10000L, lines[2].AmountCents, "CA : crédit lu comme entrée");
+    Check(lines[0].Label.StartsWith("Prélèvement AMAZON"), "CA : libellé multi-lignes recollé");
+    var bal = BankStatementParser.ExtractBalances(csv, lines);
+    Eq(227363L, bal.Closing, "CA : « Solde au … » lu comme solde");
+    Eq(Dt(2026, 1, 1), bal.Start, "CA : début de période « entre le … et le … »");
+    Check(!Money.TryParse("123456789012345678901234567890", out _), "numéro très long : pas un montant (pas de dépassement)");
+}// ---- Virements entre comptes : une seule écriture
 Console.WriteLine("Virements entre comptes");
 {
     var f = NewFactory(TempDb());
