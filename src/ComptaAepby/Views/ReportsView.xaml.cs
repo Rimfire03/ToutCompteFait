@@ -28,7 +28,7 @@ public partial class ReportsView : UserControl, IPage
     {
         InitializeComponent();
         _year = year;
-        TitleText.Text = $"Reports entre années — exercice {year.Label}";
+        TitleText.Text = $"Reports entre exercices — exercice {year.Label}";
         var can = App.Can(Permission.WriteLedger) && year.Open;
         AddButton.IsEnabled = can;
         Reload();

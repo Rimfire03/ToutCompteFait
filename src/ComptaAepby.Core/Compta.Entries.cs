@@ -206,7 +206,7 @@ public sealed partial class Compta
     }
 
     /// <summary>Ajoute une régularisation saisie à la main. <paramref name="targetName"/> : nom de la catégorie de
-    /// l'exercice suivant qui recevra le report (types « pour l'an prochain » et « à régler »).</summary>
+    /// l'exercice suivant qui recevra le report (types « pour l'exercice suivant » et « à régler »).</summary>
     public long AddAdjustment(long yearId, AdjustmentType type, CategoryKind kind, long? categoryId, string label,
         long cents, string? targetName = null, string? note = null)
     {
@@ -288,7 +288,7 @@ public sealed partial class Compta
     private static string? NullIfBlank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
     /// <summary>Reporte automatiquement sur l'exercice suivant (s'il existe et n'est pas validé) les régularisations
-    /// « pour l'an prochain » et « à régler » de l'exercice donné. Idempotent : peut être rappelé à volonté.</summary>
+    /// « pour l'exercice suivant » et « à régler » de l'exercice donné. Idempotent : peut être rappelé à volonté.</summary>
     public void SyncCarry(long fromYearId)
     {
         if (_factory.ReadOnly) return;

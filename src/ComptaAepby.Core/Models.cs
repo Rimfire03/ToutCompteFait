@@ -69,10 +69,10 @@ public static class Labels
 {
     public static string Of(AdjustmentType t) => t switch
     {
-        AdjustmentType.FromPrev => "Réglé l'an dernier, concerne cet exercice",
+        AdjustmentType.FromPrev => "Réglé l'exercice précédent, concerne cet exercice",
         AdjustmentType.ToNext => "Réglé cet exercice, concerne l'exercice suivant",
         AdjustmentType.ForPast => "Réglé cet exercice, concernait un exercice passé",
-        AdjustmentType.Due => "Concerne cet exercice, à régler l'an prochain",
+        AdjustmentType.Due => "Concerne cet exercice, à régler l'exercice suivant",
         _ => t.ToString()
     };
 

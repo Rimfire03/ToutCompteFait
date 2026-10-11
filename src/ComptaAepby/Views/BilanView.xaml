@@ -101,7 +101,7 @@
                 </StackPanel>
             </Grid>
             <TextBlock Style="{StaticResource MutedText}" Margin="0,6,0,0"
-                       Text="« Reports » : régularisations entre exercices (payé l'an dernier pour cette année, payé cette année pour l'an prochain…). Voir « Reports entre années »."/>
+                       Text="« Reports » : régularisations entre exercices (payé l'exercice précédent pour cet exercice, payé cet exercice pour l'exercice suivant…). Voir « Reports entre exercices »."/>
 
             <!-- Opérations -->
             <TextBlock Text="Rentabilité des opérations" Style="{StaticResource SectionText}" Margin="0,18,0,6"/>

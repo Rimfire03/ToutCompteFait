@@ -22,8 +22,8 @@
             <TextBlock Text="Opérations (rentabilité)" Style="{StaticResource SectionText}"/>
             <TextBlock TextWrapping="Wrap" Text="Paramètres → Opérations : regroupez les produits et charges d'un même événement (ex. Loto Octobre). Pendant la saisie, et dans le Bilan, vous voyez produits − charges = rentabilité de l'opération."/>
 
-            <TextBlock Text="Reports entre années" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Si vous payez en juin des lots pour le loto d'octobre, déclarez-le dans « Reports entre années » (réglé cette année, concerne l'année prochaine). Il est retiré du résultat de cette année et ajouté automatiquement à l'année suivante. Les soldes des comptes se reportent aussi automatiquement."/>
+            <TextBlock Text="Reports entre exercices" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Si vous payez en juin des lots pour le loto d'octobre, déclarez-le dans « Reports entre exercices » (réglé cet exercice, concerne l'exercice suivant). Il est retiré du résultat de cet exercice et ajouté automatiquement à l'exercice suivant. Les soldes des comptes se reportent aussi automatiquement."/>
 
             <TextBlock Text="Valider un exercice" Style="{StaticResource SectionText}"/>
             <TextBlock TextWrapping="Wrap" Text="Bilan → « Valider l'exercice ». Toutes les écritures doivent être complètes. Ensuite plus aucune ligne, catégorie ou report ne peut être ajouté, modifié ou retiré. Les exercices doivent être validés dans l'ordre."/>

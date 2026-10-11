@@ -10,7 +10,7 @@ Application Windows (WPF, .NET 8), un seul `.exe` autonome ; les données sont d
    sans mouvement d'argent), date, libellé, montant, catégorie. Le montant est repris dans la ventilation ; un bandeau
    vert/rouge indique si tout est ventilé. La rentabilité de l'opération concernée s'affiche pendant la saisie.
 3. **Bilan et opérations** : compte de fonctionnement, rentabilité par opération, actif/passif, contrôles, validation.
-4. **Reports entre années** : paiements/encaissements qui concernent une autre année (transmis automatiquement).
+4. **Reports entre exercices** : paiements/encaissements qui concernent un autre exercice (transmis automatiquement).
 5. **Paramètres** : produits et charges, opérations (liens produits ↔ charges), comptes, exercice, import Excel, journal.
 
 ## Règles comptables (ce que le logiciel garantit)
@@ -20,11 +20,11 @@ Application Windows (WPF, .NET 8), un seul `.exe` autonome ; les données sont d
   (avoir : une entrée d'argent sur une charge compte en négatif ; remboursement d'une recette : l'inverse).
 * Un virement entre comptes n'a aucun effet sur le résultat ; il déplace le solde d'un compte à l'autre.
 * Résultat d'une catégorie = livre + régularisations :
-  `+ payé l'an dernier pour cette année`, `+ à régler l'an prochain`,
-  `− payé cette année pour l'an prochain`, `− payé cette année pour une année passée`.
+  `+ payé l'exercice précédent pour cet exercice`, `+ à régler l'exercice suivant`,
+  `− payé cet exercice pour l'exercice suivant`, `− payé cet exercice pour un exercice passé`.
 * Passif = solde d'ouverture + report (−régularisations nettes) + résultat + écart non ventilé ; **Actif = Passif** est
   contrôlé (l'écart non ventilé rend visible toute écriture à corriger au lieu de la masquer).
-* Soldes d'ouverture et reports (`pour l'an prochain` → `réglé l'an dernier`) sont repris **automatiquement** de
+* Soldes d'ouverture et reports (`pour l'exercice suivant` → `réglé l'exercice précédent`) sont repris **automatiquement** de
   l'exercice précédent.
 * **Exercice validé** : plus aucune écriture, catégorie, opération ou report ne peut être ajouté, modifié ou retiré —
   vérifié par le logiciel **et** par des déclencheurs SQLite (même en SQL direct). Une empreinte SHA-256 enregistrée à

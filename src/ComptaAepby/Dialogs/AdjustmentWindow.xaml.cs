@@ -29,14 +29,14 @@ public partial class AdjustmentWindow : Window
 
         TypeCombo.ItemsSource = new[]
         {
-            new TypeItem(AdjustmentType.ToNext, "Réglé cette année, concerne l'année prochaine",
-                "Ex. lots de loto achetés en juin pour le loto d'octobre. Retiré du résultat de cette année ; ajouté automatiquement à l'année suivante."),
-            new TypeItem(AdjustmentType.FromPrev, "Réglé l'an dernier, concerne cette année",
-                "Ex. lots achetés l'an dernier pour le loto de cette année. Ajouté au résultat de cette année. (Normalement reçu automatiquement ; à saisir à la main seulement s'il n'existait pas d'exercice précédent.)"),
-            new TypeItem(AdjustmentType.Due, "Concerne cette année, à régler l'an prochain",
-                "Ex. facture reçue en août mais payée en septembre. Ajouté au résultat de cette année ; compensé automatiquement l'an prochain."),
-            new TypeItem(AdjustmentType.ForPast, "Réglé cette année, concernait une année passée",
-                "Ex. cotisation d'une année précédente encaissée seulement maintenant. Retiré du résultat de cette année.")
+            new TypeItem(AdjustmentType.ToNext, "Réglé cet exercice, concerne l'exercice suivant",
+                "Ex. lots de loto achetés en juin pour le loto d'octobre. Retiré du résultat de cet exercice ; ajouté automatiquement à l'exercice suivant."),
+            new TypeItem(AdjustmentType.FromPrev, "Réglé l'exercice précédent, concerne cet exercice",
+                "Ex. lots achetés l'exercice précédent pour le loto de cet exercice. Ajouté au résultat de cet exercice. (Normalement reçu automatiquement ; à saisir à la main seulement s'il n'existait pas d'exercice précédent.)"),
+            new TypeItem(AdjustmentType.Due, "Concerne cet exercice, à régler l'exercice suivant",
+                "Ex. facture reçue en août mais payée en septembre. Ajouté au résultat de cet exercice ; compensé automatiquement l'exercice suivant."),
+            new TypeItem(AdjustmentType.ForPast, "Réglé cet exercice, concernait un exercice passé",
+                "Ex. cotisation d'un exercice précédent encaissée seulement maintenant. Retiré du résultat de cet exercice.")
         };
 
         if (existing is null)
@@ -123,7 +123,7 @@ public partial class AdjustmentWindow : Window
             var target = type is AdjustmentType.ToNext or AdjustmentType.Due ? TargetCombo.Text.Trim() : null;
             if (type == AdjustmentType.ToNext && string.IsNullOrEmpty(target))
             {
-                ErrorText.Text = "Indiquez la catégorie qui recevra ce montant l'an prochain.";
+                ErrorText.Text = "Indiquez la catégorie qui recevra ce montant l'exercice suivant.";
                 return;
             }
             if (type == AdjustmentType.Due && string.IsNullOrEmpty(target)) target = cat.Name;

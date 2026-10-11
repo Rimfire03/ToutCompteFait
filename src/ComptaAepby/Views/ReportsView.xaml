@@ -8,7 +8,7 @@
         <StackPanel>
             <TextBlock x:Name="TitleText" Style="{StaticResource TitleText}"/>
             <TextBlock Style="{StaticResource MutedText}" MaxWidth="900" HorizontalAlignment="Left"
-                       Text="Un report corrige le résultat quand un paiement ou un encaissement tombe sur une autre année que celle à laquelle il se rapporte (par ex. des lots de loto payés en juin pour le loto d'octobre). Ce qui est prévu pour l'année suivante lui est transmis automatiquement."/>
+                       Text="Un report corrige le résultat quand un paiement ou un encaissement tombe sur un autre exercice que celui auquel il se rapporte (par ex. des lots de loto payés en juin pour le loto d'octobre). Ce qui est prévu pour l'exercice suivant lui est transmis automatiquement."/>
         </StackPanel>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,12,0,8">
