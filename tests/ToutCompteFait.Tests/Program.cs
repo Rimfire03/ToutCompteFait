@@ -1,6 +1,7 @@
 using ToutCompteFait.Core;
 using ToutCompteFait.Core.Data;
 using ToutCompteFait.Core.Import;
+using ToutCompteFait.Core.Licensing;
 using ToutCompteFait.Core.Security;
 using ToutCompteFait.Core.Services;
 using Microsoft.EntityFrameworkCore;
@@ -1842,8 +1843,210 @@ Console.WriteLine("Conformité : exports (livre-journal, FEC)");
     Throws(() => c.SetCategoryAccountNumber(CategoryKind.Charge, "Assurance", "12"), "numéro de compte trop court refusé", "3 à 20");
 }
 
+// ------------------------------------------------------------------ licences
+Console.WriteLine("Licences");
+{
+    var now = new DateTimeOffset(2026, 10, 12, 10, 0, 0, TimeSpan.Zero);
+    var clock = now;
+    var handler = new FakeLicenseHandler();
+    var store = new MemoryLicenseStore();
+    var dir = Path.Combine(Path.GetTempPath(), "tcf-lic-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(dir);
+    var device = new FakeDevice();
+    LicenseService NewService() => new(new LicenseClient(handler), device, store, new BypassFile(dir), () => clock);
+    string Ok(string key, string type = "full", bool full = true, string? expires = null, string features = "", string? customer = "Asso Test", string extra = "") =>
+        $"{{\"valid\":true,\"license\":{{\"key\":\"{key}\",\"type\":\"{type}\",\"expiresAt\":{(expires is null ? "null" : "\"" + expires + "\"")}," +
+        $"\"features\":[{features}],\"isFull\":{(full ? "true" : "false")},\"customerName\":{(customer is null ? "null" : "\"" + customer + "\"")},\"maxActivations\":2}}{extra}}}";
+    string Refused(string reason) => $"{{\"valid\":false,\"reason\":\"{reason}\"}}";
+
+    // Identité de machine : stable, SHA-256 de MachineGuid.
+    if (OperatingSystem.IsWindows())
+    {
+        var id1 = new WindowsDeviceIdentity().DeviceId;
+        var id2 = new WindowsDeviceIdentity().DeviceId;
+        Eq(id1, id2, "deviceId stable");
+        Check(id1.Length == 64 && id1.All(Uri.IsHexDigit), "deviceId = SHA-256 hexadécimal");
+        using var rk = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine, Microsoft.Win32.RegistryView.Registry64)
+            .OpenSubKey(@"SOFTWARE\Microsoft\Cryptography");
+        var guid = (string)rk!.GetValue("MachineGuid")!;
+        Eq(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(guid))).ToLowerInvariant(), id1,
+            "deviceId = SHA-256 de MachineGuid");
+
+        // Stockage registre + DPAPI (clé de test, jamais celle de l'application).
+        var testKey = @"Software\TomLine prod&co\ToutCompteFait.Tests\" + Guid.NewGuid().ToString("N");
+        var ws = new WindowsLicenseStore(testKey);
+        Check(ws.Load() is null, "registre : aucune licence au départ");
+        ws.Save(new StoredLicense { Key = "SECRET-KEY-123", Type = "full", IsFull = true, CustomerName = "Asso", LastValidatedAt = now });
+        var back = ws.Load();
+        Check(back is { Key: "SECRET-KEY-123", IsFull: true, CustomerName: "Asso" }, "registre : licence relue");
+        using (var raw = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(testKey))
+        {
+            var blob = (byte[])raw!.GetValue("License")!;
+            Check(!System.Text.Encoding.UTF8.GetString(blob).Contains("SECRET-KEY-123"), "registre : clé jamais en clair (DPAPI)");
+        }
+        ws.Clear();
+        Check(ws.Load() is null, "registre : licence supprimée");
+        Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(testKey, false);
+    }
+
+    // Démo : la clé reçue est stockée automatiquement.
+    handler.Reply = (_, _) => Ok("DEMO-KEY-1", "demo", full: false, expires: "2026-10-19T10:00:00Z");
+    var svc = NewService();
+    var st = await svc.RequestDemoAsync();
+    Eq(LicenseStatus.Valid, st.Status, "démo : licence valide");
+    Eq("DEMO-KEY-1", store.Current?.Key, "démo : clé stockée automatiquement");
+    Eq(7, st.DaysLeft(now), "démo : 7 jours restants");
+    Check(svc.HasFeature("export-fec") && svc.HasFeature("autre"), "démo : tout est débloqué");
+    Check(handler.LastPath == "/v1/request-demo" && handler.LastBody.Contains("\"productSlug\":\"tout-compte-fait\"")
+          && handler.LastBody.Contains("\"deviceId\":\"" + device.DeviceId + "\""), "démo : corps de requête");
+
+    // Activation d'une clé : refus puis succès.
+    store.Current = null;
+    handler.Reply = (_, _) => Refused("license_not_found");
+    st = await svc.ActivateAsync("BAD-KEY");
+    Check(st.Status == LicenseStatus.NoLicense && st.Reason == "license_not_found" && store.Current is null, "activation refusée : rien de stocké");
+    handler.Reply = (_, _) => Refused("activation_limit_reached");
+    st = await svc.ActivateAsync("KEY-FULL");
+    Eq("activation_limit_reached", st.Reason, "activation : limite atteinte");
+    handler.Reply = (_, _) => Ok("KEY-FULL", features: "\"export-fec\"", full: false, type: "standard");
+    st = await svc.ActivateAsync("KEY-FULL");
+    Eq(LicenseStatus.Valid, st.Status, "activation réussie");
+    Check(svc.HasFeature("export-fec") && !svc.HasFeature("modele-x"), "fonctionnalités : liste de la licence");
+    Eq("Asso Test", st.License!.CustomerName, "nom du client conservé");
+    handler.Reply = (_, _) => Ok("KEY-FULL", full: true);
+    st = await svc.RevalidateAsync();
+    Check(svc.HasFeature("nimporte-quoi"), "licence pleine : toutes les fonctionnalités");
+
+    // Validation au lancement : le serveur fait foi, sans grâce.
+    handler.Reply = (_, _) => Refused("license_revoked");
+    st = await NewService().StartAsync();
+    Check(st.Status == LicenseStatus.Locked && st.Reason == "license_revoked", "révoquée : verrouillage immédiat");
+    Check(store.Current is null, "révoquée : licence locale supprimée");
+
+    // Serveur injoignable : grâce hors-ligne.
+    store.Current = new StoredLicense { Key = "K", Type = "standard", IsFull = true, LastValidatedAt = now.AddDays(-10) };
+    handler.Reply = (_, _) => throw new HttpRequestException("réseau coupé");
+    st = await NewService().StartAsync();
+    Eq(LicenseStatus.OfflineGrace, st.Status, "hors-ligne : grâce 30 jours");
+    Eq(now.AddDays(20), st.GraceUntil, "hors-ligne : jusqu'à dernière validation + 30 j");
+    store.Current = new StoredLicense { Key = "K", IsFull = true, LastValidatedAt = now.AddDays(-31) };
+    st = await NewService().StartAsync();
+    Check(st.Status == LicenseStatus.Locked && st.Reason == "offline_grace_expired", "hors-ligne : grâce épuisée");
+    store.Current = new StoredLicense { Key = "K", IsFull = false, Type = "demo", ExpiresAt = now.AddDays(2), LastValidatedAt = now.AddDays(-1) };
+    st = await NewService().StartAsync();
+    Eq(now.AddDays(2), st.GraceUntil, "hors-ligne : plafonné par l'échéance");
+    clock = now.AddDays(3);
+    st = await NewService().StartAsync();
+    Check(st.Status == LicenseStatus.Locked && st.Reason == "license_expired", "hors-ligne : échéance dépassée");
+    clock = now;
+    store.Current = new StoredLicense { Key = "K", IsFull = true, LastValidatedAt = null };
+    st = await NewService().StartAsync();
+    Check(st.Status == LicenseStatus.Locked && st.Reason == "no_prior_validation", "hors-ligne sans validation préalable : aucune grâce");
+    handler.Reply = (_, _) => throw new TaskCanceledException("délai dépassé");
+    store.Current = new StoredLicense { Key = "K", IsFull = true, LastValidatedAt = now };
+    Eq(LicenseStatus.OfflineGrace, (await NewService().StartAsync()).Status, "délai dépassé : traité comme hors-ligne");
+
+    // Désactivation.
+    handler.Reply = (_, _) => "{\"valid\":true}";
+    svc = NewService();
+    store.Current = new StoredLicense { Key = "K2", IsFull = true, LastValidatedAt = now };
+    var (done, _) = await svc.DeactivateAsync();
+    Check(done && store.Current is null && handler.LastPath == "/v1/deactivate", "désactivation : serveur puis suppression locale");
+    store.Current = new StoredLicense { Key = "K2", IsFull = true, LastValidatedAt = now };
+    handler.Reply = (_, _) => throw new HttpRequestException("réseau coupé");
+    var (done2, reason2) = await NewService().DeactivateAsync();
+    Check(!done2 && reason2 == "network" && store.Current is not null, "désactivation hors-ligne : licence conservée");
+
+    // licence.ini : licence gratuite, aucun /v1/validate, ping avec le nom du client.
+    var ini = Path.Combine(dir, "licence.ini");
+    File.WriteAllText(ini, "Association de démonstration\n");
+    store.Current = new StoredLicense { Key = "K3", IsFull = true, LastValidatedAt = now };
+    var calls = new List<string>();
+    handler.Reply = (path, _) => { calls.Add(path); return "{\"valid\":true}"; };
+    st = await NewService().StartAsync();
+    Eq(LicenseStatus.Bypass, st.Status, "licence.ini : mode licence gratuite");
+    Check(calls.SequenceEqual(new[] { "/v1/bypass/ping" }), "licence.ini : ping seulement, aucune validation");
+    Check(System.Text.Json.JsonDocument.Parse(handler.LastBody).RootElement.GetProperty("customerName").GetString() == "Association de démonstration",
+        "ping : nom du client lu dans licence.ini");
+    Check(NewService().HasFeature("x") == false, "service neuf : rien avant démarrage");
+    File.WriteAllText(ini, "");
+    await NewService().StartAsync();
+    Check(!handler.LastBody.Contains("customerName"), "ping : customerName absent si licence.ini vide");
+
+    // remove_bypass : suppression du fichier, /v1/bypass/removed, retour au mode licence normale.
+    calls.Clear();
+    handler.Reply = (path, _) =>
+    {
+        calls.Add(path);
+        return path == "/v1/bypass/ping" ? "{\"valid\":true,\"command\":\"remove_bypass\"}"
+             : path == "/v1/validate" ? Ok("K3", full: true) : "{\"valid\":true}";
+    };
+    st = await NewService().StartAsync();
+    Check(!File.Exists(ini), "remove_bypass : licence.ini supprimé");
+    Check(calls.SequenceEqual(new[] { "/v1/bypass/ping", "/v1/bypass/removed", "/v1/validate" }), "remove_bypass : ping, removed puis validation normale");
+    Eq(LicenseStatus.Valid, st.Status, "remove_bypass : retour en licence normale");
+
+    // install_bypass (commande de /v1/validate) : création de licence.ini (bypassName) puis ping.
+    calls.Clear();
+    handler.Reply = (path, _) =>
+    {
+        calls.Add(path);
+        return path == "/v1/validate" ? Ok("K3", customer: null, extra: ",\"commands\":[\"install_bypass\"],\"bypassName\":\"Client Gratuit\"")
+                                      : "{\"valid\":true}";
+    };
+    st = await NewService().StartAsync();
+    Check(File.Exists(ini) && File.ReadAllText(ini).Contains("Client Gratuit"), "install_bypass : licence.ini créé avec bypassName");
+    Check(calls.SequenceEqual(new[] { "/v1/validate", "/v1/bypass/ping" }), "install_bypass : validation puis ping");
+    Eq(LicenseStatus.Bypass, st.Status, "install_bypass : passage en licence gratuite");
+    // Fichier existant vide + licence avec customerName : jamais écrasé.
+    File.Delete(ini);
+    store.Current = new StoredLicense { Key = "K3", IsFull = true, LastValidatedAt = now };
+    handler.Reply = (path, _) => path != "/v1/bypass/ping"
+        ? Ok("K3", customer: "Asso Test", extra: ",\"commands\":[\"install_bypass\"],\"bypassName\":\"Autre\"")
+        : "{\"valid\":true}";
+    var svc3 = NewService();
+    await svc3.ActivateAsync("K3");          // état « valide » sans licence.ini
+    File.WriteAllText(ini, "");               // le fichier apparaît ensuite (vide)
+    await svc3.RevalidateAsync();
+    Eq("", File.ReadAllText(ini), "install_bypass : licence.ini vide non écrasé (licence avec nom de client)");
+
+    try { Directory.Delete(dir, true); } catch { }
+}
+
 Console.WriteLine(failures == 0 ? $"TOUT EST OK ({checks} vérifications)" : $"{failures} ECHEC(S) sur {checks} vérifications");
 return failures == 0 ? 0 : 1;
+
+sealed class FakeLicenseHandler : HttpMessageHandler
+{
+    public Func<string, string, string> Reply { get; set; } = (_, _) => "{\"valid\":true}";
+    public string LastPath { get; private set; } = "";
+    public string LastBody { get; private set; } = "";
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        LastPath = request.RequestUri!.AbsolutePath;
+        LastBody = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
+        var body = Reply(LastPath, LastBody);   // peut lever pour simuler une coupure réseau
+        return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json")
+        };
+    }
+}
+
+sealed class MemoryLicenseStore : ILicenseStore
+{
+    public StoredLicense? Current { get; set; }
+    public StoredLicense? Load() => Current;
+    public void Save(StoredLicense license) => Current = license;
+    public void Clear() => Current = null;
+}
+
+sealed class FakeDevice : IDeviceIdentity
+{
+    public string DeviceId => "abc123";
+    public string DeviceName => "POSTE-TEST";
+}
 
 /// <summary>Contexte de génération de schéma hors connexion (le vrai contexte détecte la version du serveur MariaDB en
 /// se connectant) : sert uniquement à vérifier que le modèle se traduit pour chaque moteur.</summary>

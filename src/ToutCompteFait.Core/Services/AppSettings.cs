@@ -25,6 +25,11 @@ public sealed class AppSettings
     public string? OrganizationName { get; set; }
     public string? Siren { get; set; }
 
+    /// <summary>Empreinte du CLUF accepté (voir <see cref="Licensing.Eula"/>) et date d'acceptation. Un texte modifié a une
+    /// autre empreinte : l'acceptation est alors redemandée.</summary>
+    public string? EulaAcceptedHash { get; set; }
+    public DateTime? EulaAcceptedAt { get; set; }
+
     /// <summary>Libellé du dernier exercice affiché.</summary>
     public string? LastYear { get; set; }
 

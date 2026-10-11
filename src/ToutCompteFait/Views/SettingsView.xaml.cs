@@ -53,6 +53,7 @@ public partial class SettingsView : UserControl, IPage
     {
         InitializeComponent();
         InitUpdates();
+        InitLicense();
         _year = year;
         _canEdit = App.Can(Permission.ManageStructure) && year.Open;
         _canAccounts = App.Can(Permission.ManageStructure);
