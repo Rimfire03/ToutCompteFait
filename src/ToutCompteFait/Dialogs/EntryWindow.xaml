@@ -103,7 +103,9 @@
                 <WrapPanel Margin="0,6,0,0">
                     <Button x:Name="AttachAddButton" Content="＋  Joindre un fichier…" Style="{StaticResource SecondaryButton}" Click="AttachAdd_Click"/>
                     <Button x:Name="AttachOpenButton" Content="Ouvrir" Style="{StaticResource SecondaryButton}" Click="AttachOpen_Click"/>
-                    <Button x:Name="AttachRemoveButton" Content="Retirer" Style="{StaticResource SecondaryButton}" Click="AttachRemove_Click"/>
+                    <Button x:Name="AttachSaveButton" Content="⬇  Télécharger" Style="{StaticResource SecondaryButton}" Click="AttachSave_Click"
+                            ToolTip="Enregistre une copie du justificatif sélectionné à l'endroit de votre choix."/>
+                    <Button x:Name="AttachRemoveButton" Content="Retirer" Style="{StaticResource DangerButton}" Click="AttachRemove_Click"/>
                 </WrapPanel>
                 <CheckBox x:Name="OptimizeBox" IsChecked="True" Margin="0,6,0,0"
                           Content="Réduire les photos et scans volumineux (économise de la place dans la base)"

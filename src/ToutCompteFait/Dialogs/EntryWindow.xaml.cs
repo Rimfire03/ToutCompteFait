@@ -263,6 +263,33 @@ public partial class EntryWindow : Window
         }
     }
 
+    /// <summary>Enregistre une copie du justificatif sélectionné (ou du seul justificatif) à l'endroit choisi.</summary>
+    private void AttachSave_Click(object sender, RoutedEventArgs e)
+    {
+        if (AttachList.SelectedItem is null && AttachList.Items.Count == 1) AttachList.SelectedIndex = 0;
+        if (AttachList.SelectedItem is not AttachItem item)
+        {
+            Ui.Info("Sélectionnez d'abord un justificatif dans la liste.", "Télécharger");
+            return;
+        }
+        var ext = System.IO.Path.GetExtension(item.Name);
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Enregistrer le justificatif",
+            FileName = item.Name,
+            Filter = ext.Length > 0 ? $"Fichier {ext}|*{ext}|Tous les fichiers (*.*)|*.*" : "Tous les fichiers (*.*)|*.*"
+        };
+        if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            var data = item.Data ?? _c.AttachmentData(item.ExistingId!.Value);
+            System.IO.File.WriteAllBytes(dlg.FileName, data);
+        }
+        catch (Exception ex) when (ex is ComptaException or System.IO.IOException or UnauthorizedAccessException)
+        {
+            Ui.Error("Impossible d'enregistrer le justificatif : " + ex.Message);
+        }
+    }
     private bool CanDropAttachments =>
         !App.IsReadOnly && _year.Open && AttachSection.Visibility == Visibility.Visible;
 
