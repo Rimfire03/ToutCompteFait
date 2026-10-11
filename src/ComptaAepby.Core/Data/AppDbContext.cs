@@ -1,4 +1,4 @@
-﻿using ComptaAepby.Core.Services;
+using ComptaAepby.Core.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
     public DbSet<EntryEntity> Entries => Set<EntryEntity>();
     public DbSet<AllocationEntity> Allocations => Set<AllocationEntity>();
     public DbSet<AdjustmentEntity> Adjustments => Set<AdjustmentEntity>();
+    public DbSet<AttachmentEntity> Attachments => Set<AttachmentEntity>();
     public DbSet<AuditEntity> Audit => Set<AuditEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
 
@@ -192,6 +193,22 @@ public class AppDbContext : DbContext
             e.HasOne<CategoryEntity>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
         });
 
+        b.Entity<AttachmentEntity>(e =>
+        {
+            e.ToTable("attachments");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.EntryId).HasColumnName("entry_id");
+            e.Property(x => x.FileName).HasColumnName("file_name").HasMaxLength(300).IsRequired();
+            e.Property(x => x.ContentType).HasColumnName("content_type").HasMaxLength(100).IsRequired();
+            e.Property(x => x.SizeBytes).HasColumnName("size_bytes");
+            e.Property(x => x.Data).HasColumnName("data").IsRequired();
+            e.Property(x => x.AddedAt).HasColumnName("added_at").HasMaxLength(30).IsRequired();
+            e.Property(x => x.AddedBy).HasColumnName("added_by").HasMaxLength(200);
+            e.HasIndex(x => x.EntryId).HasDatabaseName("ix_attach_entry");
+            e.HasOne<EntryEntity>().WithMany().HasForeignKey(x => x.EntryId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         b.Entity<AdjustmentEntity>(e =>
         {
             e.ToTable("adjustments", t => t.HasCheckConstraint("ck_adjustments_amount", "amount_cents > 0"));
@@ -292,7 +309,7 @@ internal static class YearLockGuard
                         if (id is { } v) years.Add(v);
                     break;
 
-                case AllocationEntity:
+                case AllocationEntity or AttachmentEntity:
                     foreach (var id in new[] { Orig("EntryId"), Curr("EntryId") })
                         if (id is { } v) allocationEntryIds.Add(v);
                     break;

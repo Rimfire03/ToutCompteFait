@@ -53,6 +53,23 @@ public static class SqliteTriggers
             BEGIN {Abort} END;
             """);
 
+        // Justificatifs : verrouillés via l'écriture parente (même règle que les ventilations).
+        Exec(ctx, $"""
+            CREATE TRIGGER IF NOT EXISTS lock_attachments_ins BEFORE INSERT ON attachments
+            WHEN (SELECT y.status FROM entries e JOIN fiscal_years y ON y.id = e.year_id WHERE e.id = NEW.entry_id) = 'VALIDATED'
+            BEGIN {Abort} END;
+            """);
+        Exec(ctx, $"""
+            CREATE TRIGGER IF NOT EXISTS lock_attachments_upd BEFORE UPDATE ON attachments
+            WHEN (SELECT y.status FROM entries e JOIN fiscal_years y ON y.id = e.year_id WHERE e.id = OLD.entry_id) = 'VALIDATED'
+            BEGIN {Abort} END;
+            """);
+        Exec(ctx, $"""
+            CREATE TRIGGER IF NOT EXISTS lock_attachments_del BEFORE DELETE ON attachments
+            WHEN (SELECT y.status FROM entries e JOIN fiscal_years y ON y.id = e.year_id WHERE e.id = OLD.entry_id) = 'VALIDATED'
+            BEGIN {Abort} END;
+            """);
+
         // Exercice : ni suppression ni modification d'un exercice validé (la réouverture VALIDATED -> OPEN passe
         // par ReopenYear, tracée dans le journal).
         Exec(ctx, $"""

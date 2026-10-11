@@ -225,6 +225,19 @@ public sealed partial class Compta
               .Append('|').Append(a.Label).Append('|').Append(a.AmountCents).Append('\n');
         foreach (var ac in Accounts(true))
             sb.Append("B|").Append(ac.Id).Append('|').Append(Opening(yearId, ac.Id)).Append('\n');
+        // Justificatifs (ajoutés à l'empreinte seulement s'il y en a : les exercices validés avant leur
+        // introduction gardent la même empreinte).
+        using (var l = Open())
+        {
+            var ctx = l.Ctx;
+            var atts = (from a in ctx.Attachments.AsNoTracking()
+                        join e in ctx.Entries.AsNoTracking() on a.EntryId equals e.Id
+                        where e.YearId == yearId
+                        orderby a.Id
+                        select new { a.Id, a.EntryId, a.FileName, a.SizeBytes }).ToList();
+            foreach (var a in atts)
+                sb.Append("T|").Append(a.Id).Append('|').Append(a.EntryId).Append('|').Append(a.FileName).Append('|').Append(a.SizeBytes).Append('\n');
+        }
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString())));
     }
 

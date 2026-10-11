@@ -65,6 +65,7 @@ if (args.Length >= 3 && args[0] == "pgsql")
     string Lit(object? v, Type clr)
     {
         if (v is null || v is DBNull) return "NULL";
+        if (v is byte[] blob) return "decode('" + Convert.ToHexString(blob) + "', 'hex')";
         var t = Nullable.GetUnderlyingType(clr) ?? clr;
         if (t == typeof(bool)) return Convert.ToInt64(v, inv) != 0 ? "TRUE" : "FALSE";
         if (t == typeof(string)) return "'" + Convert.ToString(v, inv)!.Replace("'", "''") + "'";
@@ -1200,6 +1201,41 @@ Console.WriteLine("Clôture forcée");
     var y3 = c.CreateYear(Dt(2028, 9, 1), Dt(2029, 8, 31));
     c.ValidateYear(y3.Id, Dt(2029, 8, 31), force: true);
     Check(c.Year(y3.Id)!.Validated, "troisième exercice clôturé de force");
+}
+// ---- Justificatifs joints aux écritures
+Console.WriteLine("Justificatifs");
+{
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    var ch = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Charge);
+    var id = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 3), "Achat fournitures", false, EntryKind.Normal, banque.Id, Direction.Out, null, 4500, null, null),
+        new[] { new Allocation(ch.Id, 4500) });
+    var bytes = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x00, 0xFF, 0x10 };
+    var aid = c.AddAttachment(id, @"C:\temp\facture 12.pdf", bytes);
+    var list = c.Attachments(id);
+    Eq(1, list.Count, "un justificatif joint");
+    Eq("facture 12.pdf", list[0].FileName, "nom de fichier sans chemin");
+    Eq("application/pdf", list[0].ContentType, "type déduit de l'extension");
+    Check(c.AttachmentData(aid).SequenceEqual(bytes), "contenu relu à l'identique");
+    Eq(1, c.AttachmentCounts(y.Id)[id], "compteur par écriture");
+    Throws(() => c.AddAttachment(id, "virus.exe", bytes), "exécutable refusé", "pas accepté");
+    Throws(() => c.AddAttachment(id, "gros.pdf", new byte[Compta.MaxAttachmentBytes + 1]), "fichier trop gros refusé", "trop gros");
+    var before1 = c.ComputeChecksum(y.Id);
+    c.RemoveAttachment(aid);
+    Eq(0, c.Attachments(id).Count, "justificatif retiré");
+    Check(before1 != c.ComputeChecksum(y.Id), "l'empreinte tient compte des justificatifs");
+    var aid2 = c.AddAttachment(id, "ticket.png", bytes);
+    c.DeleteEntry(id);
+    Eq(0, c.AttachmentCounts(y.Id).Count, "suppression de l'écriture : justificatifs supprimés");
+    var id2 = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 4), "Autre achat", false, EntryKind.Normal, banque.Id, Direction.Out, null, 100, null, null),
+        new[] { new Allocation(ch.Id, 100) });
+    c.AddAttachment(id2, "ticket2.jpg", bytes);
+    c.ValidateYear(y.Id);
+    Throws(() => c.AddAttachment(id2, "autre.pdf", bytes), "exercice validé : ajout refusé", "validé");
+    Throws(() => c.RemoveAttachment(c.Attachments(id2)[0].Id), "exercice validé : retrait refusé", "validé");
+    Check(c.VerifyIntegrity(y.Id), "empreinte conforme avec justificatif");
 }
 // ---- Fichier de configuration du serveur
 {

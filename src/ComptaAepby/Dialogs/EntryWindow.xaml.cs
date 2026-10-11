@@ -28,6 +28,18 @@ public partial class EntryWindow : Window
     private readonly List<Account> _accounts;
     private readonly List<Category> _cats;
     private readonly List<AllocRow> _rows = new();
+    private readonly List<AttachItem> _atts = new();
+
+    /// <summary>Justificatif de la fenêtre : déjà enregistré (ExistingId) ou à joindre à l'enregistrement (Data).</summary>
+    private sealed class AttachItem
+    {
+        public long? ExistingId { get; init; }
+        public required string Name { get; init; }
+        public long Size { get; init; }
+        public byte[]? Data { get; init; }
+        public bool Removed { get; set; }
+        public override string ToString() => $"📎  {Name}  ({Size / 1024.0:0.#} Ko)" + (ExistingId is null ? "  — à enregistrer" : "");
+    }
     private bool _init = true;
 
     /// <summary>L'utilisateur a choisi « Enregistrer et saisir une autre ».</summary>
@@ -52,7 +64,12 @@ public partial class EntryWindow : Window
         DatePick.SelectedDate = date.ToDateTime(TimeOnly.MinValue);
         DatePick.DisplayDateStart = null;
 
-        if (existing is not null) LoadExisting(existing);
+        if (existing is not null)
+        {
+            LoadExisting(existing);
+            foreach (var a in _c.Attachments(existing.Entry.Id))
+                _atts.Add(new AttachItem { ExistingId = a.Id, Name = a.FileName, Size = a.SizeBytes });
+        }
         else
         {
             AddAllocRow();
@@ -63,6 +80,7 @@ public partial class EntryWindow : Window
         _init = false;
         SyncSingleRow();
         RefreshStatus();
+        RefreshAttachList();
         Loaded += (_, _) => (existing is null ? LabelBox : AmountBox).Focus();
     }
 
@@ -111,6 +129,77 @@ public partial class EntryWindow : Window
             ? "Saisissez le produit ET la charge (montants positifs et égaux : le total des produits doit égaler le total des charges)."
             : "Indiquez où va l'argent. Une seule ligne reprend le montant de l'opération ; avec plusieurs lignes, la dernière reprend automatiquement le reste : le total est toujours égal au montant.";
         AmountLabel.Text = m == Mode.NoCash ? "Montant refacturé (€)" : "Montant (€)";
+        // Justificatifs : pour les dépenses (et si l'écriture en a déjà).
+        AttachSection.Visibility = m is Mode.Expense or Mode.Refund || _atts.Any(a => !a.Removed)
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // ------------------------------------------------------------------ justificatifs
+
+    private void RefreshAttachList()
+    {
+        var keep = AttachList.SelectedItem;
+        AttachList.ItemsSource = null;
+        AttachList.ItemsSource = _atts.Where(a => !a.Removed).ToList();
+        if (keep is not null && AttachList.Items.Contains(keep)) AttachList.SelectedItem = keep;
+        var editable = !App.IsReadOnly && _year.Open;
+        AttachAddButton.IsEnabled = editable;
+        AttachRemoveButton.IsEnabled = editable;
+        AttachSection.Visibility = CurrentMode is Mode.Expense or Mode.Refund || _atts.Any(a => !a.Removed)
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void AttachAdd_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Joindre un justificatif",
+            Multiselect = true,
+            Filter = "Justificatifs (PDF, images, documents)|*.pdf;*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.tif;*.tiff;*.webp;*.txt;*.doc;*.docx;*.xls;*.xlsx;*.odt;*.ods|Tous les fichiers (*.*)|*.*"
+        };
+        if (dlg.ShowDialog(this) != true) return;
+        foreach (var path in dlg.FileNames)
+        {
+            try
+            {
+                var info = new System.IO.FileInfo(path);
+                var name = Compta.CheckAttachmentFile(info.Name, info.Length);
+                _atts.Add(new AttachItem { Name = name, Size = info.Length, Data = System.IO.File.ReadAllBytes(path) });
+            }
+            catch (Exception ex) when (ex is ComptaException or System.IO.IOException or UnauthorizedAccessException)
+            {
+                Ui.Error($"{System.IO.Path.GetFileName(path)} : {ex.Message}");
+            }
+        }
+        RefreshAttachList();
+    }
+
+    private void AttachOpen_Click(object sender, RoutedEventArgs e)
+    {
+        if (AttachList.SelectedItem is not AttachItem item) { if (AttachList.Items.Count == 1) AttachList.SelectedIndex = 0; else return; }
+        item = (AttachItem)AttachList.SelectedItem;
+        try
+        {
+            var data = item.Data ?? _c.AttachmentData(item.ExistingId!.Value);
+            var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ToutCompteFait-justificatifs", Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(dir);
+            var file = System.IO.Path.Combine(dir, item.Name);
+            System.IO.File.WriteAllBytes(file, data);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(file) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is ComptaException or System.IO.IOException or System.ComponentModel.Win32Exception
+                                       or UnauthorizedAccessException)
+        {
+            Ui.Error("Impossible d'ouvrir le justificatif : " + ex.Message);
+        }
+    }
+
+    private void AttachRemove_Click(object sender, RoutedEventArgs e)
+    {
+        if (AttachList.SelectedItem is not AttachItem item) return;
+        if (item.ExistingId is null) _atts.Remove(item);
+        else item.Removed = true;   // retiré de la base à l'enregistrement de l'écriture
+        RefreshAttachList();
     }
 
     // ------------------------------------------------------------------ ventilation
@@ -434,14 +523,25 @@ public partial class EntryWindow : Window
             ErrorText.Text = err ?? "Saisie incomplète.";
             return;
         }
+        long savedId;
         try
         {
-            _c.SaveEntry(entry, allocs, strict: true);
+            savedId = _c.SaveEntry(entry, allocs, strict: true);
         }
         catch (ComptaException ex)
         {
             ErrorText.Text = ex.Message;
             return;
+        }
+        // Justificatifs : appliqués une fois l'écriture enregistrée (l'écriture l'est déjà : on ne bloque pas la fermeture).
+        try
+        {
+            foreach (var a in _atts.Where(a => a.Removed && a.ExistingId is not null)) _c.RemoveAttachment(a.ExistingId!.Value);
+            foreach (var a in _atts.Where(a => a.ExistingId is null && !a.Removed && a.Data is not null)) _c.AddAttachment(savedId, a.Name, a.Data!);
+        }
+        catch (ComptaException ex)
+        {
+            Ui.Error("L'écriture est enregistrée, mais un justificatif n'a pas pu être appliqué : " + ex.Message);
         }
         SaveAndNew = andNew;
         LastDate = entry.Date;

@@ -29,6 +29,9 @@ public sealed class LivreRow
     public string BalanceText { get; init; } = "";
     public string Breakdown { get; init; } = "";
 
+    /// <summary>« 📎 n » quand l'écriture a des justificatifs joints.</summary>
+    public string AttachText { get; init; } = "";
+
     /// <summary>Ventilation incohérente avec le montant, ou date hors exercice : à corriger (rouge).</summary>
     public bool Problem { get; init; }
 
@@ -108,6 +111,7 @@ public partial class LivreView : UserControl, IPage
         var catList = _c.Categories(_year.Id);
         var cats = catList.ToDictionary(c => c.Id);
         var accounts = _c.Accounts(includeInactive: true).ToDictionary(a => a.Id);
+        var attachCounts = _c.AttachmentCounts(_year.Id);
         var filter = AccountFilter.SelectedItem as Account;
         var accountFilter = filter is { Id: > 0 } ? filter.Id : (long?)null;
 
@@ -196,6 +200,7 @@ public partial class LivreView : UserControl, IPage
                 InText = transferAll ? "" : Money.FormatOrBlank(inC),
                 OutText = transferAll ? "" : Money.FormatOrBlank(outC),
                 BalanceText = Money.Format(running), Breakdown = breakdown,
+                AttachText = attachCounts.TryGetValue(e.Id, out var attachN) ? "📎 " + attachN : "",
                 Problem = (!needs && gap != 0) || !_year.Contains(e.Date),
                 ToFill = needs,
                 ProblemTip = tips.Count > 0 ? string.Join("\n", tips) : null,

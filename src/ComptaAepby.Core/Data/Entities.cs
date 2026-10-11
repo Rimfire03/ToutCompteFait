@@ -70,6 +70,18 @@ public sealed class EntryEntity
     public string UpdatedAt { get; set; } = "";
 }
 
+public sealed class AttachmentEntity
+{
+    public long Id { get; set; }
+    public long EntryId { get; set; }
+    public string FileName { get; set; } = "";
+    public string ContentType { get; set; } = "";
+    public long SizeBytes { get; set; }
+    public byte[] Data { get; set; } = Array.Empty<byte>();
+    public string AddedAt { get; set; } = "";
+    public string? AddedBy { get; set; }
+}
+
 public sealed class AllocationEntity
 {
     public long Id { get; set; }

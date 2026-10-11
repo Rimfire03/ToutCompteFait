@@ -16,7 +16,7 @@ public static class DatabaseWriteTracking
     private const string Stamp = "strftime('%Y-%m-%dT%H:%M:%S','now','localtime')";
 
     private static readonly string[] Tracked =
-        { "accounts", "fiscal_years", "year_openings", "operations", "categories", "entries", "allocations", "adjustments" };
+        { "accounts", "fiscal_years", "year_openings", "operations", "categories", "entries", "allocations", "adjustments", "attachments" };
 
     /// <summary>Crée les déclencheurs manquants (idempotent).</summary>
     public static void EnsureTriggers(AppDbContext ctx)
