@@ -125,13 +125,20 @@ Même système que FiltresApp : le logiciel interroge la dernière **release Git
 à un administrateur de l'installer. Paramètres → **Mises à jour** : version, vérification automatique, canal (Main =
 stable, Dev = préversions), « Vérifier maintenant », « Télécharger et installer ».
 
-* L'installation sauvegarde la base juste avant, télécharge le `.zip` signé, ferme le logiciel, remplace **uniquement
-  les fichiers du programme** et relance. La base, les réglages et les sauvegardes ne sont jamais touchés.
+* **Deux formes de livraison**, publiées ensemble à chaque release : le `.zip` portable (exécutable à lancer depuis
+  n'importe quel dossier) et l'**installateur `.msi`** (par poste : `C:\Program Files\ToutCompteFait`, raccourci du menu
+  Démarrer, dossiers `Donnees\` et `Sauvegardes\` inscriptibles par tous les utilisateurs du poste). Le logiciel détecte
+  son mode et télécharge le bon fichier : un poste installé se met à jour par le `.msi`, un poste portable par le `.zip`.
+* L'installation sauvegarde la base juste avant, télécharge le fichier signé, ferme le logiciel, remplace **uniquement
+  les fichiers du programme** et relance. La base, les réglages et les sauvegardes ne sont jamais touchés ; le `.msi` ne
+  contient aucune base et crée les dossiers de données vides.
 * Si la base a été mise à jour par une version plus récente que le logiciel, la mise à jour est proposée avant le refus
   d'ouvrir (rien n'est modifié).
 * Publier une version : incrémenter `<Version>` dans `src\ComptaAepby\ComptaAepby.csproj`, committer, pousser, puis
-  `.\tools\Release.ps1`. Le script lance les tests, publie, signe, zippe, **refuse de continuer si le dossier ou le zip
-  contient une base de données**, et crée la release.
+  `.\tools\Release.ps1`. Le script lance les tests, publie, signe, zippe, construit et signe le `.msi`
+  (WiX 4 : `dotnet tool install --global wix --version 4.0.6` puis `wix extension add -g WixToolset.Util.wixext/4.0.6`),
+  **refuse de continuer si le dossier, le zip ou le MSI contient une base de données**, et crée la release avec les
+  deux fichiers.
 * **Aucune donnée n'est jamais publiée** : `Donnees\`, `*.db`, sauvegardes, réglages, relevés (PDF/OFX/CSV) et classeurs
   Excel sont exclus du dépôt (`.gitignore`) et des releases.
 

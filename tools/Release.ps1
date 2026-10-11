@@ -1,11 +1,12 @@
-<#
+﻿<#
 .SYNOPSIS
     Release complete de Tout Compte Fait : controles, publish, signature, zip, release GitHub.
 
 .DESCRIPTION
     Version = <Version> de src\ComptaAepby\ComptaAepby.csproj (a incrementer et committer AVANT).
     Etapes : controles (arbre propre, commits pousses, tag libre) -> tests -> dotnet publish -> signature
-    (tools\Sign-Release.ps1) -> zip ToutCompteFait-v<version>-win-x64.zip -> notes (fournies, ou generees en local
+    (tools\Sign-Release.ps1) -> zip ToutCompteFait-v<version>-win-x64.zip -> MSI ToutCompteFait-v<version>-win-x64.msi
+    (tools\Build-Installer.ps1) -> notes (fournies, ou generees en local
     a partir des commits depuis le dernier tag) -> gh release create.
     L'application installee lit cette release (Parametres > Mises a jour) : elle telecharge le zip et remplace
     uniquement les fichiers du programme.
@@ -102,6 +103,12 @@ try {
 } finally { $archive.Dispose() }
 Step ("zip {0} ({1:N0} Mo, {2} fichier(s), aucune donnee)" -f (Split-Path $zip -Leaf), ((Get-Item $zip).Length / 1MB), $names.Count)
 
+# --- Installateur MSI (par machine) : meme exe signe, MSI signe a son tour ; aucune donnee embarquee
+Step "installateur MSI"
+$msi = Join-Path $work "ToutCompteFait-$tag-win-x64.msi"
+& (Join-Path $PSScriptRoot "Build-Installer.ps1") -Version $version -OutFile $msi -PublishDir $publishDir | Select-Object -Last 1 | ForEach-Object { Write-Host "  $_" }
+if (-not (Test-Path $msi)) { throw "MSI non genere." }
+
 # --- Notes
 $notesPath = Join-Path $work "notes.md"
 if ($NotesFile) { Copy-Item $NotesFile $notesPath -Force }
@@ -138,13 +145,13 @@ if (-not $schema) { throw "Version du schema de base introuvable dans DatabaseMi
 [IO.File]::AppendAllText($notesPath, "`n`n<!-- db-schema: $schema -->`n", (New-Object Text.UTF8Encoding($false)))
 Step "schema de base $schema"
 if ($NoPublish) {
-    Write-Host "[release] -NoPublish : arret avant GitHub. Zip : $zip ; notes : $notesPath"
+    Write-Host "[release] -NoPublish : arret avant GitHub. Zip : $zip ; MSI : $msi ; notes : $notesPath"
     return
 }
 
 # --- Publication
 Step "gh release create $tag"
 $sha = (Git rev-parse HEAD | Select-Object -First 1).Trim()
-& gh.exe release create $tag $zip --repo $Repo --target $sha --title "Version $version$(if ($dev) { ' (dev)' })" --notes-file $notesPath $(if ($dev) { "--prerelease" } else { "--latest" })
+& gh.exe release create $tag $zip $msi --repo $Repo --target $sha --title "Version $version$(if ($dev) { ' (dev)' })" --notes-file $notesPath $(if ($dev) { "--prerelease" } else { "--latest" })
 if ($LASTEXITCODE -ne 0) { throw "gh release create a echoue (code $LASTEXITCODE)." }
 Write-Host "[release] OK : https://github.com/$Repo/releases/tag/$tag"

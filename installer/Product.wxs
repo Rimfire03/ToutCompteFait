@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Paquet MSI de Tout Compte Fait (WiX 4, par machine, 64 bits). Construit par tools\Build-Installer.ps1 :
+     wix build installer\Product.wxs -d Version=x.y.z -d PublishDir=<dossier publish> -d IconPath=<app.ico> -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package Name="Tout Compte Fait" Manufacturer="TomLine prod&amp;co" Version="$(Version)"
+           UpgradeCode="ADEA732C-8143-4CC9-AFCB-E08D07DE3AF1" Scope="perMachine" Language="1036" Codepage="1252">
+
+    <MajorUpgrade AllowDowngrades="yes" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+    <Icon Id="app.ico" SourceFile="$(IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="app.ico" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="ToutCompteFait">
+
+        <Component Id="MainExe" Guid="*">
+          <File Id="ToutCompteFaitExe" Source="$(PublishDir)\ToutCompteFait.exe" KeyPath="yes">
+            <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Tout Compte Fait"
+                      WorkingDirectory="INSTALLFOLDER" Advertise="no" />
+          </File>
+        </Component>
+
+        <!-- Donnees (base SQLite) et Sauvegardes vivent à côté de l'exécutable, comme en version portable : ces dossiers
+             doivent rester inscriptibles pour les utilisateurs standard. Ils sont créés VIDES : l'installateur ne
+             contient et n'écrase jamais de base de données. -->
+        <Directory Id="DATADIR" Name="Donnees">
+          <Component Id="DataFolder" Guid="3C2E8A88-99DF-4F94-A685-17F8B5180886">
+            <CreateFolder>
+              <util:PermissionEx User="Users" GenericAll="yes" />
+            </CreateFolder>
+          </Component>
+        </Directory>
+        <Directory Id="BACKUPDIR" Name="Sauvegardes">
+          <Component Id="BackupFolder" Guid="A210B9A4-8212-4955-A87F-55E620C28B02">
+            <CreateFolder>
+              <util:PermissionEx User="Users" GenericAll="yes" />
+            </CreateFolder>
+          </Component>
+        </Directory>
+
+        <!-- Clé de registre propre à l'application : InstallDir signale la version installée (mises à jour via MSI). -->
+        <Component Id="AppRegistry" Guid="*" Bitness="always64">
+          <RegistryKey Root="HKLM" Key="SOFTWARE\TomLine\ToutCompteFait" ForceCreateOnInstall="yes">
+            <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+          </RegistryKey>
+        </Component>
+
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="Tout Compte Fait" Level="1">
+      <ComponentRef Id="MainExe" />
+      <ComponentRef Id="DataFolder" />
+      <ComponentRef Id="BackupFolder" />
+      <ComponentRef Id="AppRegistry" />
+    </Feature>
+
+  </Package>
+
+</Wix>

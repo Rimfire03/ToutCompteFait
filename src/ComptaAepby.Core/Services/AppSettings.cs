@@ -44,7 +44,26 @@ public sealed class AppSettings
     public static string AppDirectory => AppContext.BaseDirectory;
 
     /// <summary>Dossier des sauvegardes : <c>Sauvegardes</c> à côté de l'exécutable (ou du fichier de réglages).</summary>
-    public static string BackupDirectoryPath => Path.Combine(DataRoot, "Sauvegardes");
+    public static string BackupDirectoryPath
+    {
+        get
+        {
+            // Version installée (MSI) : Sauvegardes\ à côté du programme, inscriptible pour tous les utilisateurs.
+            var shared = Path.Combine(AppDirectory, "Sauvegardes");
+            return Directory.Exists(shared) && CanWrite(shared) ? shared : Path.Combine(DataRoot, "Sauvegardes");
+        }
+    }
+
+    /// <summary>Base des chemins relatifs (base SQLite) : le dossier <c>Donnees</c> du programme s'il existe et est
+    /// inscriptible (version installée, partagé entre les utilisateurs du poste), sinon <see cref="DataRoot"/>.</summary>
+    private static string DataBase
+    {
+        get
+        {
+            var shared = Path.Combine(AppDirectory, "Donnees");
+            return Directory.Exists(shared) && CanWrite(shared) ? AppDirectory : DataRoot;
+        }
+    }
 
     /// <summary>Dossier de travail du logiciel : celui de l'exécutable s'il est inscriptible, sinon %LOCALAPPDATA%.</summary>
     public static string DataRoot
@@ -78,7 +97,7 @@ public sealed class AppSettings
         get
         {
             var p = string.IsNullOrWhiteSpace(DatabasePath) ? Path.Combine("Donnees", "compta.db") : DatabasePath;
-            return Path.GetFullPath(Path.IsPathRooted(p) ? p : Path.Combine(DataRoot, p));
+            return Path.GetFullPath(Path.IsPathRooted(p) ? p : Path.Combine(DataBase, p));
         }
     }
 

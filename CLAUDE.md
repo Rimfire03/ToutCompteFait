@@ -17,7 +17,8 @@
 - Incrémenter `<Version>` dans `src\ComptaAepby\ComptaAepby.csproj`, committer et pousser, puis lancer
   `.\tools\Release.ps1` (options : `-NotesFile`, `-Notes`, `-NoPublish`, `-Channel dev`). Il vérifie l'arbre, lance
   les tests, publie (mono-fichier win-x64), signe avec le certificat global « TomLine prod&co », zippe
-  (`ToutCompteFait-v<version>-win-x64.zip`, exécutable à la racine) et crée la release GitHub.
+  (`ToutCompteFait-v<version>-win-x64.zip`, exécutable à la racine), construit le MSI signé
+  (`tools\Build-Installer.ps1`, `installer\Product.wxs`) et crée la release GitHub avec les deux fichiers.
 - L'application installée vérifie la dernière release au démarrage (Paramètres → Mises à jour) et ne remplace que
   les fichiers du programme.
 - L'exécutable doit être **signé** avant d'être zippé ; ne jamais committer de `.pfx`, de mot de passe ni de clé.

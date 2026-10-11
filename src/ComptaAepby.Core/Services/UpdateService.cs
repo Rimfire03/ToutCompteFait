@@ -115,8 +115,8 @@ public class UpdateService
             channelSwitch = true;
         }
 
-        // Livraison portable : l'exécutable est publié en asset .zip de la release.
-        const string ext = ".zip";
+        // Version installée (MSI) : on récupère le .msi ; version portable : le .zip.
+        var ext = InstallMode.IsInstalled ? ".msi" : ".zip";
         string? assetUrl = null;
         string? assetName = null;
         if (root.TryGetProperty("assets", out var assets))
@@ -140,7 +140,7 @@ public class UpdateService
 
     /// <summary>Télécharge l'archive .zip de la nouvelle version, la décompresse intégralement, puis lance
     /// un processus PowerShell détaché qui attend la fermeture du processus courant, copie tout le
-    /// contenu décompressé (l'exécutable, mais aussi tout autre fichier requis à côté - ex. une bibliothèque à côté).
+    /// contenu décompressé (l'exécutable, mais aussi tout autre fichier requis à côté - ex. une bibliothèque à côté) par-dessus le dossier d'installation, relance l'application, puis nettoie le dossier
     /// temporaire. Seuls les fichiers présents dans l'archive sont écrasés/ajoutés : les données propres
     /// à l'utilisateur qui n'y figurent jamais (Donnees\compta.db, réglages, sauvegardes...) ne sont
     /// jamais touchées - l'appelant est malgré tout invité à sauvegarder la base avant d'appeler cette
@@ -177,6 +177,14 @@ public class UpdateService
         var currentExePath = Environment.ProcessPath
             ?? throw new InvalidOperationException("Impossible de déterminer l'exécutable en cours d'exécution.");
 
+        // Version installée : le paquet MSI se charge du remplacement (élévation UAC demandée par msiexec) ;
+        // les données (Donnees\compta.db, réglages) et la licence (registre) ne sont pas touchées.
+        if (zipPath.EndsWith(".msi", StringComparison.OrdinalIgnoreCase))
+        {
+            RunDetachedMsi(Environment.ProcessId, zipPath, currentExePath, tempDir);
+            return;
+        }
+
         var extractDir = Path.Combine(tempDir, "extracted");
         ZipFile.ExtractToDirectory(zipPath, extractDir);
 
@@ -199,6 +207,30 @@ public class UpdateService
     /// <summary>Échappe une chaîne pour une chaîne PowerShell entre apostrophes (seul caractère spécial à
     /// doubler dans ce contexte).</summary>
     private static string EscapeSingleQuoted(string value) => value.Replace("'", "''");
+
+    /// <summary>Même principe que <see cref="RunDetachedReplace"/> : processus PowerShell détaché qui attend la
+    /// fermeture de l'application, lance <c>msiexec /i</c> élevé (mise à jour majeure du paquet), puis relance
+    /// l'application et nettoie.</summary>
+    private static void RunDetachedMsi(int pid, string msiPath, string targetExePath, string tempDir)
+    {
+        var script = $$"""
+            $ErrorActionPreference = 'SilentlyContinue'
+            while (Get-Process -Id {{pid}} -ErrorAction SilentlyContinue) { Start-Sleep -Milliseconds 500 }
+            Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i "{{EscapeSingleQuoted(msiPath)}}" /passive /norestart' -Verb RunAs -Wait
+            Start-Process -FilePath '{{EscapeSingleQuoted(targetExePath)}}'
+            Start-Sleep -Seconds 2
+            Remove-Item -Path '{{EscapeSingleQuoted(tempDir)}}' -Recurse -Force
+            """;
+
+        var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = $"-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand {encoded}",
+            UseShellExecute = false,
+            CreateNoWindow = true
+        });
+    }
 
     private static void RunDetachedReplace(int pid, string extractDir, string installDir, string targetExePath, string tempDir)
     {

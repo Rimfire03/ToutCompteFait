@@ -11,6 +11,7 @@
     <RootNamespace>ComptaAepby</RootNamespace>
     <InvariantGlobalization>false</InvariantGlobalization>
     <Version>1.0.0</Version>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Company>TomLine prod&amp;co</Company>
     <Product>Tout Compte Fait</Product>
     <Copyright>© TomLine prod&amp;co by Thomas Guidez</Copyright>
