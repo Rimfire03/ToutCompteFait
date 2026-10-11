@@ -28,3 +28,6 @@ profils-releves/
 *.pfx
 *.key
 *.env
+
+# Exports de la base (données réelles)
+*.sql
