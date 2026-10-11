@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -77,6 +77,7 @@ public partial class SettingsView : UserControl, IPage
         UsersTab.Visibility = App.HasRole(Permission.ManageUsers) ? Visibility.Visible : Visibility.Collapsed;
         DbTab.Visibility = App.HasRole(Permission.ManageDatabase) ? Visibility.Visible : Visibility.Collapsed;
         ImportButton.IsEnabled = App.Can(Permission.ManageDatabase);
+        ResetDataButton.IsEnabled = App.Can(Permission.ManageDatabase);
         ServerButton.IsEnabled = App.HasRole(Permission.ManageDatabase);
         ChangeDbButton.IsEnabled = App.HasRole(Permission.ManageDatabase);
         BackupNowButton.IsEnabled = App.Can(Permission.ManageDatabase);
@@ -605,6 +606,47 @@ public partial class SettingsView : UserControl, IPage
             var inner = ex;
             while (inner.InnerException is not null) inner = inner.InnerException;
             Ui.Error("Le script a échoué, la base n'a pas été modifiée :\n" + inner.Message);
+        }
+    }
+
+    private async void ResetData_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.IsReadOnly) { Ui.Error("Ce poste est en lecture seule : un autre poste détient l'écriture."); return; }
+        if (App.Session.Role != ComptaAepby.Core.Security.Role.Admin) { Ui.Error("Réservé aux administrateurs."); return; }
+        if (!Ui.Confirm(
+                "VIDER la base de données ?\n\n" +
+                "Tous les exercices, comptes bancaires, écritures, ventilations, justificatifs et reports seront SUPPRIMÉS, " +
+                "y compris les exercices validés. Les comptes utilisateurs et le journal sont conservés.\n\n" +
+                "Une sauvegarde est faite avant. Le logiciel redémarrera.", "Vider la base de données"))
+            return;
+        var word = PromptWindow.Ask(Window.GetWindow(this), "Confirmation",
+            "Pour confirmer, tapez le mot VIDER (en majuscules) :", okText: "Vider la base");
+        if (word is null || word.Trim() != "VIDER") { Ui.Info("Confirmation incorrecte : rien n'a été modifié."); return; }
+        try
+        {
+            Cursor = Cursors.Wait;
+            string safety;
+            try { safety = await Task.Run(() => App.DbFactory.CreateBackup("avant-vidage")); }
+            catch (Exception ex)
+            {
+                Cursor = null;
+                var inner = ex;
+                while (inner.InnerException is not null) inner = inner.InnerException;
+                Ui.Error("Sauvegarde préalable impossible : opération annulée, rien n'a été modifié.\n" + inner.Message);
+                return;
+            }
+            await Task.Run(() => _c.ResetDatabaseData());
+            Cursor = null;
+            Ui.Info("La base a été vidée (les comptes utilisateurs sont conservés).\nL'état précédent est sauvegardé dans :\n" + safety +
+                    "\n\nLe logiciel va redémarrer.");
+            App.Restart();
+        }
+        catch (Exception ex)
+        {
+            Cursor = null;
+            var inner = ex;
+            while (inner.InnerException is not null) inner = inner.InnerException;
+            Ui.Error("Le vidage a échoué, la base n'a pas été modifiée :\n" + inner.Message);
         }
     }
 

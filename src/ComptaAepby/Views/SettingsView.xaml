@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="ComptaAepby.Views.SettingsView"
+<UserControl x:Class="ComptaAepby.Views.SettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid>
@@ -207,6 +207,12 @@
                                    Text="Exécute un fichier .sql sur la base actuelle (par ex. le script PostgreSQL généré à partir d'une base de test, qui remplace les tables de l'application). Une sauvegarde est faite avant ; si le script échoue, rien n'est modifié."/>
                         <Button x:Name="SqlScriptButton" Content="Exécuter un script SQL…" Style="{StaticResource DangerButton}"
                                 HorizontalAlignment="Left" Margin="0,8,0,0" Click="SqlScript_Click"/>
+
+                        <TextBlock Text="Vider la base de données" Style="{StaticResource SectionText}"/>
+                        <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap"
+                                   Text="Supprime toutes les données (exercices, comptes bancaires, écritures, ventilations, justificatifs) mais conserve les comptes utilisateurs et le journal. Réservé aux administrateurs. Une sauvegarde est faite avant ; l'opération est irréversible sans cette sauvegarde."/>
+                        <Button x:Name="ResetDataButton" Content="Vider la base (conserver les utilisateurs)…" Style="{StaticResource DangerButton}"
+                                HorizontalAlignment="Left" Margin="0,8,0,0" Click="ResetData_Click"/>
 
                         <TextBlock Text="Journal des opérations sensibles" Style="{StaticResource SectionText}"/>
                         <DataGrid x:Name="AuditGrid" MaxHeight="280">

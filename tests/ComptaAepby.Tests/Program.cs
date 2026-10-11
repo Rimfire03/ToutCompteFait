@@ -1361,6 +1361,30 @@ Console.WriteLine("Détection du compte du relevé");
     c.UpdateAccount(livret.Id, livret.Name, livret.Kind, true, "11122233344");
     Eq(2, c.MatchStatementAccounts(fichierCourant).Count, "identifiants en double : ambigu");
 }
+// ---- Vidage de la base (utilisateurs conservés)
+Console.WriteLine("Vidage de la base");
+{
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    var ch = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Charge);
+    var dep = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 3), "Achat", false, EntryKind.Normal, banque.Id, Direction.Out, null, 4000, null, null),
+        new[] { new Allocation(ch.Id, 4000) });
+    c.AddAttachment(dep, "t.txt", new byte[] { 1, 2, 3 });
+    c.SaveEntry(new Entry(0, y.Id, Dt(2026, 11, 3), "Remb", false, EntryKind.Normal, banque.Id, Direction.In, null, 1000, null, null, dep),
+        new[] { new Allocation(ch.Id, -1000) });
+    c.ValidateYear(y.Id, null, force: true);
+    var users = new AuthService(f).HasUsers();
+    c.ResetDatabaseData();
+    Eq(0, c.Years().Count, "plus aucun exercice");
+    Eq(0, c.Accounts(includeInactive: true).Count, "plus aucun compte bancaire");
+    Eq(users, new AuthService(f).HasUsers(), "comptes utilisateurs conservés");
+    Check(c.AuditLog(20).Any(a => a.Action == "Base de données vidée"), "opération consignée au journal");
+    var y2 = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    Check(c.Accounts().Count > 0 && y2.Id > 0, "la base vidée reste utilisable");
+}
+
 // ---- Fichier de configuration du serveur
 {
     var cfgPath = Path.Combine(Path.GetTempPath(), "tcf-config-" + Guid.NewGuid().ToString("N") + ServerConfigFile.Extension);
