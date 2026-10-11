@@ -136,6 +136,8 @@
                         <Button Content="＋ Nouvel utilisateur" Style="{StaticResource PrimaryButton}" Click="AddUser_Click"/>
                         <Button Content="Modifier" Style="{StaticResource SecondaryButton}" Click="EditUser_Click"/>
                         <Button Content="Réinitialiser le mot de passe" Style="{StaticResource SecondaryButton}" Click="ResetPassword_Click"/>
+                        <Button Content="⬇  Télécharger la configuration" Style="{StaticResource SecondaryButton}" Click="ExportConfig_Click"
+                                ToolTip="Fichier contenant les informations de connexion à la base de données : à fournir au premier lancement d'un autre poste."/>
                     </WrapPanel>
                     <DataGrid x:Name="UsersGrid" MaxHeight="420" MouseDoubleClick="UsersGrid_DoubleClick">
                         <DataGrid.Columns>

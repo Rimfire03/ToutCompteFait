@@ -108,21 +108,7 @@ public partial class MainWindow : Window
             ReadOnlyBanner.Visibility = Visibility.Collapsed;
         }
         NewYearButton.IsEnabled = App.Can(Permission.ManageStructure);
-        ExportConfigButton.Visibility = App.HasRole(Permission.ManageDatabase) ? Visibility.Visible : Visibility.Collapsed;
         _ = App.DatabaseHealth.CheckNowAsync();
-    }
-    /// <summary>Menu utilisateur : fichier de configuration (connexion à la base) pour le premier lancement d'un autre poste.
-    /// Réservé aux administrateurs : il peut contenir le mot de passe du serveur.</summary>
-    private void ExportConfig_Click(object sender, RoutedEventArgs e)
-    {
-        if (!App.HasRole(Permission.ManageDatabase)) { Ui.Error("Réservé aux administrateurs."); return; }
-        if (!App.Target.IsServer)
-        {
-            Ui.Info("Cette installation utilise un fichier de base de données local :\n" + App.Target.FilePath +
-                    "\n\nLe fichier de configuration ne concerne que les bases sur serveur (PostgreSQL, MariaDB, SQL Server).");
-            return;
-        }
-        ConfigLoader.Export(this, App.Settings.DatabaseServer);
     }
 
     private void ChangePassword_Click(object sender, RoutedEventArgs e)

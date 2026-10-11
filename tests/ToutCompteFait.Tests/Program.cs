@@ -612,6 +612,13 @@ Console.WriteLine("Import du relevé bancaire");
         Eq(-2500L, c.Entries(y.Id).First(r => r.Entry.Id == av.Id).Allocations.Single().AmountCents, "entrée classée en charge = avoir (négatif)");
         Eq(0L, c.ComputeBilan(y.Id).UnallocatedGap, "avoir cohérent avec la trésorerie");
 
+        // Écriture importée de la banque : le montant fait foi et ne peut plus être modifié.
+        var avRow = c.Entries(y.Id).First(r => r.Entry.Id == av.Id);
+        Check(avRow.Entry.FromBank, "écriture importée : marquée « banque »");
+        Throws(() => c.SaveEntry(avRow.Entry with { AmountCents = 2600 }, avRow.Allocations), "montant d'une écriture bancaire verrouillé", "relevé fait foi");
+        c.SaveEntry(avRow.Entry with { Label = "REMBOURSEMENT AMAZON (note)" }, avRow.Allocations);
+        Eq("REMBOURSEMENT AMAZON (note)", c.Entries(y.Id).First(r => r.Entry.Id == av.Id).Entry.Label, "le libellé reste modifiable");
+
         // Exercice validé : plus d'import dessus
         c.SaveEntry(new Entry(0, y0.Id, Dt(2025, 3, 1), "vieux", false, EntryKind.Normal, banque.Id, Direction.Out, null, 500, null, null),
             new[] { new Allocation(c.Categories(y0.Id).First(k => k.Kind == CategoryKind.Charge).Id, 500) });

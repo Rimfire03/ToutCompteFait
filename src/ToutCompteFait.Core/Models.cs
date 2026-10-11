@@ -48,7 +48,7 @@ public sealed record Category(long Id, long YearId, CategoryKind Kind, string Na
 
 public sealed record Entry(long Id, long YearId, DateOnly Date, string Label, bool Pointed, EntryKind Kind,
     long? AccountId, Direction Direction, long? ToAccountId, long AmountCents, string? MemberName, string? Note,
-    long? RefundOfId = null)
+    long? RefundOfId = null, bool FromBank = false)
 {
     /// <summary>Effet net sur la trésorerie de l'association (0 pour un virement interne).</summary>
     public long NetCash => Kind is EntryKind.Transfer or EntryKind.NoCash ? 0 : (Direction == Direction.In ? AmountCents : -AmountCents);

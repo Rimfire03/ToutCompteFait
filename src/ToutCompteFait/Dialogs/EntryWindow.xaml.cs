@@ -581,6 +581,13 @@ public partial class EntryWindow : Window
         DatePick.SelectedDate = e.Date.ToDateTime(TimeOnly.MinValue);
         LabelBox.Text = e.Label;
         AmountBox.Text = Money.Format(e.AmountCents);
+        if (e.FromBank)
+        {
+            // Importée de la banque : le relevé fait foi, le montant n'est plus modifiable.
+            AmountBox.IsReadOnly = true;
+            AmountBox.Background = System.Windows.Media.Brushes.WhiteSmoke;
+            AmountBox.ToolTip = "Écriture importée de la banque : le montant est celui du relevé et ne peut pas être modifié.";
+        }
         NoteBox.Text = e.Note ?? "";
         PointedBox.IsChecked = e.Pointed;
         MemberBox.Text = e.MemberName ?? "";

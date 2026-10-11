@@ -131,10 +131,7 @@
                                     <Button Content="Déconnexion" Style="{StaticResource SecondaryButton}" Padding="8,4" FontSize="12"
                                             Margin="0" Click="Logout_Click"/>
                                 </StackPanel>
-                                <Button x:Name="ExportConfigButton" Content="⬇  Télécharger la configuration" Style="{StaticResource SecondaryButton}"
-                                        Padding="8,4" FontSize="12" Margin="0,6,0,0" HorizontalAlignment="Stretch"
-                                        Click="ExportConfig_Click" Visibility="Collapsed"
-                                        ToolTip="Fichier contenant les informations de connexion à la base de données : à fournir au premier lancement d'un autre poste."/>
+
                             </StackPanel>
                         </Border>
                         <Border Height="1" Background="{StaticResource BrushSidebarBorder}" Margin="16,4,16,8"/>

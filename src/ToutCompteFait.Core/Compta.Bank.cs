@@ -284,6 +284,7 @@ public sealed partial class Compta
                         e.AccountId = lineReceives ? otherAccount : lineAccount;
                         e.ToAccountId = lineReceives ? lineAccount : otherAccount;
                         e.MemberName = null;
+                        e.ImportRef ??= "banque";
                         ctx.Allocations.RemoveRange(ctx.Allocations.Where(a => a.EntryId == e.Id));
                         if (markPointed) e.Pointed = true;
                         e.UpdatedAt = now;
@@ -291,6 +292,8 @@ public sealed partial class Compta
                         break;
                     }
                     var changed = false;
+                    // Écriture saisie à la main puis retrouvée sur le relevé : le montant est désormais celui de la banque.
+                    if (e.ImportRef is null) { e.ImportRef = "banque"; changed = true; }
                     if (status == BankLineStatus.LabelUpdated && e.Label != p.Line.Label)
                     {
                         e.Label = p.Line.Label;

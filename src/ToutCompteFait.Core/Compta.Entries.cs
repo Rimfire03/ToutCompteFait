@@ -61,6 +61,13 @@ public sealed partial class Compta
     {
         RequireOpen(entry.YearId);
         var year = Year(entry.YearId)!;
+        if (entry.Id != 0)
+        {
+            // Écriture importée de la banque : le relevé fait foi, le montant ne se modifie pas.
+            var current = EntryById(entry.Id)?.Entry;
+            if (current is { FromBank: true } && current.AmountCents != entry.AmountCents)
+                throw new ComptaException($"Le montant d'une écriture importée de la banque ne peut pas être modifié : le relevé fait foi ({Money.Format(current.AmountCents)} €).".Replace("d'une","d'une"));
+        }
 
         if (string.IsNullOrWhiteSpace(entry.Label)) throw new ComptaException("Le libellé est obligatoire.");
         if (entry.AmountCents <= 0) throw new ComptaException("Le montant doit être supérieur à zéro.");
