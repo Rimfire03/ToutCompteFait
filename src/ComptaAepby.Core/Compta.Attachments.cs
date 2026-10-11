@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using ComptaAepby.Core.Data;
 using ComptaAepby.Core.Security;
 using Microsoft.EntityFrameworkCore;
@@ -85,8 +86,25 @@ public sealed partial class Compta
     public byte[] AttachmentData(long attachmentId)
     {
         using var l = Open();
-        return l.Ctx.Attachments.AsNoTracking().Where(a => a.Id == attachmentId).Select(a => a.Data).FirstOrDefault()
-               ?? throw new ComptaException("Justificatif introuvable.");
+        var row = l.Ctx.Attachments.AsNoTracking().Where(a => a.Id == attachmentId)
+                      .Select(a => new { a.Data, a.Compression }).FirstOrDefault()
+                  ?? throw new ComptaException("Justificatif introuvable.");
+        if (row.Compression != "BROTLI") return row.Data;
+        using var input = new MemoryStream(row.Data);
+        using var brotli = new BrotliStream(input, CompressionMode.Decompress);
+        using var output = new MemoryStream();
+        brotli.CopyTo(output);
+        return output.ToArray();
+    }
+
+    /// <summary>Compresse sans perte (Brotli) ; renvoie le contenu d'origine si le gain est inférieur à 5 %
+    /// (PDF, JPEG… déjà compressés).</summary>
+    internal static (byte[] Stored, string Compression) Pack(byte[] data)
+    {
+        using var output = new MemoryStream();
+        using (var brotli = new BrotliStream(output, CompressionLevel.Optimal, leaveOpen: true))
+            brotli.Write(data, 0, data.Length);
+        return output.Length < data.Length * 0.95 ? (output.ToArray(), "BROTLI") : (data, "NONE");
     }
 
     /// <summary>Joint un fichier à une écriture (exercice ouvert, droit de saisie).</summary>
@@ -97,13 +115,15 @@ public sealed partial class Compta
         var name = CheckAttachmentFile(fileName, data.Length);
 
         using var l = Open();
+        var (stored, compression) = Pack(data);
         var e = new AttachmentEntity
         {
             EntryId = entryId, FileName = name, ContentType = ContentTypeOf(name), SizeBytes = data.Length,
-            Data = data, AddedAt = Now(), AddedBy = UserName
+            Data = stored, Compression = compression, AddedAt = Now(), AddedBy = UserName
         };
         l.Ctx.Attachments.Add(e);
-        Log(l.Ctx, "Justificatif ajouté", $"{row.Entry.Date:dd/MM/yyyy} « {row.Entry.Label} » : {name} ({data.Length / 1024} Ko)");
+        Log(l.Ctx, "Justificatif ajouté", $"{row.Entry.Date:dd/MM/yyyy} « {row.Entry.Label} » : {name} ({data.Length / 1024} Ko" +
+            (compression == "BROTLI" ? $", compressé en {stored.Length / 1024} Ko" : "") + ")");
         Save(l.Ctx);
         return e.Id;
     }

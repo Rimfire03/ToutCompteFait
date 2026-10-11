@@ -203,6 +203,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.ContentType).HasColumnName("content_type").HasMaxLength(100).IsRequired();
             e.Property(x => x.SizeBytes).HasColumnName("size_bytes");
             e.Property(x => x.Data).HasColumnName("data").IsRequired();
+            e.Property(x => x.Compression).HasColumnName("compression").HasMaxLength(10).IsRequired();
             e.Property(x => x.AddedAt).HasColumnName("added_at").HasMaxLength(30).IsRequired();
             e.Property(x => x.AddedBy).HasColumnName("added_by").HasMaxLength(200);
             e.HasIndex(x => x.EntryId).HasDatabaseName("ix_attach_entry");

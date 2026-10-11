@@ -78,6 +78,8 @@ public sealed class AttachmentEntity
     public string ContentType { get; set; } = "";
     public long SizeBytes { get; set; }
     public byte[] Data { get; set; } = Array.Empty<byte>();
+    /// <summary>« NONE » (contenu tel quel) ou « BROTLI » (contenu compressé, SizeBytes = taille d'origine).</summary>
+    public string Compression { get; set; } = "NONE";
     public string AddedAt { get; set; } = "";
     public string? AddedBy { get; set; }
 }

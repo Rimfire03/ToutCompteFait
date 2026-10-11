@@ -1220,6 +1220,17 @@ Console.WriteLine("Justificatifs");
     Eq("application/pdf", list[0].ContentType, "type déduit de l'extension");
     Check(c.AttachmentData(aid).SequenceEqual(bytes), "contenu relu à l'identique");
     Eq(1, c.AttachmentCounts(y.Id)[id], "compteur par écriture");
+    // Compression sans perte : un texte répétitif est stocké compressé et relu à l'identique.
+    var text = System.Text.Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("Facture papeterie ligne 1234,56 EUR\n", 2000)));
+    var tid = c.AddAttachment(id, "releve.txt", text);
+    Check(c.AttachmentData(tid).SequenceEqual(text), "contenu compressé relu à l'identique");
+    using (var cx = f.Create())
+    {
+        var stored = cx.Attachments.AsNoTracking().Where(a => a.Id == tid).Select(a => a.Data.Length).First();
+        Check(stored < text.Length / 10, "texte répétitif : taille stockée très réduite");
+        Eq(text.Length, (int)c.Attachments(id).First(a => a.Id == tid).SizeBytes, "taille d'origine conservée");
+    }
+    c.RemoveAttachment(tid);
     Throws(() => c.AddAttachment(id, "virus.exe", bytes), "exécutable refusé", "pas accepté");
     Throws(() => c.AddAttachment(id, "gros.pdf", new byte[Compta.MaxAttachmentBytes + 1]), "fichier trop gros refusé", "trop gros");
     var before1 = c.ComputeChecksum(y.Id);

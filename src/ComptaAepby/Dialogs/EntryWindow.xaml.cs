@@ -164,7 +164,13 @@ public partial class EntryWindow : Window
             {
                 var info = new System.IO.FileInfo(path);
                 var name = Compta.CheckAttachmentFile(info.Name, info.Length);
-                _atts.Add(new AttachItem { Name = name, Size = info.Length, Data = System.IO.File.ReadAllBytes(path) });
+                var data = System.IO.File.ReadAllBytes(path);
+                if (OptimizeBox.IsChecked == true)
+                {
+                    var opt = ImageOptimizer.Optimize(name, data);
+                    if (opt.Optimized) { name = opt.Name; data = opt.Data; }
+                }
+                _atts.Add(new AttachItem { Name = name, Size = data.Length, Data = data });
             }
             catch (Exception ex) when (ex is ComptaException or System.IO.IOException or UnauthorizedAccessException)
             {

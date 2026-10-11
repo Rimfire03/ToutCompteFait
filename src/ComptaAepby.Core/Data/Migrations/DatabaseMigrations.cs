@@ -65,6 +65,7 @@ internal static class DatabaseMigrations
                     "content_type" TEXT NOT NULL,
                     "size_bytes" INTEGER NOT NULL,
                     "data" BLOB NOT NULL,
+                    "compression" TEXT NOT NULL DEFAULT 'NONE',
                     "added_at" TEXT NOT NULL,
                     "added_by" TEXT NULL,
                     CONSTRAINT "FK_attachments_entries_entry_id" FOREIGN KEY ("entry_id") REFERENCES "entries" ("id") ON DELETE CASCADE
@@ -78,6 +79,7 @@ internal static class DatabaseMigrations
                     "content_type" varchar(100) NOT NULL,
                     "size_bytes" bigint NOT NULL,
                     "data" bytea NOT NULL,
+                    "compression" varchar(10) NOT NULL DEFAULT 'NONE',
                     "added_at" varchar(30) NOT NULL,
                     "added_by" varchar(200) NULL
                 );
@@ -90,6 +92,7 @@ internal static class DatabaseMigrations
                     `content_type` varchar(100) NOT NULL,
                     `size_bytes` bigint NOT NULL,
                     `data` longblob NOT NULL,
+                    `compression` varchar(10) NOT NULL DEFAULT 'NONE',
                     `added_at` varchar(30) NOT NULL,
                     `added_by` varchar(200) NULL,
                     CONSTRAINT `FK_attachments_entries_entry_id` FOREIGN KEY (`entry_id`) REFERENCES `entries` (`id`) ON DELETE CASCADE
@@ -103,6 +106,7 @@ internal static class DatabaseMigrations
                     [content_type] nvarchar(100) NOT NULL,
                     [size_bytes] bigint NOT NULL,
                     [data] varbinary(max) NOT NULL,
+                    [compression] nvarchar(10) NOT NULL DEFAULT 'NONE',
                     [added_at] nvarchar(30) NOT NULL,
                     [added_by] nvarchar(200) NULL,
                     CONSTRAINT [FK_attachments_entries_entry_id] FOREIGN KEY ([entry_id]) REFERENCES [entries] ([id]) ON DELETE CASCADE

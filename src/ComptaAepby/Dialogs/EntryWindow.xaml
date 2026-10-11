@@ -93,6 +93,9 @@
                     <Button x:Name="AttachOpenButton" Content="Ouvrir" Style="{StaticResource SecondaryButton}" Click="AttachOpen_Click"/>
                     <Button x:Name="AttachRemoveButton" Content="Retirer" Style="{StaticResource SecondaryButton}" Click="AttachRemove_Click"/>
                 </WrapPanel>
+                <CheckBox x:Name="OptimizeBox" IsChecked="True" Margin="0,6,0,0"
+                          Content="Réduire les photos et scans volumineux (économise de la place dans la base)"
+                          ToolTip="Les images de plus de 300 Ko sont redimensionnées (2000 px max) et recompressées en JPEG. Le fichier d'origine n'est pas modifié. Les PDF ne sont pas touchés."/>
             </StackPanel>
 
             <TextBlock x:Name="ErrorText" Foreground="{StaticResource BrushDangerDark}" Margin="0,12,0,0" TextWrapping="Wrap"/>
