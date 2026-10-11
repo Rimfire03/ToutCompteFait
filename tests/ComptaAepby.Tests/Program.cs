@@ -1284,6 +1284,37 @@ Console.WriteLine("Remboursements partiels");
         new[] { new Allocation(ch.Id, 100) }), "seule une entrée d'argent peut être un remboursement", "entrée d");
     Check(c.RefundOrigins(y.Id).ContainsKey(r2), "origine du remboursement retrouvée");
 }
+// ---- Copie de base avec exercice validé (sauvegarde d'une base serveur, export)
+Console.WriteLine("Copie avec exercice validé");
+{
+    var srcPath = TempDb();
+    var f = NewFactory(srcPath);
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    var ch = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Charge);
+    var dep = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 3), "Achat", false, EntryKind.Normal, banque.Id, Direction.Out, null, 4000, null, null),
+        new[] { new Allocation(ch.Id, 4000) });
+    c.AddAttachment(dep, "ticket.txt", System.Text.Encoding.UTF8.GetBytes("ticket"));
+    c.SaveEntry(new Entry(0, y.Id, Dt(2026, 11, 3), "Remb", false, EntryKind.Normal, banque.Id, Direction.In, null, 1000, null, null, dep),
+        new[] { new Allocation(ch.Id, -1000) });
+    c.ValidateYear(y.Id);
+    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+    var dstPath = Path.Combine(Path.GetTempPath(), "tcf-copy-" + Guid.NewGuid().ToString("N") + ".db");
+    var rep = DatabaseCopier.Copy(DbTarget.ForFile(srcPath), DbTarget.ForFile(dstPath), "copie-test", replaceDestination: false);
+    Check(rep.IsComplete, "copie complète malgré l'exercice validé");
+    var c2 = NewCompta(NewFactory(dstPath));
+    Check(c2.Year(y.Id)!.Validated, "exercice toujours validé dans la copie");
+    Eq(2, c2.Entries(y.Id).Count, "écritures copiées");
+    Check(c2.VerifyIntegrity(y.Id), "empreinte conforme dans la copie");
+    Eq(1, c2.Attachments(dep).Count, "justificatif copié");
+    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+    var rep2 = DatabaseCopier.Copy(DbTarget.ForFile(srcPath), DbTarget.ForFile(dstPath), "copie-test", replaceDestination: true);
+    Check(rep2.IsComplete, "copie par remplacement d'une base contenant un exercice validé");
+    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+    try { File.Delete(dstPath); } catch { }
+}
 // ---- Fichier de configuration du serveur
 {
     var cfgPath = Path.Combine(Path.GetTempPath(), "tcf-config-" + Guid.NewGuid().ToString("N") + ServerConfigFile.Extension);

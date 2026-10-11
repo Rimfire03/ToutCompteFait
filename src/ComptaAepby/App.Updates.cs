@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using ComptaAepby.Core.Services;
 
 namespace ComptaAepby;
@@ -61,7 +61,7 @@ public partial class App
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"La mise à jour a échoué : {ex.Message}", "Mise à jour", MessageBoxButton.OK, MessageBoxImage.Error);
+            ShowUpdateFailure(info, ex.Message);
             return false;
         }
     }
@@ -100,13 +100,52 @@ public partial class App
     {
         try
         {
-            if (!IsReadOnly) await Task.Run(() => DbFactory.CreateBackup("avant-mise-a-jour"));
+            if (!IsReadOnly)
+            {
+                try
+                {
+                    await Task.Run(() => DbFactory.CreateBackup("avant-mise-a-jour"));
+                }
+                catch (Exception ex)
+                {
+                    while (ex.InnerException is not null) ex = ex.InnerException;
+                    // La mise à jour du logiciel ne modifie pas la base : la sauvegarde préalable est une précaution.
+                    if (!Ui.Confirm("La sauvegarde de la base avant la mise à jour a échoué :\n" + ex.Message +
+                                    "\n\nInstaller quand même la mise à jour ? (L'installation ne modifie pas vos données ; " +
+                                    "une migration éventuelle de la base fera sa propre sauvegarde.)", "Sauvegarde impossible"))
+                        return;
+                }
+            }
             await Updater.DownloadAndApplyAsync(info);
             Current.Shutdown();
         }
         catch (Exception ex)
         {
-            Ui.Error($"La mise à jour a échoué : {ex.Message}", "Mise à jour");
+            ShowUpdateFailure(info, ex.Message);
+        }
+    }
+
+    /// <summary>La mise à jour automatique a échoué : explique l'erreur et propose la page de téléchargement pour une
+    /// installation manuelle (zip portable ou installateur MSI).</summary>
+    public static void ShowUpdateFailure(UpdateInfo info, string reason)
+    {
+        var url = string.IsNullOrWhiteSpace(info.ReleaseUrl) ? info.AssetUrl : info.ReleaseUrl;
+        var answer = MessageBox.Show(
+            $"La mise à jour automatique vers la version {info.Version} a échoué :\n{reason}\n\n" +
+            "Vous pouvez installer cette version manuellement : téléchargez-la depuis la page ci-dessous (installateur .msi " +
+            "ou archive .zip), puis lancez-la. Vos données ne sont pas touchées.\n\n" + url +
+            "\n\nOuvrir la page de téléchargement maintenant ?",
+            "Mise à jour impossible", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.Yes);
+        if (answer != MessageBoxResult.Yes) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            Clipboard.SetText(url);
+            MessageBox.Show("Impossible d'ouvrir le navigateur. Le lien a été copié dans le presse-papiers :\n" + url,
+                "Mise à jour impossible", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 }

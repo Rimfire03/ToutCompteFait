@@ -59,9 +59,13 @@ public static class DatabaseCopier
                 if (hasAnyRow)
                 {
                     progress?.Report("Vidage de la base de destination...");
+                    // Les exercices validés verrouillent leurs données (déclencheurs SQLite) : on les rouvre le temps du vidage ;
+                    // ils sont de toute façon remplacés par ceux de la source.
+                    dst.Database.ExecuteSqlRaw("UPDATE fiscal_years SET status = 'OPEN' WHERE status = 'VALIDATED'");
                     foreach (var e in Enumerable.Reverse(ordered)) Invoke<int>(nameof(DeleteAll), e, dst);
                 }
 
+                s_validatedYears.Clear();
                 var done = 0;
                 foreach (var e in ordered)
                 {
@@ -77,10 +81,19 @@ public static class DatabaseCopier
                         throw new InvalidOperationException($"Échec de la copie de la table « {name} » : {Innermost(ex).Message}", ex);
                     }
                 }
+                // Exercices validés : leur statut est remis une fois toutes leurs données copiées (inséré tel quel, il
+                // aurait bloqué la copie des écritures de l'exercice).
+                if (s_validatedYears.Count > 0)
+                {
+                    var ids = s_validatedYears.ToList();
+                    dst.Set<YearEntity>().Where(y => ids.Contains(y.Id)).ExecuteUpdate(s => s.SetProperty(y => y.Status, "VALIDATED"));
+                    s_validatedYears.Clear();
+                }
                 tx.Commit();
             }
             catch
             {
+                s_validatedYears.Clear();
                 tx.Rollback();
                 throw;
             }
@@ -118,13 +131,38 @@ public static class DatabaseCopier
     private static int CountRows<T>(AppDbContext ctx, IEntityType _) where T : class =>
         ctx.Set<T>().AsNoTracking().Count();
 
-    private static int DeleteAll<T>(AppDbContext ctx, IEntityType _) where T : class =>
-        ctx.Set<T>().ExecuteDelete();
+    private static int DeleteAll<T>(AppDbContext ctx, IEntityType entity) where T : class
+    {
+        // Clés étrangères vers la même table (remboursement -> dépense, report -> source) : à vider d'abord, car la
+        // suppression d'une ligne encore référencée est refusée (RESTRICT) même au sein d'une seule commande.
+        var table = entity.GetTableName()!;
+        foreach (var fk in entity.GetForeignKeys().Where(f => f.PrincipalEntityType == entity))
+        {
+            var col = fk.Properties[0].GetColumnName();
+            ctx.Database.ExecuteSqlRaw(
+                $"UPDATE {ServerSql.Q(ctx.Provider, table)} SET {ServerSql.Q(ctx.Provider, col)} = NULL");
+        }
+        return ctx.Set<T>().ExecuteDelete();
+    }
+
+    /// <summary>Exercices validés de la source, dont le statut est rétabli en fin de copie (la copie tourne sur un seul
+    /// thread).</summary>
+    [ThreadStatic] private static List<long>? s_validatedYearsField;
+    private static List<long> s_validatedYears => s_validatedYearsField ??= new List<long>();
 
     private static int CopyTable<T>(AppDbContext src, AppDbContext dst, IEntityType entity) where T : class
     {
         var rows = src.Set<T>().AsNoTracking().ToList();
         if (rows.Count == 0) return 0;
+        if (typeof(T) == typeof(YearEntity))
+        {
+            foreach (var y in rows.Cast<YearEntity>())
+            {
+                if (y.Status != "VALIDATED") continue;
+                s_validatedYears.Add(y.Id);
+                y.Status = "OPEN";   // rétabli en fin de copie
+            }
+        }
         // Écritures : celles qui en référencent une autre (remboursement lié) passent après leur dépense d'origine.
         if (typeof(T) == typeof(ComptaAepby.Core.Data.EntryEntity))
             rows = rows.Cast<ComptaAepby.Core.Data.EntryEntity>().OrderBy(e => e.RefundOfId is null ? 0 : 1).ThenBy(e => e.Id)
