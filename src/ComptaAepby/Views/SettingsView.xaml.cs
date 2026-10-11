@@ -590,24 +590,41 @@ public partial class SettingsView : UserControl, IPage
                 "Selon le script, les données actuelles peuvent être REMPLACÉES. Une sauvegarde de l'état actuel est faite avant ; " +
                 "en cas d'erreur, rien n'est modifié. Le logiciel redémarrera.", "Exécuter un script SQL"))
             return;
-        try
-        {
-            Cursor = Cursors.Wait;
-            var safety = await Task.Run(() => App.DbFactory.CreateBackup("avant-script-sql"));
-            await Task.Run(() => SqlScriptRunner.Run(App.DbFactory, script));
-            Cursor = null;
-            Ui.Info("Script exécuté. L'état précédent est conservé dans :\n" + safety + "\n\nLe logiciel va redémarrer.");
-            App.Restart();
-        }
-        catch (Exception ex)
-        {
-            Cursor = null;
-            var inner = ex;
-            while (inner.InnerException is not null) inner = inner.InnerException;
-            Ui.Error("Le script a échoué, la base n'a pas été modifiée :\n" + inner.Message);
-        }
+        var safety = await RunWithSafetyBackupAsync("avant-script-sql", () => SqlScriptRunner.Run(App.DbFactory, script),
+            "Sauvegarde préalable impossible : le script n'a pas été exécuté, rien n'a été modifié.",
+            "Le script a échoué, la base n'a pas été modifiée :");
+        if (safety is null) return;
+        Ui.Info("Script exécuté. L'état précédent est conservé dans :\n" + safety + "\n\nLe logiciel va redémarrer.");
+        App.Restart();
     }
 
+    /// <summary>Opération destructive sur la base : sauvegarde préalable, puis exécution, dans cet ordre et en tout ou
+    /// rien. Affiche l'erreur (message le plus interne) et renvoie null en cas d'échec ; sinon le chemin de la sauvegarde.</summary>
+    private async Task<string?> RunWithSafetyBackupAsync(string backupReason, Action work, string backupFailure, string workFailure)
+    {
+        string safety;
+        Cursor = Cursors.Wait;
+        try
+        {
+            try { safety = await Task.Run(() => App.DbFactory.CreateBackup(backupReason)); }
+            catch (Exception ex)
+            {
+                Ui.Error(backupFailure + "\n" + ex.InnermostMessage());
+                return null;
+            }
+            try { await Task.Run(work); }
+            catch (Exception ex)
+            {
+                Ui.Error(workFailure + "\n" + ex.InnermostMessage());
+                return null;
+            }
+            return safety;
+        }
+        finally
+        {
+            Cursor = null;
+        }
+    }
     private async void ResetData_Click(object sender, RoutedEventArgs e)
     {
         if (App.IsReadOnly) { Ui.Error("Ce poste est en lecture seule : un autre poste détient l'écriture."); return; }
@@ -621,31 +638,12 @@ public partial class SettingsView : UserControl, IPage
         var word = PromptWindow.Ask(Window.GetWindow(this), "Confirmation",
             "Pour confirmer, tapez le mot VIDER (en majuscules) :", okText: "Vider la base");
         if (word is null || word.Trim() != "VIDER") { Ui.Info("Confirmation incorrecte : rien n'a été modifié."); return; }
-        try
-        {
-            Cursor = Cursors.Wait;
-            string safety;
-            try { safety = await Task.Run(() => App.DbFactory.CreateBackup("avant-vidage")); }
-            catch (Exception ex)
-            {
-                Cursor = null;
-                var inner = ex;
-                while (inner.InnerException is not null) inner = inner.InnerException;
-                Ui.Error("Sauvegarde préalable impossible : opération annulée, rien n'a été modifié.\n" + inner.Message);
-                return;
-            }
-            await Task.Run(() => _c.ResetDatabaseData());
-            Cursor = null;
-            Ui.Info("La base a été vidée (les comptes utilisateurs sont conservés).\nL'état précédent est sauvegardé dans :\n" + safety +
-                    "\n\nLe logiciel va redémarrer.");
-            App.Restart();
-        }
-        catch (Exception ex)
-        {
-            Cursor = null;
-            var inner = ex;
-            while (inner.InnerException is not null) inner = inner.InnerException;
-            Ui.Error("Le vidage a échoué, la base n'a pas été modifiée :\n" + inner.Message);
-        }
+        var safety = await RunWithSafetyBackupAsync("avant-vidage", () => _c.ResetDatabaseData(),
+            "Sauvegarde préalable impossible : opération annulée, rien n'a été modifié.",
+            "Le vidage a échoué, la base n'a pas été modifiée :");
+        if (safety is null) return;
+        Ui.Info("La base a été vidée (les comptes utilisateurs sont conservés).\nL'état précédent est sauvegardé dans :\n" + safety +
+                "\n\nLe logiciel va redémarrer.");
+        App.Restart();
     }
 }

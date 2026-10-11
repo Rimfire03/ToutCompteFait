@@ -78,7 +78,7 @@ public static class DatabaseCopier
                     }
                     catch (Exception ex)
                     {
-                        throw new InvalidOperationException($"Échec de la copie de la table « {name} » : {Innermost(ex).Message}", ex);
+                        throw new InvalidOperationException($"Échec de la copie de la table « {name} » : {ex.InnermostMessage()}", ex);
                     }
                 }
                 // Exercices validés : leur statut est remis une fois toutes leurs données copiées (inséré tel quel, il
@@ -219,11 +219,6 @@ public static class DatabaseCopier
         return result;
     }
 
-    private static Exception Innermost(Exception ex)
-    {
-        while (ex.InnerException is not null) ex = ex.InnerException;
-        return ex;
-    }
 }
 
 

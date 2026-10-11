@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using ComptaAepby.Core;
 using ComptaAepby.Core.Services;
@@ -106,11 +106,7 @@ public partial class DatabaseServerWindow : Window
         IsEnabled = !busy;
     }
 
-    private static string Describe(Exception ex)
-    {
-        while (ex.InnerException is not null) ex = ex.InnerException;
-        return ex.Message;
-    }
+    private static string Describe(Exception ex) => ex.InnermostMessage();
 
     private void ExportConfig_Click(object sender, RoutedEventArgs e)
     {

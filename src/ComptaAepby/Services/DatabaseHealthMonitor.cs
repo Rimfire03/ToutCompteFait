@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+using ComptaAepby.Core;
+using Microsoft.EntityFrameworkCore;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using ComptaAepby.Core.Services;
@@ -106,8 +107,7 @@ public partial class DatabaseHealthMonitor : ObservableObject
         }
         catch (Exception ex)
         {
-            while (ex.InnerException is not null) ex = ex.InnerException;
-            return ex.Message;
+            return ex.InnermostMessage();
         }
     }
 }

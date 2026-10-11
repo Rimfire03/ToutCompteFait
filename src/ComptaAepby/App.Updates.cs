@@ -1,3 +1,4 @@
+using ComptaAepby.Core;
 using System.Windows;
 using ComptaAepby.Core.Services;
 
@@ -108,9 +109,8 @@ public partial class App
                 }
                 catch (Exception ex)
                 {
-                    while (ex.InnerException is not null) ex = ex.InnerException;
                     // La mise à jour du logiciel ne modifie pas la base : la sauvegarde préalable est une précaution.
-                    if (!Ui.Confirm("La sauvegarde de la base avant la mise à jour a échoué :\n" + ex.Message +
+                    if (!Ui.Confirm("La sauvegarde de la base avant la mise à jour a échoué :\n" + ex.InnermostMessage() +
                                     "\n\nInstaller quand même la mise à jour ? (L'installation ne modifie pas vos données ; " +
                                     "une migration éventuelle de la base fera sa propre sauvegarde.)", "Sauvegarde impossible"))
                         return;

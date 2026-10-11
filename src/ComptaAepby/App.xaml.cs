@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Windows;
@@ -409,8 +409,7 @@ public partial class App : Application
             }
             catch (Exception ex)
             {
-                while (ex.InnerException is not null) ex = ex.InnerException;
-                error = ex.Message;
+                error = ex.InnermostMessage();
             }
 
             var choice = MessageBox.Show(

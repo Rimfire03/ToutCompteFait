@@ -252,10 +252,8 @@ public class DbContextFactory
         }
         catch (Exception ex)
         {
-            var inner = ex;
-            while (inner.InnerException is not null) inner = inner.InnerException;
             throw new InvalidOperationException(
-                $"La base « {_target.Server!.Database} » n'existe pas sur le serveur et n'a pas pu être créée : {inner.Message}\n" +
+                $"La base « {_target.Server!.Database} » n'existe pas sur le serveur et n'a pas pu être créée : {ex.InnermostMessage()}\n" +
                 "Créez-la sur le serveur, ou donnez à l'utilisateur le droit de créer des bases.", ex);
         }
 
