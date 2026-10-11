@@ -94,6 +94,7 @@
                     <DataGridTextColumn Header="Entrée" Binding="{Binding InText}" Width="88" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
                     <DataGridTextColumn Header="Sortie" Binding="{Binding OutText}" Width="88" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
                     <DataGridTextColumn Header="Solde" Binding="{Binding BalanceText}" Width="96" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                    <DataGridTextColumn Header="Remboursement" Binding="{Binding RefundText}" Width="170" ElementStyle="{StaticResource LeftCell}"/>
                     <DataGridTextColumn Header="Justif." Binding="{Binding AttachText}" Width="58" ElementStyle="{StaticResource LeftCell}"/>
                     <DataGridTemplateColumn Header="Ventilation" Width="250">
                         <DataGridTemplateColumn.CellTemplate>

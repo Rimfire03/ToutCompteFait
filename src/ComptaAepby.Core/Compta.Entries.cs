@@ -87,6 +87,20 @@ public sealed partial class Compta
         if (strict && !year.Contains(entry.Date))
             throw new ComptaException($"La date {entry.Date:dd/MM/yyyy} est hors de l'exercice {year.Label} ({year.Start:dd/MM/yyyy} - {year.End:dd/MM/yyyy}).");
 
+        if (entry.RefundOfId is { } origId)
+        {
+            if (entry.Kind != EntryKind.Normal || entry.Direction != Direction.In)
+                throw new ComptaException("Seul un remboursement reçu (entrée d'argent) peut être lié à une dépense.");
+            if (origId == entry.Id) throw new ComptaException("Un remboursement ne peut pas se rembourser lui-même.");
+            var orig = EntryById(origId) ?? throw new ComptaException("Dépense d'origine introuvable.");
+            if (orig.Entry.Direction != Direction.Out || orig.Entry.Kind is not (EntryKind.Normal or EntryKind.MemberRefund))
+                throw new ComptaException("L'écriture choisie n'est pas une dépense.");
+            var already = RefundedAmount(origId, entry.Id);
+            if (already + entry.AmountCents > orig.Entry.AmountCents)
+                throw new ComptaException($"Le remboursement dépasse la dépense : {Money.Format(orig.Entry.AmountCents)} € dépensés, " +
+                                          $"{Money.Format(already)} € déjà remboursés, il reste {Money.Format(orig.Entry.AmountCents - already)} € à rembourser.");
+        }
+
         var cats = Categories(entry.YearId).ToDictionary(c => c.Id);
         foreach (var a in allocations)
         {
@@ -126,6 +140,7 @@ public sealed partial class Compta
         e.AmountCents = entry.AmountCents;
         e.MemberName = member;
         e.Note = entry.Note;
+        e.RefundOfId = entry.Kind == EntryKind.Normal && entry.Direction == Direction.In ? entry.RefundOfId : null;
         e.UpdatedAt = Now();
         ctx.SaveChanges();
         foreach (var a in allocations)
@@ -140,6 +155,8 @@ public sealed partial class Compta
     {
         var row = EntryById(entryId) ?? throw new ComptaException("Écriture introuvable.");
         RequireOpen(row.Entry.YearId);
+        if (RefundedAmount(entryId) > 0)
+            throw new ComptaException("Cette dépense a des remboursements liés : modifiez ou supprimez d'abord les remboursements.");
         using var l = Open();
         var ctx = l.Ctx;
         ctx.Allocations.RemoveRange(ctx.Allocations.Where(a => a.EntryId == entryId));

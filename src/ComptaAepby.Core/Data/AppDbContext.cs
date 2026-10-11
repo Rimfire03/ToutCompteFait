@@ -171,12 +171,14 @@ public class AppDbContext : DbContext
             e.Property(x => x.MemberName).HasColumnName("member_name").HasMaxLength(200);
             e.Property(x => x.Note).HasColumnName("note").HasMaxLength(1000);
             e.Property(x => x.ImportRef).HasColumnName("import_ref").HasMaxLength(300);
+            e.Property(x => x.RefundOfId).HasColumnName("refund_of_id");
             e.Property(x => x.CreatedAt).HasColumnName("created_at").HasMaxLength(30).IsRequired();
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasMaxLength(30).IsRequired();
             e.HasIndex(x => new { x.YearId, x.EntryDate, x.Id }).HasDatabaseName("ix_entries_year");
             e.HasOne<YearEntity>().WithMany().HasForeignKey(x => x.YearId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<AccountEntity>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<AccountEntity>().WithMany().HasForeignKey(x => x.ToAccountId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<EntryEntity>().WithMany().HasForeignKey(x => x.RefundOfId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<AllocationEntity>(e =>

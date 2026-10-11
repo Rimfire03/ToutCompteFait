@@ -18,6 +18,7 @@ internal static class DatabaseMigrations
         (1, "Schéma initial (exercices, comptes, écritures, ventilations, reports, journal)", _ => { }),
         (2, "Comptes utilisateurs : mot de passe et rôles (administrateur, trésorier, lecteur)", AddUsers),
         (3, "Justificatifs joints aux écritures", AddAttachments),
+        (4, "Remboursements reçus liés à la dépense d'origine", AddRefundLink),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -31,6 +32,7 @@ internal static class DatabaseMigrations
     internal static readonly (int Version, string Description, Action<AppDbContext> Apply)[] ServerMigrations =
     {
         (3, "Justificatifs joints aux écritures", AddAttachments),
+        (4, "Remboursements reçus liés à la dépense d'origine", AddRefundLink),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -117,6 +119,24 @@ internal static class DatabaseMigrations
         ctx.Database.ExecuteSqlRaw(sql);
         var q = (string n) => ServerSql.Q(ctx.Provider, n);
         ctx.Database.ExecuteSqlRaw($"CREATE INDEX {q("ix_attach_entry")} ON {q("attachments")} ({q("entry_id")});");
+    }
+
+    // ------------------------------------------------------------------ v4 : lien remboursement -> dépense
+
+    private static void AddRefundLink(AppDbContext ctx)
+    {
+        if (ServerSql.ColumnExists(ctx, "entries", "refund_of_id")) return;
+        var sql = ctx.Provider switch
+        {
+            DatabaseProvider.Sqlite => """ALTER TABLE "entries" ADD COLUMN "refund_of_id" INTEGER NULL REFERENCES "entries" ("id");""",
+            DatabaseProvider.PostgreSql => """ALTER TABLE "entries" ADD COLUMN "refund_of_id" bigint NULL REFERENCES "entries" ("id");""",
+            DatabaseProvider.MariaDb => "ALTER TABLE `entries` ADD COLUMN `refund_of_id` bigint NULL, ADD CONSTRAINT `FK_entries_entries_refund_of_id` FOREIGN KEY (`refund_of_id`) REFERENCES `entries` (`id`);",
+            DatabaseProvider.SqlServer => "ALTER TABLE [entries] ADD [refund_of_id] bigint NULL CONSTRAINT [FK_entries_entries_refund_of_id] FOREIGN KEY REFERENCES [entries] ([id]);",
+            _ => throw new NotSupportedException()
+        };
+        ctx.Database.ExecuteSqlRaw(sql);
+        var q = (string n) => ServerSql.Q(ctx.Provider, n);
+        ctx.Database.ExecuteSqlRaw($"CREATE INDEX {q("ix_entries_refund")} ON {q("entries")} ({q("refund_of_id")});");
     }
 
     // ------------------------------------------------------------------ v2 : comptes utilisateurs (SQLite)

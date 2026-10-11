@@ -32,6 +32,9 @@ public sealed class LivreRow
     /// <summary>« 📎 n » quand l'écriture a des justificatifs joints.</summary>
     public string AttachText { get; init; } = "";
 
+    /// <summary>Dépense : « ↩ remboursé x € (reste y €) » ; remboursement : « ↩ de &lt;dépense d'origine&gt; ».</summary>
+    public string RefundText { get; init; } = "";
+
     /// <summary>Ventilation incohérente avec le montant, ou date hors exercice : à corriger (rouge).</summary>
     public bool Problem { get; init; }
 
@@ -112,6 +115,8 @@ public partial class LivreView : UserControl, IPage
         var cats = catList.ToDictionary(c => c.Id);
         var accounts = _c.Accounts(includeInactive: true).ToDictionary(a => a.Id);
         var attachCounts = _c.AttachmentCounts(_year.Id);
+        var refunded = _c.RefundedAmounts(_year.Id);
+        var refundOrigins = _c.RefundOrigins(_year.Id);
         var filter = AccountFilter.SelectedItem as Account;
         var accountFilter = filter is { Id: > 0 } ? filter.Id : (long?)null;
 
@@ -201,6 +206,11 @@ public partial class LivreView : UserControl, IPage
                 OutText = transferAll ? "" : Money.FormatOrBlank(outC),
                 BalanceText = Money.Format(running), Breakdown = breakdown,
                 AttachText = attachCounts.TryGetValue(e.Id, out var attachN) ? "📎 " + attachN : "",
+                RefundText = refundOrigins.TryGetValue(e.Id, out var origin) ? "↩ de " + origin
+                    : refunded.TryGetValue(e.Id, out var back)
+                        ? back >= e.AmountCents ? $"↩ remboursé en totalité ({Money.Format(back)} €)"
+                                                : $"↩ remboursé {Money.Format(back)} € (reste {Money.Format(e.AmountCents - back)} €)"
+                        : "",
                 Problem = (!needs && gap != 0) || !_year.Contains(e.Date),
                 ToFill = needs,
                 ProblemTip = tips.Count > 0 ? string.Join("\n", tips) : null,

@@ -216,7 +216,10 @@ public sealed partial class Compta
             sb.Append("E|").Append(e.Id).Append('|').Append(D(e.Date)).Append('|').Append(e.Label).Append('|')
               .Append(e.Pointed ? 1 : 0).Append('|').Append(e.Kind).Append('|').Append(e.AccountId).Append('|')
               .Append(e.Direction).Append('|').Append(e.ToAccountId).Append('|').Append(e.AmountCents).Append('|')
-              .Append(e.MemberName).Append('\n');
+              .Append(e.MemberName);
+            // Lien de remboursement : ajouté à l'empreinte seulement s'il existe (empreintes antérieures inchangées).
+            if (e.RefundOfId is not null) sb.Append("|R").Append(e.RefundOfId);
+            sb.Append('\n');
             foreach (var a in r.Allocations.OrderBy(a => a.CategoryId).ThenBy(a => a.AmountCents))
                 sb.Append("A|").Append(e.Id).Append('|').Append(a.CategoryId).Append('|').Append(a.AmountCents).Append('\n');
         }

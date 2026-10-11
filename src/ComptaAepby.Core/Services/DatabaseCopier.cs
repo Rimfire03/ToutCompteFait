@@ -1,4 +1,4 @@
-﻿using ComptaAepby.Core.Data;
+using ComptaAepby.Core.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
@@ -125,6 +125,10 @@ public static class DatabaseCopier
     {
         var rows = src.Set<T>().AsNoTracking().ToList();
         if (rows.Count == 0) return 0;
+        // Écritures : celles qui en référencent une autre (remboursement lié) passent après leur dépense d'origine.
+        if (typeof(T) == typeof(ComptaAepby.Core.Data.EntryEntity))
+            rows = rows.Cast<ComptaAepby.Core.Data.EntryEntity>().OrderBy(e => e.RefundOfId is null ? 0 : 1).ThenBy(e => e.Id)
+                .Cast<T>().ToList();
 
         var table = entity.GetTableName()!;
         var identity = FindIdentityColumn(entity);

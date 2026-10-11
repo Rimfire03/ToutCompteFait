@@ -29,6 +29,12 @@ public partial class EntryWindow : Window
     private readonly List<Category> _cats;
     private readonly List<AllocRow> _rows = new();
     private readonly List<AttachItem> _atts = new();
+    private readonly List<RefundItem> _refundItems = new();
+
+    private sealed record RefundItem(RefundCandidate? Candidate, string Display)
+    {
+        public override string ToString() => Display;
+    }
 
     /// <summary>Justificatif de la fenêtre : déjà enregistré (ExistingId) ou à joindre à l'enregistrement (Data).</summary>
     private sealed class AttachItem
@@ -54,6 +60,13 @@ public partial class EntryWindow : Window
         _accounts = _c.Accounts();
         _cats = _c.Categories(year.Id);
 
+        _refundItems.Add(new RefundItem(null, "— Aucune dépense liée —"));
+        foreach (var rc in _c.RefundCandidates(existing?.Entry.RefundOfId, existing?.Entry.Id ?? 0))
+            _refundItems.Add(new RefundItem(rc,
+                $"{rc.Entry.Date:dd/MM/yyyy} · {rc.Entry.Label} · {Money.Format(rc.Entry.AmountCents)} €" +
+                (rc.Refunded > 0 ? $" (déjà remboursé {Money.Format(rc.Refunded)} €)" : "") + $" · {rc.YearLabel}"));
+        RefundCombo.ItemsSource = _refundItems;
+        RefundCombo.SelectedIndex = 0;
         AccountCombo.ItemsSource = _accounts;
         ToAccountCombo.ItemsSource = _accounts;
         AccountCombo.SelectedIndex = _accounts.Count > 0 ? 0 : -1;
@@ -114,6 +127,7 @@ public partial class EntryWindow : Window
         AccountPanel.Visibility = m == Mode.NoCash ? Visibility.Collapsed : Visibility.Visible;
         ToAccountPanel.Visibility = m == Mode.Transfer ? Visibility.Visible : Visibility.Collapsed;
         MemberPanel.Visibility = m == Mode.Refund ? Visibility.Visible : Visibility.Collapsed;
+        RefundPanel.Visibility = m == Mode.Reimbursed ? Visibility.Visible : Visibility.Collapsed;
         AllocSection.Visibility = m == Mode.Transfer ? Visibility.Collapsed : Visibility.Visible;
         AccountLabel.Text = m == Mode.Transfer ? "Depuis le compte" : m is Mode.Income or Mode.Reimbursed ? "Compte crédité" : "Compte débité";
         ModeHelp.Text = m switch
@@ -132,6 +146,37 @@ public partial class EntryWindow : Window
         // Justificatifs : pour les dépenses (et si l'écriture en a déjà).
         AttachSection.Visibility = m is Mode.Expense or Mode.Refund || _atts.Any(a => !a.Removed)
             ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // ------------------------------------------------------------------ remboursement lié à une dépense
+
+    private RefundCandidate? SelectedRefund => (RefundCombo.SelectedItem as RefundItem)?.Candidate;
+
+    private void RefundCombo_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        var rc = SelectedRefund;
+        if (rc is null) { RefundInfo.Text = ""; return; }
+        RefundInfo.Text = $"Dépense de {Money.Format(rc.Entry.AmountCents)} € ; déjà remboursé {Money.Format(rc.Refunded)} € ; " +
+                          $"reste {Money.Format(rc.Remaining)} € (un remboursement partiel est possible).";
+        if (_init) return;
+        // Préremplissage : montant restant et catégorie de charge de la dépense d'origine.
+        if (!Money.TryParse(AmountBox.Text, out var cents) || cents <= 0) AmountBox.Text = Money.Format(rc.Remaining);
+        var last = _rows.Count > 0 ? _rows[^1] : null;
+        if (_rows.Count == 1 && last is not null && last.Combo.SelectedItem is null)
+        {
+            var origRow = _c.EntryById(rc.Entry.Id);
+            var origAlloc = origRow?.Allocations.FirstOrDefault();
+            if (origAlloc is not null)
+            {
+                var origCat = _c.Categories(rc.Entry.YearId).FirstOrDefault(c => c.Id == origAlloc.CategoryId);
+                var target = origCat is null ? null
+                    : last.Combo.Items.OfType<CatItem>().FirstOrDefault(i => i.Cat.Kind == origCat.Kind
+                        && string.Equals(i.Cat.Name, origCat.Name, StringComparison.CurrentCultureIgnoreCase));
+                if (target is not null) last.Combo.SelectedItem = target;
+            }
+        }
+        SyncSingleRow();
+        RefreshStatus();
     }
 
     // ------------------------------------------------------------------ justificatifs
@@ -402,7 +447,8 @@ public partial class EntryWindow : Window
 
         entry = new Entry(_existing?.Entry.Id ?? 0, _year.Id, date, LabelBox.Text.Trim(), PointedBox.IsChecked == true, kind,
             acc, dir, to, cents, m == Mode.Refund ? MemberBox.Text.Trim() : null,
-            string.IsNullOrWhiteSpace(NoteBox.Text) ? null : NoteBox.Text.Trim());
+            string.IsNullOrWhiteSpace(NoteBox.Text) ? null : NoteBox.Text.Trim(),
+            m == Mode.Reimbursed ? SelectedRefund?.Entry.Id : null);
         return true;
     }
 
@@ -492,7 +538,7 @@ public partial class EntryWindow : Window
             EntryKind.NoCash => Mode.NoCash,
             _ when e.Direction == Direction.In =>
                 // Argent encaissé ne touchant que des charges = remboursement reçu (déduit de la charge).
-                row.Allocations.Count > 0 && row.Allocations.All(al => _cats.Any(c => c.Id == al.CategoryId && c.Kind == CategoryKind.Charge))
+                e.RefundOfId is not null || row.Allocations.Count > 0 && row.Allocations.All(al => _cats.Any(c => c.Id == al.CategoryId && c.Kind == CategoryKind.Charge))
                     ? Mode.Reimbursed : Mode.Income,
             _ => Mode.Expense
         };
@@ -513,6 +559,8 @@ public partial class EntryWindow : Window
             AddAllocRow(cat, al.AmountCents * Factor(mode, cat.Kind), hasAmount: true);
         }
         if (_rows.Count == 0) AddAllocRow();
+        if (e.RefundOfId is { } origId)
+            RefundCombo.SelectedItem = _refundItems.FirstOrDefault(i => i.Candidate?.Entry.Id == origId) ?? _refundItems[0];
     }
 
     // ------------------------------------------------------------------ enregistrement

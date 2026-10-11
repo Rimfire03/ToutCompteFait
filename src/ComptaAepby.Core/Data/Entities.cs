@@ -66,6 +66,8 @@ public sealed class EntryEntity
     public string? MemberName { get; set; }
     public string? Note { get; set; }
     public string? ImportRef { get; set; }
+    /// <summary>Remboursement reçu : écriture de dépense d'origine (remboursement partiel ou total).</summary>
+    public long? RefundOfId { get; set; }
     public string CreatedAt { get; set; } = "";
     public string UpdatedAt { get; set; } = "";
 }

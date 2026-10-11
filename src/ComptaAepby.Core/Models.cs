@@ -1,4 +1,4 @@
-﻿namespace ComptaAepby.Core;
+namespace ComptaAepby.Core;
 
 public enum AccountKind { Bank, Savings, Cash, Other }
 
@@ -47,7 +47,8 @@ public sealed record Operation(long Id, long YearId, string Name, int Position);
 public sealed record Category(long Id, long YearId, CategoryKind Kind, string Name, int Position, long? OperationId);
 
 public sealed record Entry(long Id, long YearId, DateOnly Date, string Label, bool Pointed, EntryKind Kind,
-    long? AccountId, Direction Direction, long? ToAccountId, long AmountCents, string? MemberName, string? Note)
+    long? AccountId, Direction Direction, long? ToAccountId, long AmountCents, string? MemberName, string? Note,
+    long? RefundOfId = null)
 {
     /// <summary>Effet net sur la trésorerie de l'association (0 pour un virement interne).</summary>
     public long NetCash => Kind is EntryKind.Transfer or EntryKind.NoCash ? 0 : (Direction == Direction.In ? AmountCents : -AmountCents);

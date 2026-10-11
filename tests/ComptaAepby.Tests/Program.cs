@@ -98,7 +98,8 @@ if (args.Length >= 3 && args[0] == "pgsql")
             var store = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(table, e.GetSchema());
             var props = e.GetProperties().Select(p => (Name: p.GetColumnName(store)!, Clr: p.ClrType)).ToList();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT " + string.Join(", ", props.Select(p => "\"" + p.Name + "\"")) + " FROM \"" + table + "\"";
+            cmd.CommandText = "SELECT " + string.Join(", ", props.Select(p => "\"" + p.Name + "\"")) + " FROM \"" + table + "\"" +
+                              (table == "entries" ? " ORDER BY (\"refund_of_id\" IS NOT NULL), \"id\"" : "");
             var count = 0;
             sbSql.AppendLine($"-- {table}");
             using (var rd = cmd.ExecuteReader())
@@ -1247,6 +1248,41 @@ Console.WriteLine("Justificatifs");
     Throws(() => c.AddAttachment(id2, "autre.pdf", bytes), "exercice validé : ajout refusé", "validé");
     Throws(() => c.RemoveAttachment(c.Attachments(id2)[0].Id), "exercice validé : retrait refusé", "validé");
     Check(c.VerifyIntegrity(y.Id), "empreinte conforme avec justificatif");
+}
+// ---- Remboursements partiels liés à une dépense
+Console.WriteLine("Remboursements partiels");
+{
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    var ch = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Charge);
+    var dep = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 3), "Achat matériel", false, EntryKind.Normal, banque.Id, Direction.Out, null, 10000, null, null),
+        new[] { new Allocation(ch.Id, 10000) });
+    long Refund(long cents, long? of, string label = "Remboursement assurance") =>
+        c.SaveEntry(new Entry(0, y.Id, Dt(2026, 11, 3), label, false, EntryKind.Normal, banque.Id, Direction.In, null, cents, null, null, of),
+            new[] { new Allocation(ch.Id, -cents) });
+    var r1 = Refund(3000, dep);
+    Eq(3000L, c.RefundedAmount(dep), "premier remboursement partiel : 30 € sur 100 €");
+    var r2 = Refund(2500, dep);
+    Eq(5500L, c.RefundedAmount(dep), "plusieurs remboursements partiels cumulés");
+    Eq(5500L, c.RefundedAmounts(y.Id)[dep], "total remboursé par dépense");
+    Throws(() => Refund(5000, dep), "dépassement refusé", "dépasse");
+    Refund(4500, dep);
+    Eq(10000L, c.RefundedAmount(dep), "remboursement total atteint");
+    Throws(() => Refund(1, dep), "plus rien à rembourser", "dépasse");
+    Throws(() => c.DeleteEntry(dep), "dépense remboursée non supprimable", "remboursements liés");
+    // Modifier un remboursement : son propre montant n'est pas compté deux fois.
+    c.SaveEntry(new Entry(r1, y.Id, Dt(2026, 11, 3), "Remb corrigé", false, EntryKind.Normal, banque.Id, Direction.In, null, 3000, null, null, dep),
+        new[] { new Allocation(ch.Id, -3000) });
+    Eq(dep, c.EntryById(r1)!.Entry.RefundOfId, "lien conservé après modification");
+    Check(c.RefundCandidates().All(x => x.Entry.Id != dep), "dépense soldée non proposée");
+    var autre = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 12, 1), "Autre", false, EntryKind.Normal, banque.Id, Direction.Out, null, 500, null, null),
+        new[] { new Allocation(ch.Id, 500) });
+    Check(c.RefundCandidates().Any(x => x.Entry.Id == autre && x.Remaining == 500), "dépense non remboursée proposée");
+    Throws(() => c.SaveEntry(new Entry(0, y.Id, Dt(2026, 12, 2), "Recette", false, EntryKind.Normal, banque.Id, Direction.Out, null, 100, null, null, dep),
+        new[] { new Allocation(ch.Id, 100) }), "seule une entrée d'argent peut être un remboursement", "entrée d");
+    Check(c.RefundOrigins(y.Id).ContainsKey(r2), "origine du remboursement retrouvée");
 }
 // ---- Fichier de configuration du serveur
 {
