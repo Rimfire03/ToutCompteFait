@@ -201,6 +201,16 @@ public partial class SettingsView : UserControl, IPage
 
     // ------------------------------------------------------------------ opérations
 
+    private void AutoLinkOperations_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_canEdit) return;
+        var n = 0;
+        if (!Ui.Try(() => n = _c.AutoLinkOperations(_year.Id))) return;
+        Reload();
+        Ui.Info(n == 0 ? "Aucun nouveau rattachement : les produits et charges de même nom sont déjà associés."
+                       : $"{n} rattachement(s) fait(s) : chaque produit et charge de même nom est dans une opération du même nom.");
+    }
+
     private void AddOperation_Click(object sender, RoutedEventArgs e)
     {
         if (!_canEdit) return;

@@ -1398,6 +1398,47 @@ Console.WriteLine("Virements entre comptes");
     Eq(0, c.FindTransferPairs(y.Id).Count, "plus de paire à fusionner");
     Eq(1, c.Entries(y.Id).Count(r => r.Entry.Kind == EntryKind.Transfer && r.Entry.AmountCents == 20000), "un seul virement de 200 €");
 }
+// ---- Association automatique produit / charge de même nom
+Console.WriteLine("Association automatique des opérations");
+{
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31), cloneStructure: false);
+    var p = c.AddCategory(y.Id, CategoryKind.Product, "Loto Octobre");
+    Check(c.Categories(y.Id).First(k => k.Id == p.Id).OperationId is null, "produit seul : aucune opération");
+    var ch = c.AddCategory(y.Id, CategoryKind.Charge, "loto octobre");
+    var cats = c.Categories(y.Id);
+    var op = c.Operations(y.Id).FirstOrDefault(o => o.Name == "loto octobre" || o.Name == "Loto Octobre");
+    Check(op is not null, "opération créée avec le même nom");
+    Check(cats.First(k => k.Id == p.Id).OperationId == op!.Id && cats.First(k => k.Id == ch.Id).OperationId == op.Id,
+        "produit et charge de même nom rattachés à la même opération");
+    Eq(1, c.Operations(y.Id).Count, "une seule opération");
+
+    // Renommage : devient identique à un autre nom -> rattaché.
+    var p2 = c.AddCategory(y.Id, CategoryKind.Product, "Kermesse");
+    var c2 = c.AddCategory(y.Id, CategoryKind.Charge, "Kermesse 2026");
+    c.RenameCategory(c2.Id, "Kermesse");
+    var cats2 = c.Categories(y.Id);
+    Check(cats2.First(k => k.Id == p2.Id).OperationId is { } o2 && cats2.First(k => k.Id == c2.Id).OperationId == o2,
+        "renommage : rattachement automatique");
+
+    // Choix existant conservé : charge déjà dans une autre opération.
+    var autre = c.AddOperation(y.Id, "Autre");
+    var p3 = c.AddCategory(y.Id, CategoryKind.Product, "Garage");
+    var c3 = c.AddCategory(y.Id, CategoryKind.Charge, "Garagiste");
+    c.SetCategoryOperation(c3.Id, autre.Id);
+    c.RenameCategory(c3.Id, "Garage");
+    var cats3 = c.Categories(y.Id);
+    Eq(autre.Id, cats3.First(k => k.Id == c3.Id).OperationId, "rattachement existant jamais déplacé");
+    Eq(autre.Id, cats3.First(k => k.Id == p3.Id).OperationId, "le produit rejoint l'opération déjà choisie pour la charge");
+
+    // Catégories existantes : association en lot.
+    var p4 = c.AddCategory(y.Id, CategoryKind.Product, "Buvette");
+    var c4 = c.AddCategory(y.Id, CategoryKind.Charge, "Buvette");
+    c.SetCategoryOperation(p4.Id, null); c.SetCategoryOperation(c4.Id, null);
+    Eq(2, c.AutoLinkOperations(y.Id), "association en lot : 2 rattachements");
+    Eq(0, c.AutoLinkOperations(y.Id), "idempotent");
+}
 // ---- Fichier de configuration du serveur
 {
     var cfgPath = Path.Combine(Path.GetTempPath(), "tcf-config-" + Guid.NewGuid().ToString("N") + ServerConfigFile.Extension);

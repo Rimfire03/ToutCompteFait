@@ -586,7 +586,67 @@ public sealed partial class Compta
         var e = new CategoryEntity { YearId = yearId, Kind = k, Name = name, Position = pos };
         ctx.Categories.Add(e);
         Save(ctx);
+        // Un produit et une charge de même nom forment automatiquement une opération du même nom.
+        if (AutoLinkSameName(ctx, yearId, e.Id) > 0) Save(ctx);
         return ToCategory(e);
+    }
+
+    /// <summary>Rattache automatiquement les produits et les charges de même nom à une opération portant ce nom (créée
+    /// si besoin). Une catégorie déjà rattachée à une opération n'est jamais déplacée : si une seule des deux l'est,
+    /// l'autre rejoint la même opération. <paramref name="onlyCategoryId"/> limite le contrôle à une catégorie.
+    /// Renvoie le nombre de rattachements faits (à enregistrer par l'appelant).</summary>
+    private static int AutoLinkSameName(AppDbContext ctx, long yearId, long? onlyCategoryId = null)
+    {
+        var cats = ctx.Categories.Where(c => c.YearId == yearId).ToList();
+        var ops = ctx.Operations.Where(o => o.YearId == yearId).ToList();
+        var product = CatKindToDb(CategoryKind.Product);
+        var targets = onlyCategoryId is { } id ? cats.Where(c => c.Id == id).ToList() : cats.Where(c => c.Kind == product).ToList();
+        var linked = 0;
+        foreach (var c in targets)
+        {
+            var pair = cats.FirstOrDefault(x => x.Kind != c.Kind && SameName(x.Name, c.Name));
+            if (pair is null) continue;
+            var p = c.Kind == product ? c : pair;
+            var ch = c.Kind == product ? pair : c;
+            if (p.OperationId is not null && ch.OperationId is not null) continue;   // déjà rattachées : choix conservé
+            long opId;
+            if (p.OperationId is { } a) opId = a;
+            else if (ch.OperationId is { } b) opId = b;
+            else
+            {
+                var op = ops.FirstOrDefault(o => SameName(o.Name, c.Name));
+                if (op is null)
+                {
+                    op = new OperationEntity
+                    {
+                        YearId = yearId, Name = c.Name.Trim(), Position = (ops.Max(o => (int?)o.Position) ?? 0) + 1
+                    };
+                    ctx.Operations.Add(op);
+                    ctx.SaveChanges();
+                    ops.Add(op);
+                }
+                opId = op.Id;
+            }
+            if (p.OperationId is null) { p.OperationId = opId; linked++; }
+            if (ch.OperationId is null) { ch.OperationId = opId; linked++; }
+        }
+        return linked;
+    }
+
+    /// <summary>Associe tous les produits et charges de même nom de l'exercice à une opération du même nom.</summary>
+    public int AutoLinkOperations(long yearId)
+    {
+        RequireOpen(yearId, Permission.ManageStructure);
+        using var tx = Begin();
+        var ctx = Open().Ctx;
+        var n = AutoLinkSameName(ctx, yearId);
+        if (n > 0)
+        {
+            Log(ctx, "Opérations associées automatiquement", $"{n} rattachement(s) produit ↔ charge de même nom");
+            Save(ctx);
+        }
+        tx.Commit();
+        return n;
     }
 
     public void RenameCategory(long categoryId, string name)
@@ -602,6 +662,7 @@ public sealed partial class Compta
             throw new ComptaException($"« {name} » existe déjà dans cette liste.");
         c.Name = name;
         Save(ctx);
+        if (AutoLinkSameName(ctx, c.YearId, c.Id) > 0) Save(ctx);
     }
 
     /// <summary>Monte (delta &lt; 0) ou descend (delta &gt; 0) une catégorie dans sa liste.</summary>

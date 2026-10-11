@@ -69,6 +69,8 @@
                             <Button Content="＋ Nouvelle opération" Style="{StaticResource PrimaryButton}" Click="AddOperation_Click"/>
                             <Button Content="Renommer" Style="{StaticResource SecondaryButton}" Click="RenameOperation_Click"/>
                             <Button Content="Supprimer" Style="{StaticResource DangerButton}" Click="DeleteOperation_Click"/>
+                            <Button Content="Associer les noms identiques" Style="{StaticResource SecondaryButton}" Click="AutoLinkOperations_Click"
+                                    ToolTip="Crée une opération pour chaque produit et charge de même nom et les y rattache (les rattachements déjà faits ne sont pas modifiés). C'est aussi fait automatiquement à la création ou au renommage d'un produit ou d'une charge."/>
                         </WrapPanel>
                         <ListBox x:Name="OperationsBox" DisplayMemberPath="Name" FontSize="14" SelectionChanged="OperationsBox_SelectionChanged"/>
                     </DockPanel>
