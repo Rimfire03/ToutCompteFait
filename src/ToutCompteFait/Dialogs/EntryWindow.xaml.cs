@@ -97,6 +97,9 @@ public partial class EntryWindow : Window
         Loaded += (_, _) => (existing is null ? LabelBox : AmountBox).Focus();
 
         // Glisser-déposer de justificatifs sur la fenêtre (dépenses, exercice ouvert).
+        AttachDrop.Visibility = !App.IsReadOnly && _year.Open ? Visibility.Visible : Visibility.Collapsed;
+        AttachDrop.Hint = "Images, PDF, documents · 10 Mo maximum par fichier";
+        AttachDrop.Browse += (_, _) => AttachAdd_Click(this, new RoutedEventArgs());
         AllowDrop = true;
         PreviewDragOver += (_, e) => FileDrop.Accept(e, CanDropAttachments);
         PreviewDrop += (_, e) =>

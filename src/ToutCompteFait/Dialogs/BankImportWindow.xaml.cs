@@ -50,6 +50,8 @@ public partial class BankImportWindow : Window
         AccountCombo.SelectedItem = accounts.FirstOrDefault(a => a.Kind == AccountKind.Bank) ?? accounts.FirstOrDefault();
 
         // Glisser-déposer d'un relevé (CSV, OFX, PDF ou image) depuis l'Explorateur.
+        ImportDrop.Hint = "Formats acceptés : CSV, OFX, PDF, images (relevés scannés)";
+        ImportDrop.Browse += (_, _) => Browse_Click(this, new RoutedEventArgs());
         AllowDrop = true;
         PreviewDragOver += (_, e) => FileDrop.Accept(e);
         PreviewDrop += (_, e) =>
