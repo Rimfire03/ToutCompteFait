@@ -1295,6 +1295,59 @@ Console.WriteLine("Vidage de la base");
     Check(c.Accounts().Count > 0 && y2.Id > 0, "la base vidée reste utilisable");
 }
 
+// ---- Contrôle du solde du relevé et solde d'ouverture au premier import
+Console.WriteLine("Soldes du relevé");
+{
+    const string csv = "Code de la banque : 11111;Code de l'agence : 22222;Date de début de téléchargement : 01/09/2026;Date de fin de téléchargement : 11/10/2026\n" +
+        "Numéro de compte : 12345678901;Nom du compte : COMPTE COURANT;Devise : EUR\n\n" +
+        "Solde en fin de période;;;1180,00\n" +
+        "Date comptable;Libelle simplifie;Reference;Informations;Type;Debit;Credit;Date operation\n" +
+        "07/10/2026;CB MAGASIN;;;Paiement CB;-20,00;;07/10/2026\n" +
+        "09/10/2026;VIR SEPA ASSOCIATION;;;Virement;;+100,00;09/10/2026\n" +
+        "15/09/2026;CB AUTRE;;;Paiement CB;-100,00;;15/09/2026\n" +
+        "Solde en début de période;;;1200,00\n";
+    var table = BankStatementParser.ReadCsv(csv);
+    var map = BankStatementParser.DetectMapping(table)!;
+    var warn = new List<string>();
+    var lines = BankStatementParser.ParseCsv(table, map, warn);
+    Eq(3, lines.Count, "3 opérations lues");
+    var bal = BankStatementParser.ExtractBalances(csv, lines);
+    Eq(120000L, bal.Opening, "solde d'ouverture lu");
+    Eq(118000L, bal.Closing, "solde de clôture lu");
+    Eq(Dt(2026, 9, 1), bal.Start, "début de période");
+    Eq(Dt(2026, 10, 11), bal.End, "fin de période");
+
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    Check(c.IsFirstImport(banque.Id), "aucune écriture : premier import");
+    var pre = c.PrecheckStatement(banque.Id, lines, bal);
+    Check(!pre.Inconsistent && pre.WillSetOpening, "relevé cohérent, ouverture à fixer");
+    var plan = c.PlanBankImport(banque.Id, lines);
+    c.ApplyBankImport(plan, true);
+    var rep = c.FinishStatementImport(banque.Id, lines, bal, wasFirstImport: true);
+    Eq(120000L, c.Opening(y.Id, banque.Id), "solde d'ouverture fixé d'après le relevé");
+    Check(rep.Consistent, "solde du compte = solde du relevé après import");
+    Eq(118000L, c.AccountBalanceAt(banque.Id, Dt(2026, 10, 11)), "solde du compte à la date de fin");
+    Check(!c.IsFirstImport(banque.Id), "plus un premier import");
+
+    // Relevé incohérent (une ligne manque) et solde d'ouverture différent du logiciel.
+    var lines2 = lines.Take(2).ToList();
+    var pre2 = c.PrecheckStatement(banque.Id, lines2, bal);
+    Check(pre2.Inconsistent && pre2.Note.Contains("incohérent"), "relevé incohérent signalé");
+    var bal2 = bal with { Opening = 130000L, Closing = 128000L };
+    var pre3 = c.PrecheckStatement(banque.Id, lines, bal2);
+    Check(pre3.Inconsistent && pre3.Note.Contains("Solde du compte dans le logiciel"), "solde du logiciel différent de l'ouverture du relevé");
+
+    const string ofx = "<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST><DTSTART>20260901<DTEND>20261011\n" +
+        "<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260907<TRNAMT>-10,00<FITID>1<NAME>X</STMTTRN></BANKTRANLIST>" +
+        "<LEDGERBAL><BALAMT>990,00<DTASOF>20261011</LEDGERBAL></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>";
+    var bo = BankStatementParser.ExtractBalances(ofx, new List<BankLine>());
+    Eq(99000L, bo.Closing, "OFX : solde de clôture");
+    Eq(Dt(2026, 9, 1), bo.Start, "OFX : début de période");
+    Check(bo.Opening is null, "OFX : pas de solde d'ouverture inventé");
+}
 // ---- Fichier de configuration du serveur
 {
     var cfgPath = Path.Combine(Path.GetTempPath(), "tcf-config-" + Guid.NewGuid().ToString("N") + ServerConfigFile.Extension);

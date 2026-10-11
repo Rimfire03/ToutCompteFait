@@ -7,6 +7,13 @@ namespace ToutCompteFait.Core.Import;
 /// <summary>Une ligne d'un relevé bancaire : montant signé (négatif = sortie d'argent).</summary>
 public sealed record BankLine(DateOnly Date, string Label, long AmountCents, string? ExternalId = null);
 
+/// <summary>Soldes lus dans un relevé : solde d'ouverture et de clôture de la période (null si le fichier ne les donne
+/// pas) et dates de la période.</summary>
+public sealed record StatementBalances(long? Opening, long? Closing, DateOnly? Start, DateOnly? End)
+{
+    public bool IsEmpty => Opening is null && Closing is null;
+}
+
 /// <summary>Tableau lu dans un fichier CSV de relevé, avant interprétation des colonnes.</summary>
 public sealed class BankCsvTable
 {
@@ -79,6 +86,57 @@ public static class BankStatementParser
         return sb.ToString();
     }
 
+    // ------------------------------------------------------------------ soldes du relevé
+
+    private static string Plain(string s) =>
+        new string(s.Normalize(NormalizationForm.FormD).Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark).ToArray())
+            .ToLowerInvariant();
+
+    /// <summary>Soldes d'ouverture / de clôture et période d'un relevé : lignes « Solde en début / en fin de période »
+    /// d'un CSV, ou <c>LEDGERBAL</c> / <c>DTSTART</c> / <c>DTEND</c> d'un OFX. Aucune devinette : ce qui n'est pas
+    /// trouvé reste null.</summary>
+    public static StatementBalances ExtractBalances(string text, IReadOnlyList<BankLine> lines)
+    {
+        long? opening = null, closing = null;
+        DateOnly? start = null, end = null;
+
+        if (LooksLikeOfx(text))
+        {
+            var bal = Regex.Match(text, @"<LEDGERBAL>.*?<BALAMT>\s*([+\-]?[\d\s.,]+)", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (bal.Success && TryParseAmount(bal.Groups[1].Value.Trim(), out var c)) closing = c;
+            DateOnly? Ofx(string tag)
+            {
+                var m = Regex.Match(text, "<" + tag + @">\s*(\d{8})", RegexOptions.IgnoreCase);
+                return m.Success && DateOnly.TryParseExact(m.Groups[1].Value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
+                    ? d : null;
+            }
+            start = Ofx("DTSTART");
+            end = Ofx("DTEND");
+        }
+        else
+        {
+            foreach (var raw in text.Split('\n'))
+            {
+                var cells = raw.TrimEnd('\r').Split(new[] { ';', '\t' }).Select(x => x.Trim().Trim('"')).Where(x => x.Length > 0).ToList();
+                if (cells.Count < 2 || TryParseDate(cells[0], out _)) continue;
+                var label = Plain(cells[0]);
+                if (!label.Contains("solde") || !TryParseAmount(cells[^1], out var amount)) continue;
+                if (Regex.IsMatch(label, "debut|initial|ouverture|precedent|ancien")) opening ??= amount;
+                else if (Regex.IsMatch(label, @"\bfin\b|final|cloture|nouveau|arrete")) closing ??= amount;
+            }
+            // Période : dates de l'en-tête (« du … au … ») sinon étendue des opérations.
+            var dates = Regex.Matches(StatementHeader(text), @"\b\d{1,2}/\d{1,2}/\d{4}\b").Select(m => m.Value)
+                .Select(s => TryParseDate(s, out var d) ? (DateOnly?)d : null).Where(d => d is not null).Select(d => d!.Value).ToList();
+            if (dates.Count >= 2) { start = dates.Min(); end = dates.Max(); }
+        }
+        if (lines.Count > 0)
+        {
+            start ??= lines.Min(l => l.Date);
+            end ??= lines.Max(l => l.Date);
+        }
+        return new StatementBalances(opening, closing, start, end);
+    }
+
     public static bool LooksLikeOfx(string text) =>
         text.Contains("<OFX", StringComparison.OrdinalIgnoreCase) || text.Contains("<STMTTRN>", StringComparison.OrdinalIgnoreCase);
 
@@ -128,7 +186,8 @@ public static class BankStatementParser
             var counts = sample.Where(l => l.Trim().Length > 0).Select(l => Split(l, d).Length).ToList();
             if (counts.Count == 0) continue;
             var mode = counts.GroupBy(c => c).OrderByDescending(g => g.Count()).First();
-            var score = mode.Key > 1 ? mode.Count() * 10 + mode.Key : 0;
+            // Lignes × colonnes : un petit fichier avec des virgules décimales ne doit pas battre un vrai tableau à « ; ».
+            var score = mode.Key > 1 ? mode.Count() * mode.Key : 0;
             if (score > bestScore) { bestScore = score; best = d; }
         }
 

@@ -35,6 +35,9 @@ public partial class BankImportWindow : Window
     private List<BankLine> _lines = new();
     private BankImportPlan? _plan;
     private bool _loading;
+    private string? _statementText;       // texte du fichier (CSV / OFX) : source des soldes du relevé
+    private StatementPrecheck? _precheck;
+    private bool _wasFirstImport;
 
     /// <summary>Nombre de lignes créées sans ventilation (pour informer l'appelant).</summary>
     public BankImportResult? Result { get; private set; }
@@ -111,6 +114,7 @@ public partial class BankImportWindow : Window
         try
         {
             var text = BankStatementParser.ReadText(path);
+            _statementText = text;
             FileText.Text = path;
             var detectNote = DetectAccount(text);
             if (BankStatementParser.LooksLikeOfx(text))
@@ -168,6 +172,7 @@ public partial class BankImportWindow : Window
         var ocr = new StatementOcrWindow(paths) { Owner = this };
         if (ocr.ShowDialog() != true || ocr.Lines.Count == 0) return;
         _table = null;
+        _statementText = null;
         MappingBox.Visibility = Visibility.Collapsed;
         _lines = ocr.Lines;
         FileText.Text = paths.Count == 1 ? paths[0] : $"{paths.Count} relevés PDF/images";
@@ -263,6 +268,13 @@ public partial class BankImportWindow : Window
             Ui.Error(ex.Message);
             return;
         }
+        _precheck = null;
+        if (_statementText is not null)
+        {
+            var balances = BankStatementParser.ExtractBalances(_statementText, _lines);
+            _wasFirstImport = _c.IsFirstImport(acc.Id);
+            _precheck = _c.PrecheckStatement(acc.Id, _lines, balances);
+        }
         _rows = _plan.Lines.Select(p => new BankPreviewRow
         {
             DateText = p.Line.Date.ToString("dd/MM/yyyy"),
@@ -295,6 +307,7 @@ public partial class BankImportWindow : Window
     }
 
     private List<BankPreviewRow> _rows = new();
+    private StatementBalanceReport? _balanceReport;
     private bool _offeredNextYear;
 
     /// <summary>Des lignes sont datées après la fin du dernier exercice (typiquement : l'exercice vient d'être clôturé
@@ -349,7 +362,8 @@ public partial class BankImportWindow : Window
         var skipped = _plan.Count(BankLineStatus.NoYear) + _plan.Count(BankLineStatus.YearValidated)
                       + _rows.Count(r => r.NeedsDecision && r.Selected?.Decision?.Kind == BankDecisionKind.Skip);
         SummaryText.Text = $"{_plan.Lines.Count} opération(s) : {creates} nouvelle(s) à ventiler · {u + matches} rapprochée(s) (intitulé mis à jour) · " +
-                           $"{same} déjà à jour · {skipped} ignorée(s)" + (undecided > 0 ? $" · ❓ {undecided} à valider" : "") + ".";
+                           $"{same} déjà à jour · {skipped} ignorée(s)" + (undecided > 0 ? $" · ❓ {undecided} à valider" : "") + "." +
+                           (_precheck is { Note.Length: > 0 } pc ? "\n" + pc.Note : "");
         ImportButton.IsEnabled = undecided == 0 && (creates + u + matches > 0 || (PointBox.IsChecked == true && same > 0));
         ImportButton.ToolTip = undecided > 0 ? "Validez d'abord les lignes en orange (correspondance incertaine)." : null;
     }
@@ -362,7 +376,13 @@ public partial class BankImportWindow : Window
             var decisions = new Dictionary<int, BankDecision>();
             for (var i = 0; i < _rows.Count; i++)
                 if (_rows[i].NeedsDecision && _rows[i].Selected?.Decision is { } d) decisions[i] = d;
+            if (_precheck is { Inconsistent: true } && !Ui.Confirm(
+                    "Le contrôle des soldes signale une incohérence :\n\n" + _precheck.Note + "\n\nImporter quand même ?", "Contrôle des soldes"))
+                return;
             Result = _c.ApplyBankImport(_plan, PointBox.IsChecked == true, decisions, AlignBox.IsChecked == true);
+            if (_statementText is not null && AccountCombo.SelectedItem is Account acc)
+                _balanceReport = _c.FinishStatementImport(acc.Id, _lines,
+                    BankStatementParser.ExtractBalances(_statementText, _lines), _wasFirstImport);
         }
         catch (ComptaException ex)
         {
@@ -371,7 +391,8 @@ public partial class BankImportWindow : Window
         }
         Ui.Info($"Import terminé : {Result.Created} écriture(s) créée(s) à ventiler, {Result.LabelsUpdated} intitulé(s) mis à jour" +
                 (Result.Skipped > 0 ? $", {Result.Skipped} ignorée(s)" : "") + ".\n\n" +
-                (Result.Created > 0 ? "Les nouvelles lignes sont en jaune dans le Livre : choisissez leur produit ou leur charge directement dans la liste." : ""),
+                (Result.Created > 0 ? "Les nouvelles lignes sont en jaune dans le Livre : choisissez leur produit ou leur charge directement dans la liste." : "") +
+                (_balanceReport is { Text.Length: > 0 } br ? "\n\n" + br.Text : ""),
             "Relevé importé");
         DialogResult = true;
     }
