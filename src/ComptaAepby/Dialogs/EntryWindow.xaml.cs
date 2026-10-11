@@ -316,6 +316,15 @@ public partial class EntryWindow : Window
         return row;
     }
 
+    private void ResetAlloc_Click(object sender, RoutedEventArgs e)
+    {
+        _rows.Clear();
+        AllocPanel.Children.Clear();
+        AddAllocRow();
+        SyncSingleRow();
+        RefreshStatus();
+    }
+
     private void AddAlloc_Click(object sender, RoutedEventArgs e)
     {
         // Passer à plusieurs lignes : la première garde le montant total jusqu'à ce qu'on le réduise.

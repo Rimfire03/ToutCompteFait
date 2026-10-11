@@ -1315,6 +1315,26 @@ Console.WriteLine("Copie avec exercice validé");
     Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
     try { File.Delete(dstPath); } catch { }
 }
+// ---- Réinitialisation de la ventilation
+Console.WriteLine("Réinitialisation de la ventilation");
+{
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    var ch = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Charge);
+    var id = c.SaveEntry(new Entry(0, y.Id, Dt(2026, 10, 3), "Mal classé", false, EntryKind.Normal, banque.Id, Direction.Out, null, 4000, null, null),
+        new[] { new Allocation(ch.Id, 4000) });
+    c.ClearAllocations(id);
+    var row = c.EntryById(id)!;
+    Eq(0, row.Allocations.Count, "ventilation réinitialisée");
+    Check(Compta.NeedsAllocation(row), "l'écriture redevient à ventiler");
+    Eq(4000L, row.Entry.AmountCents, "montant conservé");
+    c.ClearAllocations(id);   // sans effet
+    c.ValidateYear(y.Id, null, force: true);
+    Throws(() => c.ClearAllocations(id), "exercice validé : réinitialisation refusée", "validé");
+}
+
 // ---- Fichier de configuration du serveur
 {
     var cfgPath = Path.Combine(Path.GetTempPath(), "tcf-config-" + Guid.NewGuid().ToString("N") + ServerConfigFile.Extension);

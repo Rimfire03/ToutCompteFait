@@ -164,6 +164,24 @@ public sealed partial class Compta
         Save(ctx);
     }
 
+    /// <summary>Réinitialise la ventilation d'une écriture (toutes ses lignes sont retirées) : elle redevient « à ventiler ».
+    /// Pour repartir d'une ventilation erronée sans toucher au montant, à la date ni au libellé.</summary>
+    public void ClearAllocations(long entryId)
+    {
+        var row = EntryById(entryId) ?? throw new ComptaException("Écriture introuvable.");
+        RequireOpen(row.Entry.YearId);
+        if (row.Entry.Kind == EntryKind.Transfer)
+            throw new ComptaException("Un virement entre comptes n'a pas de ventilation.");
+        if (row.Allocations.Count == 0) return;
+        using var tx = Begin();
+        var ctx = Open().Ctx;
+        ctx.Allocations.RemoveRange(ctx.Allocations.Where(a => a.EntryId == entryId));
+        ctx.Entries.First(e => e.Id == entryId).UpdatedAt = Now();
+        Log(ctx, "Ventilation réinitialisée", $"{row.Entry.Date:dd/MM/yyyy} « {row.Entry.Label} » ({row.Allocations.Count} ligne(s) retirée(s))");
+        Save(ctx);
+        tx.Commit();
+    }
+
     public void SetPointed(long entryId, bool pointed)
     {
         var row = EntryById(entryId) ?? throw new ComptaException("Écriture introuvable.");

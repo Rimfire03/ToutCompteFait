@@ -89,6 +89,7 @@ public partial class LivreView : UserControl, IPage
         BankButton.IsEnabled = App.Can(Permission.WriteLedger);
         EditButton.IsEnabled = false;
         DeleteButton.IsEnabled = false;
+        ResetButton.IsEnabled = false;
         if (year.Validated)
             SubText.Text = "Exercice validé : consultation seule (aucune ligne ne peut être ajoutée, modifiée ou retirée). " +
                            "L'import du relevé bancaire reste possible : les lignes vont dans l'exercice correspondant à leur date.";
@@ -307,6 +308,7 @@ public partial class LivreView : UserControl, IPage
     {
         EditButton.IsEnabled = _canWrite && Selected is not null;
         DeleteButton.IsEnabled = _canWrite && Selected is not null;
+        ResetButton.IsEnabled = _canWrite && Selected is { Source.Allocations.Count: > 0 };
     }
 
     private void Grid_DoubleClick(object sender, MouseButtonEventArgs e)
@@ -345,6 +347,16 @@ public partial class LivreView : UserControl, IPage
         if (Selected is not { } row) return;
         var dlg = new EntryWindow(_year, row.Source) { Owner = Window.GetWindow(this) };
         if (dlg.ShowDialog() == true) Reload();
+    }
+
+    private void Reset_Click(object sender, RoutedEventArgs e)
+    {
+        if (Selected is not { } row || row.Source.Allocations.Count == 0) return;
+        var en = row.Source.Entry;
+        if (!Ui.Confirm($"Réinitialiser la ventilation de cette écriture ?\n\n{en.Date:dd/MM/yyyy} — {en.Label}\n{Money.Format(en.AmountCents)} €\n\n" +
+                        "Toutes ses lignes de ventilation sont retirées : l'écriture redevient « à ventiler » (en jaune). " +
+                        "Le montant, la date et le libellé ne changent pas.", "Réinitialiser la ventilation")) return;
+        if (Ui.Try(() => _c.ClearAllocations(en.Id))) Reload();
     }
 
     private void Delete_Click(object sender, RoutedEventArgs e)
