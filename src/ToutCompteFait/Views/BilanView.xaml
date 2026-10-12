@@ -59,7 +59,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <TextBlock Text="Charges" FontWeight="Bold" Foreground="#B91C1C" Margin="0,0,0,4"/>
-                    <DataGrid x:Name="ChargesGrid" BorderBrush="#DC2626" BorderThickness="2" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                    <DataGrid x:Name="ChargesGrid" MouseDoubleClick="Detail_DoubleClick" ToolTip="Double-clic sur une catégorie : détail des lignes du livre" BorderBrush="#DC2626" BorderThickness="2" ScrollViewer.VerticalScrollBarVisibility="Disabled">
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
                                 <Style.Triggers>
@@ -80,7 +80,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                     <TextBlock Text="Produits" FontWeight="Bold" Foreground="#15803D" Margin="0,0,0,4"/>
-                    <DataGrid x:Name="ProductsGrid" BorderBrush="#16A34A" BorderThickness="2" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                    <DataGrid x:Name="ProductsGrid" MouseDoubleClick="Detail_DoubleClick" ToolTip="Double-clic sur une catégorie : détail des lignes du livre" BorderBrush="#16A34A" BorderThickness="2" ScrollViewer.VerticalScrollBarVisibility="Disabled">
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
                                 <Style.Triggers>
@@ -105,7 +105,7 @@
 
             <!-- Opérations -->
             <TextBlock Text="Rentabilité des opérations" Style="{StaticResource SectionText}" Margin="0,18,0,6"/>
-            <DataGrid x:Name="OperationsGrid" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+            <DataGrid x:Name="OperationsGrid" MouseDoubleClick="Detail_DoubleClick" ToolTip="Double-clic sur une opération : toutes les lignes de compte qui la concernent" ScrollViewer.VerticalScrollBarVisibility="Disabled">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Opération" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource LeftCell}"/>
                     <DataGridTextColumn Header="Produits liés" Binding="{Binding Products}" Width="*" ElementStyle="{StaticResource LeftCell}"/>

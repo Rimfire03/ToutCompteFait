@@ -17,6 +17,9 @@ public sealed class BilanLine
     public string AdjText { get; set; } = "";
     public string TotalText { get; init; } = "";
     public bool IsTotal { get; init; }
+
+    /// <summary>Catégorie du bilan (double-clic : détail des lignes du livre) ; null pour une ligne de synthèse.</summary>
+    public long? CategoryId { get; init; }
 }
 
 public sealed class OperationRow
@@ -27,6 +30,9 @@ public sealed class OperationRow
     public string ProductsText { get; init; } = "";
     public string ChargesText { get; init; } = "";
     public string ResultText { get; init; } = "";
+
+    /// <summary>Catégories (produits et charges) liées à l'opération, pour le détail au double-clic.</summary>
+    public IReadOnlyList<long> CategoryIds { get; init; } = Array.Empty<long>();
 }
 
 public sealed class IssueLine
@@ -54,6 +60,29 @@ public partial class BilanView : UserControl, IPage
         foreach (var g in new[] { ChargesGrid, ProductsGrid, OperationsGrid })
             g.PreviewMouseWheel += ForwardWheel;
         Reload();
+    }
+
+    /// <summary>Double-clic sur une catégorie ou une opération : lignes du livre (et reports) qui la composent.</summary>
+    private void Detail_DoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not DataGrid grid || e.OriginalSource is not DependencyObject src) return;
+        if (ItemsControl.ContainerFromElement(grid, src) is not DataGridRow row) return;   // pas l'en-tête
+        IReadOnlyCollection<long>? ids = null;
+        string? name = null;
+        switch (row.Item)
+        {
+            case BilanLine { CategoryId: { } id, IsTotal: false } line:
+                ids = new[] { id };
+                name = line.Name;
+                break;
+            case OperationRow op when op.CategoryIds.Count > 0:
+                ids = op.CategoryIds;
+                name = "Opération « " + op.Name + " »";
+                break;
+        }
+        if (ids is null || name is null) return;
+        e.Handled = true;
+        new CategoryDetailWindow(_year, "Détail — " + name, ids) { Owner = Window.GetWindow(this) }.ShowDialog();
     }
 
     // Les tableaux n'ont pas de défilement propre : la molette fait défiler la page.
@@ -89,6 +118,7 @@ public partial class BilanView : UserControl, IPage
             var l = src.Select(c => new BilanLine
             {
                 Name = c.Name,
+                CategoryId = c.CategoryId,
                 CashText = Money.FormatOrBlank(c.Cash),
                 AdjText = c.Adjustments == 0 ? "" : (c.Adjustments > 0 ? "+" : "") + Money.Format(c.Adjustments),
                 TotalText = Money.Format(c.Total)
@@ -119,7 +149,8 @@ public partial class BilanView : UserControl, IPage
         OperationsGrid.ItemsSource = b.Operations.Select(o => new OperationRow
         {
             Name = o.Operation.Name,
-            Products = string.Join(", ", o.Products.Select(p => p.Name)),
+            CategoryIds = o.Products.Concat(o.Charges).Where(p => p.CategoryId is not null).Select(p => p.CategoryId!.Value).ToList(),
+            Products =string.Join(", ", o.Products.Select(p => p.Name)),
             Charges = string.Join(", ", o.Charges.Select(p => p.Name)),
             ProductsText = Money.Format(o.ProductsTotal),
             ChargesText = Money.Format(o.ChargesTotal),
