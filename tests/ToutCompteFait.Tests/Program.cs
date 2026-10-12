@@ -2089,6 +2089,45 @@ Console.WriteLine("Conformité : exports (livre-journal, FEC)");
     Eq("000000000FEC20270831.txt", Compta.FecFileName(null, y.End), "FEC : nom de fichier sans SIREN");
     Eq("123456789FEC20270831.txt", Compta.FecFileName("123 456 789", y.End), "FEC : nom de fichier avec SIREN");
     Throws(() => c.SetCategoryAccountNumber(CategoryKind.Charge, "Assurance", "12"), "numéro de compte trop court refusé", "3 à 20");
+
+    // Import du FEC exporté dans une base neuve : aller-retour.
+    var f2 = NewFactory(TempDb());
+    var c2 = NewCompta(f2);
+    var y2 = c2.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+    var plan = c2.PlanFecImport(y2.Id, fec);
+    Eq(6, plan.Entries.Count, "import FEC : 6 écritures de trésorerie (régularisation ignorée)");
+    Eq(1, plan.NoCash, "import FEC : régularisation sans mouvement d'argent ignorée");
+    var res = c2.ApplyFecImport(plan);
+    Eq(6, res.Created, "import FEC : écritures créées");
+    Eq(0, res.Failed.Count, "import FEC : aucune écriture refusée");
+    var banque2 = c2.Accounts().First(a => a.Name == "Banque");
+    Eq(100000L, c2.Opening(y2.Id, banque2.Id), "import FEC : solde d'ouverture repris des à-nouveaux");
+    var back = c2.Entries(y2.Id, includeCancelled: true);
+    Check(back.Any(r => r.Entry.Label.Contains("Cotisations") && r.Entry.AmountCents == 12345 && r.Allocations.Count == 1),
+        "import FEC : produit ventilé");
+    Check(back.Any(r => r.Entry.Kind == EntryKind.Transfer && r.Entry.AmountCents == 2000), "import FEC : virement entre comptes");
+    Check(back.Any(r => r.Entry.Label == "Non classé" && r.Allocations.Count == 0), "import FEC : non classé à ventiler");
+    Eq(0, c2.PlanFecImport(y2.Id, fec).Entries.Count, "import FEC : second import sans doublon");
+
+    // FEC comptable avec TVA et séparateur « ; » : la TVA est reportée sur la charge (ventilation = montant payé).
+    var f3 = NewFactory(TempDb());
+    var c3 = NewCompta(f3);
+    var y3 = c3.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
+    var vat = "JournalCode;JournalLib;EcritureNum;EcritureDate;CompteNum;CompteLib;CompAuxNum;CompAuxLib;PieceRef;PieceDate;EcritureLib;Debit;Credit;EcritureLet;DateLet;ValidDate;Montantdevise;Idevise\r\n"
+              + "BQ;Banque;12;20260315;606300;Petit équipement;;;F1;20260315;Achat café;100,00;0,00;;;;;\r\n"
+              + "BQ;Banque;12;20260315;445660;TVA déductible;;;F1;20260315;Achat café;20,00;0,00;;;;;\r\n"
+              + "BQ;Banque;12;20260315;512000;Banque;;;F1;20260315;Achat café;0,00;120,00;;;;;\r\n"
+              + "VE;Ventes;3;20260316;411000;Clients;;;F2;20260316;Facture;50,00;0,00;;;;;\r\n"
+              + "VE;Ventes;3;20260316;706000;Prestations;;;F2;20260316;Facture;0,00;50,00;;;;;\r\n";
+    var vplan = c3.PlanFecImport(y3.Id, vat);
+    Eq(1, vplan.Entries.Count, "FEC TVA : une écriture de trésorerie");
+    Eq(1, vplan.NoCash, "FEC TVA : vente à crédit ignorée");
+    var vres = c3.ApplyFecImport(vplan);
+    Eq(1, vres.Created, "FEC TVA : écriture créée");
+    var ve = c3.Entries(y3.Id).Single();
+    Eq(12000L, ve.Entry.AmountCents, "FEC TVA : montant payé TTC");
+    Eq(12000L, ve.Allocations.Sum(a => a.AmountCents), "FEC TVA : ventilation = montant payé");
+    Throws(() => c3.PlanFecImport(y3.Id, "a;b\r\n1;2\r\n"), "fichier non FEC refusé", "n'est pas un FEC");
 }
 
 // ------------------------------------------------------------------ licences

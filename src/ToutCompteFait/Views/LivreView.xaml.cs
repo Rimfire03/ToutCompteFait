@@ -104,6 +104,7 @@ public partial class LivreView : UserControl, IPage
         DeleteButton.IsEnabled = false;
         ResetButton.IsEnabled = false;
         MergeTransfersButton.IsEnabled = _canWrite;
+        FecImportButton.IsEnabled = _canWrite && App.Can(Permission.ManageStructure);
         if (year.Validated)
             SubText.Text = "Exercice validé : consultation seule (aucune ligne ne peut être ajoutée, modifiée ou retirée). " +
                            "L'import du relevé bancaire reste possible : les lignes vont dans l'exercice correspondant à leur date.";
@@ -509,6 +510,40 @@ public partial class LivreView : UserControl, IPage
     }
 
     private void BankImport_Click(object sender, RoutedEventArgs e) => OpenBankImport(null);
+
+    /// <summary>Import d'un FEC : analyse, résumé à confirmer, puis création des écritures de trésorerie.</summary>
+    private void FecImport_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Importer un FEC", Filter = "FEC (*.txt;*.csv)|*.txt;*.csv|Tous les fichiers|*.*"
+        };
+        if (dlg.ShowDialog() != true) return;
+        FecImportPlan? plan = null;
+        if (!Ui.Try(() => plan = _c.PlanFecImport(_year.Id, Compta.ReadFecFile(dlg.FileName))) || plan is null) return;
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"{plan.Entries.Count} écriture(s) de trésorerie seront créées dans l'exercice {_year.Label}.");
+        var newAccounts = plan.Entries.SelectMany(x => new[] { x.BankNumber, x.ToBankNumber }).Where(n => n is not null).Distinct().Count();
+        sb.AppendLine($"{newAccounts} compte(s) de banque ou de caisse concerné(s) ; les comptes et catégories absents seront créés.");
+        if (plan.Openings.Count > 0) sb.AppendLine($"{plan.Openings.Count} solde(s) d'ouverture trouvé(s) (repris si l'exercice est le premier et le solde encore à zéro).");
+        if (plan.NoCash > 0) sb.AppendLine($"{plan.NoCash} écriture(s) sans mouvement d'argent (achats, ventes à crédit, opérations diverses) ignorée(s).");
+        if (plan.OutOfYear > 0) sb.AppendLine($"{plan.OutOfYear} écriture(s) hors de l'exercice ignorée(s).");
+        if (plan.Already > 0) sb.AppendLine($"{plan.Already} écriture(s) déjà importée(s) ignorée(s).");
+        if (plan.Unsupported > 0) sb.AppendLine($"{plan.Unsupported} écriture(s) sur plusieurs comptes de trésorerie ignorée(s).");
+        foreach (var w in plan.Warnings) sb.AppendLine("• " + w);
+        if (plan.Entries.Count == 0 && plan.Openings.Count == 0) { Ui.Info(sb.ToString().TrimEnd()); return; }
+        sb.AppendLine().Append("Importer ?");
+        if (!Ui.Confirm(sb.ToString())) return;
+
+        FecImportResult? result = null;
+        if (!Ui.Try(() => result = _c.ApplyFecImport(plan)) || result is null) return;
+        Reload();
+        var done = $"{result.Created} écriture(s) importée(s), {result.AccountsCreated} compte(s) et {result.CategoriesCreated} catégorie(s) créé(s)" +
+                   (result.OpeningsSet > 0 ? $", {result.OpeningsSet} solde(s) d'ouverture repris" : "") + ".";
+        if (result.Failed.Count > 0) done += $"\n\n{result.Failed.Count} écriture(s) refusée(s) :\n" + string.Join("\n", result.Failed.Take(8));
+        Ui.Info(done);
+    }
 
     private void OpenBankImport(string[]? files)
     {
