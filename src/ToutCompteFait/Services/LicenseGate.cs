@@ -18,6 +18,8 @@ public static class LicenseGate
     {
         ProductSlug = "tout-compte-fait",
         StoreName = "ToutCompteFait",
+        // Clé publique du serveur de licences (vérification seule, sans danger dans le dépôt).
+        PublicKeys = new[] { "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjairPbdPQuYiWSJ6MtVo6xchepZYn9h+JFdSI72MNzuVwmFgTCiYBRuPHJBJT45eC+qloOQbBWZDSZSkZxttvQ==" },
     };
 
     public static LicenseService Service { get; private set; } = null!;
