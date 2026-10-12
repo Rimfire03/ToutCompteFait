@@ -49,6 +49,12 @@ public sealed record AppEdition(string Id)
     /// historique seulement.</summary>
     public string? LegacyAssetPrefix => Id == Legacy ? "ToutCompteFait-v" : null;
 
+    // ------------------------------------------------------------------ fonctions propres à la version
+
+    /// <summary>Remboursements aux membres (note de frais d'un membre de l'équipe) : propre aux associations ; absent de
+    /// la version Autoentreprise (écran, type d'écriture proposé, aide).</summary>
+    public bool HasMemberRefunds => Id != "autoentreprise";
+
     /// <summary>Identifiant valide : minuscules et chiffres, commençant par une lettre.</summary>
     public static bool IsValidId(string? id) =>
         !string.IsNullOrEmpty(id) && id.Length <= 20 && char.IsAsciiLetterLower(id[0]) && id.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c));

@@ -55,6 +55,8 @@ public partial class EntryWindow : Window
     public EntryWindow(FiscalYear year, EntryRow? existing = null, DateOnly? defaultDate = null)
     {
         InitializeComponent();
+        // Version sans remboursements aux membres : le type n'est pas proposé (sauf pour une écriture existante de ce type).
+        if (!Editions.Current.HasMemberRefunds) ModeRefund.Visibility = Visibility.Collapsed;
         _year = year;
         _existing = existing;
         _accounts = _c.Accounts();
@@ -611,6 +613,7 @@ public partial class EntryWindow : Window
         ModeExpense.IsChecked = mode == Mode.Expense;
         ModeTransfer.IsChecked = mode == Mode.Transfer;
         ModeRefund.IsChecked = mode == Mode.Refund;
+        if (mode == Mode.Refund) ModeRefund.Visibility = Visibility.Visible;
         ModeNoCash.IsChecked = mode == Mode.NoCash;
         // Modifier le type d'une écriture existante reste possible, mais le choix est présenté d'emblée.
 

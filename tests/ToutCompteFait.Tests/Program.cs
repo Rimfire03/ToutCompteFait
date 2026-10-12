@@ -1435,6 +1435,8 @@ Console.WriteLine("Versions du logiciel");
     Eq("tout_compte_fait", asso.DefaultServerDatabaseName, "version historique : base serveur d'origine");
     Eq("asso", asso.LicenseEdition, "version envoyée au serveur de licences");
     Eq("tout-compte-fait", asso.ProductSlug, "produit de licence commun à toutes les versions");
+    Check(asso.HasMemberRefunds, "Asso : remboursements aux membres");
+    Check(!new AppEdition("autoentreprise").HasMemberRefunds, "Autoentreprise : pas de remboursements aux membres");
     var pro = new AppEdition("pro");
     Eq("ToutCompteFaitPro", pro.DataName, "autre version : noms de données propres");
     Eq("tout_compte_fait_pro", pro.DefaultServerDatabaseName, "autre version : base serveur propre");

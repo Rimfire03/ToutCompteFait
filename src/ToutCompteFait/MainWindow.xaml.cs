@@ -32,6 +32,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         Current = this;
         Title = Editions.AppName;
+        if (!Editions.Current.HasMemberRefunds) NavMembers.Visibility = Visibility.Collapsed;
         CoreVersionText.Text = $"v{App.DisplayVersion} · {Editions.Current.VersionMention}";
         CopyrightText.Text = "© TomLine prod&co by Thomas Guidez  ·  " + Editions.AppName;
 
