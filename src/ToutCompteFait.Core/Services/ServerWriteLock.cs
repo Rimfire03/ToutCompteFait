@@ -104,6 +104,23 @@ public sealed class ServerWriteLock : IDisposable
         return new ServerLockResult(null, owner);
     }
 
+    /// <summary>Reprise de force (administrateur) : le verrou est écrasé sans condition. Le poste qui écrivait s'en aperçoit
+    /// à son prochain renouvellement (15 s au plus), perd le droit d'écriture et passe en lecture seule.</summary>
+    public static ServerWriteLock ForceAcquire(DbTarget target, string? userName)
+    {
+        var self = new ServerWriteLock(target, "", userName);
+        using var ctx = new AppDbContext(target, false);
+        ServerSql.EnsureDbInfo(ctx);
+        var mine = self.NewValue();
+        var rows = ctx.Database.ExecuteSqlRaw(
+            $"UPDATE {Table(ctx)} SET {Col(ctx, "Value")} = {{0}} WHERE {Col(ctx, "Key")} = {{1}}", mine, Key);
+        if (rows == 0)
+            ctx.Database.ExecuteSqlRaw(
+                $"INSERT INTO {Table(ctx)} ({Col(ctx, "Key")}, {Col(ctx, "Value")}) VALUES ({{0}}, {{1}})", Key, mine);
+        self._current = mine;
+        return self;
+    }
+
     /// <summary>Renouvelle le verrou. Retourne false si un autre poste l'a repris entre-temps.</summary>
     public bool Refresh()
     {

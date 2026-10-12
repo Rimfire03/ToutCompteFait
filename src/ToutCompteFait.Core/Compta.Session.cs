@@ -5,6 +5,17 @@ namespace ToutCompteFait.Core;
 
 public sealed partial class Compta
 {
+    /// <summary>Consigne au journal d'audit qu'un administrateur a repris l'écriture de force.</summary>
+    public void RecordForcedTakeover(string? previousOwner)
+    {
+        Require(Permission.ManageUsers);
+        using var tx = Begin();
+        var ctx = Open().Ctx;
+        Log(ctx, "Reprise d'écriture forcée", previousOwner is null ? "poste précédent inconnu" : $"écriture reprise à {previousOwner}");
+        Save(ctx);
+        tx.Commit();
+    }
+
     // ------------------------------------------------------------------ déconnexion automatique
 
     private const string IdleTimeoutKey = "security.idle_minutes";

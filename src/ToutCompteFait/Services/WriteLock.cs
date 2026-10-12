@@ -49,5 +49,38 @@ public sealed class WriteLock : IDisposable
         catch (UnauthorizedAccessException) { return null; }
     }
 
+    // ------------------------------------------------------------------ reprise forcée (administrateur)
+
+    /// <summary>Fichier « &lt;base&gt;.takeover » : demande de reprise écrite par un administrateur, que le poste
+    /// rédacteur lit, honore (il libère le verrou) puis supprime.</summary>
+    public static string TakeoverPath(string dbPath) => dbPath + ".takeover";
+
+    public static void RequestTakeover(string dbPath, string requester) =>
+        File.WriteAllText(TakeoverPath(dbPath), requester.Replace('\r', ' ').Replace('\n', ' ') + "\n" + DateTime.UtcNow.ToString("O"), Encoding.UTF8);
+
+    public static void ClearTakeoverRequest(string dbPath)
+    {
+        try { File.Delete(TakeoverPath(dbPath)); }
+        catch (IOException) { /* sans gravité : la demande expire seule */ }
+        catch (UnauthorizedAccessException) { }
+    }
+
+    /// <summary>Lit et supprime une demande de reprise récente (moins de 2 minutes). Renvoie le demandeur, sinon null.</summary>
+    public static string? ConsumeTakeoverRequest(string dbPath)
+    {
+        var path = TakeoverPath(dbPath);
+        try
+        {
+            if (!File.Exists(path)) return null;
+            var lines = File.ReadAllLines(path, Encoding.UTF8);
+            File.Delete(path);
+            var fresh = lines.Length > 1 && DateTime.TryParse(lines[1], null, System.Globalization.DateTimeStyles.RoundtripKind, out var at)
+                        && DateTime.UtcNow - at.ToUniversalTime() < TimeSpan.FromMinutes(2);
+            return fresh && lines[0].Trim().Length > 0 ? lines[0].Trim() : null;
+        }
+        catch (IOException) { return null; }
+        catch (UnauthorizedAccessException) { return null; }
+    }
+
     public void Dispose() => _stream.Dispose();
 }

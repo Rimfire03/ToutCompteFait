@@ -154,6 +154,9 @@
                 <Border x:Name="ReadOnlyBanner" DockPanel.Dock="Top" Background="#FFFBEB" BorderBrush="#FDE68A"
                         BorderThickness="0,0,0,1" Padding="18,10" Visibility="Collapsed">
                     <DockPanel>
+                        <Button x:Name="ForceTakeOverButton" DockPanel.Dock="Right" Content="Forcer la reprise (admin)" Style="{StaticResource DangerButton}"
+                                Margin="12,0,0,0" Click="ForceTakeOver_Click" Visibility="Collapsed"
+                                ToolTip="Administrateur : retire de force l'écriture au poste qui la détient. Ce poste reçoit une alerte et passe en lecture seule ; ses modifications non enregistrées sont perdues."/>
                         <Button x:Name="TakeOverButton" DockPanel.Dock="Right" Content="Reprendre l'écriture" Style="{StaticResource SecondaryButton}"
                                 Margin="12,0,0,0" Click="TakeOver_Click"/>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">

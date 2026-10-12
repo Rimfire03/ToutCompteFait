@@ -129,6 +129,8 @@ public partial class MainWindow : Window
 
     private void WatchDatabase()
     {
+        // Un administrateur a demandé la reprise de l'écriture : alerte puis lecture seule.
+        if (App.HonorTakeoverRequest()) return;
         if (!App.IsReadOnly) return;
         var t = SafeWriteTime();
         if (t == _lastDbWrite) return;
@@ -163,6 +165,8 @@ public partial class MainWindow : Window
             ReadOnlyBanner.Visibility = reader ? Visibility.Collapsed : Visibility.Visible;
             ReadOnlyText.Text = App.ReadOnlyMessage;
             TakeOverButton.Visibility = App.HasRole(Permission.WriteLedger) ? Visibility.Visible : Visibility.Collapsed;
+            ForceTakeOverButton.Visibility = App.HasRole(Permission.ManageUsers) && App.WriteLockOwner is not null
+                ? Visibility.Visible : Visibility.Collapsed;
         }
         else
         {
@@ -199,6 +203,21 @@ public partial class MainWindow : Window
             App.Settings.Save();
             App.Restart();
         }
+    }
+
+    private void ForceTakeOver_Click(object sender, RoutedEventArgs e)
+    {
+        var owner = App.WriteLockOwner ?? "un autre poste";
+        if (!Ui.Confirm($"Reprendre de force l'accès en écriture à {owner} ?\n\n" +
+                        "Ce poste recevra une alerte et passera en lecture seule ; ses modifications non enregistrées seront perdues. " +
+                        "L'action est consignée au journal d'audit.", "Reprise forcée")) return;
+        System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
+        string? error;
+        try { error = App.ForceTakeOverWrite(); }
+        finally { System.Windows.Input.Mouse.OverrideCursor = null; }
+        if (error is not null) { Ui.Error(error, "Reprise forcée"); return; }
+        UpdateFooter();
+        Ui.Info("Ce poste a maintenant l'accès en écriture.");
     }
 
     private void TakeOver_Click(object sender, RoutedEventArgs e)

@@ -1441,6 +1441,9 @@ Console.WriteLine("Déconnexion automatique");
     admin.SetIdleTimeoutMinutes(0);
     Eq(0, reader.GetIdleTimeoutMinutes(), "inactivité : désactivation");
     Check(admin.AuditLog(10).Any(l => l.Action == "Déconnexion automatique"), "inactivité : changement tracé au journal");
+    admin.RecordForcedTakeover("tresorier");
+    Check(admin.AuditLog(10).Any(l => l.Action == "Reprise d'écriture forcée" && l.Detail!.Contains("tresorier")), "reprise forcée : tracée au journal");
+    Throws(() => reader.RecordForcedTakeover(null), "reprise forcée : non administrateur refusé", "");
 }
 
 // ---- Moyen de paiement déduit du libellé bancaire

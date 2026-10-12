@@ -489,9 +489,13 @@ public partial class App : Application
 
             _serverLockTimer?.Stop();
             _serverLock = null;
+            string? by = null;
+            try { by = await Task.Run(() => ServerWriteLock.ReadOwner(Target)); } catch { /* sans gravité */ }
             MessageBox.Show(
-                "Un autre poste a repris l'accès en écriture à la base (ce poste est resté injoignable trop longtemps).\n\n" +
-                "Le logiciel va redémarrer en lecture seule.",
+                (by is null ? "Un autre poste a repris" : $"{by} a repris") +
+                " l'accès en écriture à la base (reprise forcée par un administrateur, ou ce poste est resté injoignable trop longtemps).\n\n" +
+                "Vous venez de perdre le droit d'écriture : le logiciel va redémarrer en lecture seule. " +
+                "Les modifications non enregistrées sont perdues.",
                 "Accès en écriture perdu", MessageBoxButton.OK, MessageBoxImage.Warning);
             Restart();
         };
@@ -507,6 +511,62 @@ public partial class App : Application
         BuildFactory(readOnly: false);
         try { Compta.SyncAllCarries(); } catch (ComptaException) { }
         DatabaseReopened?.Invoke();
+        return true;
+    }
+
+    /// <summary>Administrateur uniquement : prend l'écriture même si un autre poste la détient. Base sur serveur : le
+    /// verrou est écrasé ; fichier SQLite : une demande est déposée, le poste rédacteur libère le verrou (quelques
+    /// secondes). Le poste évincé reçoit une alerte et passe en lecture seule. Retourne un message d'erreur, ou null.</summary>
+    public static string? ForceTakeOverWrite()
+    {
+        if (!Session.Can(Permission.ManageUsers)) return "Réservé aux administrateurs.";
+        if (!IsReadOnly) return null;
+        var previous = WriteLockOwner;
+        if (Target.IsServer)
+        {
+            try { _serverLock = ServerWriteLock.ForceAcquire(Target, User?.UserName); }
+            catch (Exception ex) { return "Serveur injoignable : " + ex.InnermostMessage(); }
+            StartServerLockHeartbeat();
+        }
+        else
+        {
+            var path = Target.FilePath!;
+            try { WriteLock.RequestTakeover(path, User?.UserName ?? Environment.UserName); }
+            catch (Exception ex) { return "Demande de reprise impossible : " + ex.Message; }
+            var deadline = DateTime.UtcNow.AddSeconds(15);
+            while (_fileLock is null && DateTime.UtcNow < deadline)
+            {
+                _fileLock = WriteLock.TryAcquire(path, User?.UserName);
+                if (_fileLock is null) System.Threading.Thread.Sleep(300);
+            }
+            WriteLock.ClearTakeoverRequest(path);
+            if (_fileLock is null)
+                return "Le poste en écriture" + (previous is null ? "" : $" ({previous})") +
+                       " n'a pas libéré l'accès dans le délai. Il est peut-être bloqué ou utilise une ancienne version du logiciel : " +
+                       "fermez le logiciel sur ce poste.";
+        }
+        WriteLockOwner = null;
+        BuildFactory(readOnly: false);
+        try { Compta.SyncAllCarries(); } catch (ComptaException) { }
+        try { Compta.RecordForcedTakeover(previous); } catch (Exception) { /* trace seulement */ }
+        DatabaseReopened?.Invoke();
+        return null;
+    }
+
+    /// <summary>Poste rédacteur (fichier SQLite) : un administrateur demande la reprise. Le verrou est libéré, une
+    /// alerte est affichée puis le logiciel redémarre en lecture seule. Retourne true si la reprise a été honorée.</summary>
+    public static bool HonorTakeoverRequest()
+    {
+        if (IsReadOnly || _fileLock is null || Target.IsServer) return false;
+        var by = WriteLock.ConsumeTakeoverRequest(Target.FilePath!);
+        if (by is null) return false;
+        ReleaseWriteLock();
+        MessageBox.Show(
+            $"{by} (administrateur) vient de reprendre de force l'accès en écriture à la base.\n\n" +
+            "Vous venez de perdre le droit d'écriture : le logiciel va redémarrer en lecture seule. " +
+            "Les modifications non enregistrées sont perdues.",
+            "Accès en écriture perdu", MessageBoxButton.OK, MessageBoxImage.Warning);
+        Restart();
         return true;
     }
 
