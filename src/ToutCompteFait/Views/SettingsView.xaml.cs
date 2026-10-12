@@ -160,9 +160,28 @@ public partial class SettingsView : UserControl, IPage
             ? $"Exercice validé le {_year.ValidatedAt:dd/MM/yyyy HH:mm} par {_year.ValidatedBy}. Il ne peut plus être modifié."
             : "Exercice ouvert. Il se valide depuis le menu « Bilan et opérations ».";
 
+        AssetsEnabledBox.IsChecked = _c.AssetsEnabled();
+        AssetThresholdBox.Text = Money.Format(_c.AssetThresholdCents());
+        var canAssets = App.Can(Permission.ManageStructure) && !App.IsReadOnly;
+        AssetsEnabledBox.IsEnabled = AssetThresholdBox.IsEnabled = SaveAssetsButton.IsEnabled = canAssets;
+
         if (App.HasRole(Permission.ManageUsers)) LoadUsers();
         if (App.HasRole(Permission.ManageDatabase)) LoadDatabasePanel();
         _loading = false;
+    }
+
+    private void SaveAssets_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Money.TryParse(AssetThresholdBox.Text, out var threshold) || threshold < 0)
+        {
+            Ui.Error("Indiquez un seuil en euros (ex. 500).");
+            return;
+        }
+        var enabled = AssetsEnabledBox.IsChecked == true;
+        if (!Ui.Try(() => _c.SaveAssetSettings(enabled, threshold))) return;
+        MainWindow.Current?.RefreshAssetsNav();
+        Ui.Info(enabled ? "Immobilisations activées. L'onglet « Immobilisations » est disponible dans le menu."
+                        : "Immobilisations désactivées : l'onglet est masqué (les biens déjà saisis restent comptés dans le bilan).");
     }
 
     // ------------------------------------------------------------------ catégories

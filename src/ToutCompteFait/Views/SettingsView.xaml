@@ -127,6 +127,22 @@
                 </StackPanel>
             </TabItem>
 
+            <!-- Immobilisations -->
+            <TabItem x:Name="AssetsTab" Header="Immobilisations">
+                <StackPanel Margin="0,12,0,0" MaxWidth="620" HorizontalAlignment="Left">
+                    <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,12" TextWrapping="Wrap"
+                               Text="Un matériel durable (machine, ordinateur, mobilier...) peut être amorti : sa valeur est étalée en charges sur sa durée d'utilisation au lieu de peser en une seule fois sur l'exercice d'achat. Une fois la fonction activée, un onglet « Immobilisations » apparaît et le bilan présente la valeur nette des biens à l'actif."/>
+                    <CheckBox x:Name="AssetsEnabledBox" Content="Activer la gestion des immobilisations"/>
+                    <TextBlock Text="Seuil du petit matériel (€)" Margin="0,14,0,4"/>
+                    <TextBox x:Name="AssetThresholdBox" Width="120" HorizontalAlignment="Left"
+                             ToolTip="Un achat inférieur à ce montant reste une charge directe, sans amortissement (500 € par défaut)."/>
+                    <TextBlock Style="{StaticResource MutedText}" Margin="0,4,0,0" TextWrapping="Wrap"
+                               Text="Un achat inférieur à ce montant peut rester une charge directe. Le logiciel le rappelle quand on immobilise un bien sous ce seuil."/>
+                    <Button x:Name="SaveAssetsButton" Content="Enregistrer" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left"
+                            Margin="0,14,0,0" Click="SaveAssets_Click"/>
+                </StackPanel>
+            </TabItem>
+
             <!-- Utilisateurs (administrateur) -->
             <TabItem x:Name="UsersTab" Header="Utilisateurs">
                 <StackPanel Margin="0,12,0,0">

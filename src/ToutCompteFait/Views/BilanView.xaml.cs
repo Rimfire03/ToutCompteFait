@@ -14,7 +14,7 @@ public sealed class BilanLine
 {
     public string Name { get; init; } = "";
     public string CashText { get; init; } = "";
-    public string AdjText { get; init; } = "";
+    public string AdjText { get; set; } = "";
     public string TotalText { get; init; } = "";
     public bool IsTotal { get; init; }
 }
@@ -97,7 +97,23 @@ public partial class BilanView : UserControl, IPage
                 AdjText = Money.Format(src.Sum(s => s.Adjustments)), TotalText = Money.Format(total), IsTotal = true });
             return l;
         }
-        ChargesGrid.ItemsSource = Lines(b.Charges, b.ChargesTotal);
+        var chargeLines = Lines(b.Charges, b.ChargesTotal);
+        // Immobilisations : achats portés à l'actif (retirés des charges), dotations et sorties.
+        var assetRows = new List<BilanLine>();
+        void AssetRow(string name, long cents)
+        {
+            if (cents != 0) assetRows.Add(new BilanLine { Name = name, CashText = "", AdjText = (cents > 0 ? "+" : "") + Money.Format(cents), TotalText = Money.Format(cents) });
+        }
+        AssetRow("Achats immobilisés (portés à l'actif)", -b.AssetsReclass);
+        AssetRow("Dotations aux amortissements", b.AssetsDepreciation);
+        AssetRow("Valeur nette des immobilisations sorties", b.AssetsDisposals);
+        if (assetRows.Count > 0)
+        {
+            chargeLines.InsertRange(chargeLines.Count - 1, assetRows);
+            var total = chargeLines[^1];
+            total.AdjText = Money.Format(b.ChargesTotal - b.Charges.Sum(x => x.Cash));
+        }
+        ChargesGrid.ItemsSource = chargeLines;
         ProductsGrid.ItemsSource = Lines(b.Products, b.ProductsTotal);
 
         OperationsGrid.ItemsSource = b.Operations.Select(o => new OperationRow
@@ -111,11 +127,15 @@ public partial class BilanView : UserControl, IPage
         }).ToList();
         NoOperationText.Visibility = b.Operations.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-        ActifList.ItemsSource = b.Accounts.Select(a => new LabelValue { Label = a.Account.Name, Value = Money.Format(a.Closing) + " €" }).ToList();
-        ActifTotal.Text = Money.Format(b.ClosingTotal) + " €";
+        var actif = b.Accounts.Select(a => new LabelValue { Label = a.Account.Name, Value = Money.Format(a.Closing) + " €" }).ToList();
+        foreach (var a in b.Assets.Where(a => a.Closing != 0))
+            actif.Add(new LabelValue { Label = $"Immobilisation : {a.Asset.Label} (valeur nette)", Value = Money.Format(a.Closing) + " €" });
+        ActifList.ItemsSource = actif;
+        ActifTotal.Text = Money.Format(b.AssetsTotal) + " €";
         var passif = new List<LabelValue>
         {
             new() { Label = "Solde initial (ouverture des comptes)", Value = Money.Format(b.OpeningTotal) + " €" },
+            new() { Label = "Immobilisations à l'ouverture (valeur nette reportée)", Value = Money.Format(b.AssetsNetOpening) + " €" },
             new() { Label = "Report (régularisations entre exercices)", Value = Money.Format(b.Report) + " €" },
             new() { Label = "Résultat de l'exercice", Value = Money.Format(b.Result) + " €" }
         };
@@ -247,7 +267,10 @@ public partial class BilanView : UserControl, IPage
         sb.AppendLine();
         sb.AppendLine("CHARGES;Livre;Reports;Total");
         foreach (var c in b.Charges) sb.AppendLine($"{Q(c.Name)};{N(c.Cash)};{N(c.Adjustments)};{N(c.Total)}");
-        sb.AppendLine($"TOTAL CHARGES;{N(b.Charges.Sum(x => x.Cash))};{N(b.Charges.Sum(x => x.Adjustments))};{N(b.ChargesTotal)}");
+        if (b.AssetsReclass != 0) sb.AppendLine($"Achats immobilisés (portés à l'actif);;{N(-b.AssetsReclass)};{N(-b.AssetsReclass)}");
+        if (b.AssetsDepreciation != 0) sb.AppendLine($"Dotations aux amortissements;;{N(b.AssetsDepreciation)};{N(b.AssetsDepreciation)}");
+        if (b.AssetsDisposals != 0) sb.AppendLine($"Valeur nette des immobilisations sorties;;{N(b.AssetsDisposals)};{N(b.AssetsDisposals)}");
+        sb.AppendLine($"TOTAL CHARGES;{N(b.Charges.Sum(x => x.Cash))};{N(b.ChargesTotal - b.Charges.Sum(x => x.Cash))};{N(b.ChargesTotal)}");
         sb.AppendLine();
         sb.AppendLine("PRODUITS;Livre;Reports;Total");
         foreach (var c in b.Products) sb.AppendLine($"{Q(c.Name)};{N(c.Cash)};{N(c.Adjustments)};{N(c.Total)}");
@@ -260,10 +283,12 @@ public partial class BilanView : UserControl, IPage
         sb.AppendLine();
         sb.AppendLine("ACTIF;Solde");
         foreach (var a in b.Accounts) sb.AppendLine($"{Q(a.Account.Name)};{N(a.Closing)}");
-        sb.AppendLine($"TOTAL ACTIF;{N(b.ClosingTotal)}");
+        foreach (var a in b.Assets.Where(a => a.Closing != 0)) sb.AppendLine($"{Q("Immobilisation : " + a.Asset.Label + " (valeur nette)")};{N(a.Closing)}");
+        sb.AppendLine($"TOTAL ACTIF;{N(b.AssetsTotal)}");
         sb.AppendLine();
         sb.AppendLine("PASSIF;Montant");
         sb.AppendLine($"Solde initial;{N(b.OpeningTotal)}");
+        if (b.AssetsNetOpening != 0) sb.AppendLine($"Immobilisations à l'ouverture (valeur nette reportée);{N(b.AssetsNetOpening)}");
         sb.AppendLine($"Report;{N(b.Report)}");
         sb.AppendLine($"Résultat de l'exercice;{N(b.Result)}");
         if (b.UnallocatedGap != 0) sb.AppendLine($"Ecritures non ventilées;{N(b.UnallocatedGap)}");

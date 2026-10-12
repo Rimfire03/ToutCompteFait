@@ -44,6 +44,16 @@ public partial class MainWindow : Window
             nav.Checked += Nav_Checked;
             if (NavMembers.Parent is Panel navPanel) navPanel.Children.Insert(navPanel.Children.IndexOf(NavMembers) + 1, nav);
         }
+        // Onglet Immobilisations : visible seulement si la fonction est activée dans les paramètres.
+        _navAssets = new RadioButton
+        {
+            Content = "🏭   Immobilisations", GroupName = "nav", Tag = "assets",
+            Style = (Style)FindResource("NavButton"), Visibility = Visibility.Collapsed
+        };
+        _navAssets.Checked += Nav_Checked;
+        if (NavMembers.Parent is Panel assetsPanel)
+            assetsPanel.Children.Insert(assetsPanel.Children.IndexOf(NavMembers) + 1, _navAssets);
+        RefreshAssetsNav();
         CoreVersionText.Text = $"v{App.DisplayVersion} · {Editions.Current.VersionMention}";
         CopyrightText.Text = "© TomLine prod&co by Thomas Guidez  ·  " + Editions.AppName;
 
@@ -359,6 +369,18 @@ public partial class MainWindow : Window
         }
     }
 
+    private RadioButton? _navAssets;
+
+    /// <summary>Affiche ou masque l'onglet Immobilisations selon le réglage de la base.</summary>
+    public void RefreshAssetsNav()
+    {
+        if (_navAssets is null) return;
+        var on = false;
+        try { on = App.Compta.AssetsEnabled(); } catch { /* base momentanément indisponible */ }
+        _navAssets.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (!on && _page == "assets") { _page = "livre"; ShowPage("livre"); }
+    }
+
     /// <summary>Le profil de l'entreprise a changé : le reporting est recalculé s'il est affiché.</summary>
     public void RefreshBusinessNav()
     {
@@ -380,6 +402,7 @@ public partial class MainWindow : Window
                 "reports" => new ReportsView(y),
                 "members" => new MembersView(y),
                 "reporting" => new ReportingView(),
+                "assets" => new AssetsView(y),
                 "settings" => new SettingsView(y),
                 _ => new LivreView(y)
             };

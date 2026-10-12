@@ -25,6 +25,7 @@ public class AppDbContext : DbContext
     public DbSet<AccountEntity> Accounts => Set<AccountEntity>();
     public DbSet<CategoryAccountEntity> CategoryAccounts => Set<CategoryAccountEntity>();
     public DbSet<BusinessSettingEntity> BusinessSettings => Set<BusinessSettingEntity>();
+    public DbSet<FixedAssetEntity> FixedAssets => Set<FixedAssetEntity>();
     public DbSet<CategoryUrssafEntity> CategoryUrssaf => Set<CategoryUrssafEntity>();
     public DbSet<UrssafDeclarationEntity> UrssafDeclarations => Set<UrssafDeclarationEntity>();
     public DbSet<YearEntity> Years => Set<YearEntity>();
@@ -136,6 +137,24 @@ public class AppDbContext : DbContext
             e.HasKey(x => x.Key);
             e.Property(x => x.Key).HasColumnName("key").HasMaxLength(100).IsRequired();
             e.Property(x => x.Value).HasColumnName("value").IsRequired();
+        });
+
+        b.Entity<FixedAssetEntity>(e =>
+        {
+            e.ToTable("fixed_assets");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Label).HasColumnName("label").HasMaxLength(300).IsRequired();
+            e.Property(x => x.AcquiredOn).HasColumnName("acquired_on").HasMaxLength(10).IsRequired();
+            e.Property(x => x.CostCents).HasColumnName("cost_cents");
+            e.Property(x => x.Years).HasColumnName("years");
+            e.Property(x => x.Prorata).HasColumnName("prorata").HasMaxLength(1).IsRequired();
+            e.Property(x => x.Origin).HasColumnName("origin").HasMaxLength(1).IsRequired();
+            e.Property(x => x.CategoryName).HasColumnName("category_name").HasMaxLength(200);
+            e.Property(x => x.EntryId).HasColumnName("entry_id");
+            e.Property(x => x.DisposedOn).HasColumnName("disposed_on").HasMaxLength(10);
+            e.Property(x => x.Note).HasColumnName("note").HasMaxLength(1000);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasMaxLength(30).IsRequired();
         });
 
         b.Entity<CategoryUrssafEntity>(e =>

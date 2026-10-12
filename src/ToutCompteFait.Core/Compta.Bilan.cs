@@ -37,8 +37,26 @@ public sealed class Bilan
     public required IReadOnlyList<CategoryResult> Charges { get; init; }
     public required IReadOnlyList<OperationResult> Operations { get; init; }
 
+    /// <summary>Immobilisations amorties sur l'exercice (vide si aucune) : dotations, achats neutralisés, sorties.</summary>
+    public IReadOnlyList<AssetYearLine> Assets { get; init; } = Array.Empty<AssetYearLine>();
+
+    /// <summary>Achats d'immobilisations passés en charge dans le livre, retirés du résultat (portés à l'actif).</summary>
+    public long AssetsReclass => Assets.Sum(a => a.Reclass);
+
+    /// <summary>Dotations aux amortissements de l'exercice (charge).</summary>
+    public long AssetsDepreciation => Assets.Sum(a => a.Depreciation);
+
+    /// <summary>Valeur nette des biens sortis dans l'exercice (charge).</summary>
+    public long AssetsDisposals => Assets.Sum(a => a.Disposal);
+
+    /// <summary>Valeur nette des immobilisations à l'ouverture et à la clôture (actif).</summary>
+    public long AssetsNetOpening => Assets.Sum(a => a.Opening);
+    public long AssetsNetClosing => Assets.Sum(a => a.Closing);
+
     public long ProductsTotal => Products.Sum(p => p.Total);
-    public long ChargesTotal => Charges.Sum(c => c.Total);
+
+    /// <summary>Charges de l'exercice : catégories du livre − achats immobilisés + dotations + valeur nette des sorties.</summary>
+    public long ChargesTotal => Charges.Sum(c => c.Total) - AssetsReclass + AssetsDepreciation + AssetsDisposals;
     public long Result => ProductsTotal - ChargesTotal;
 
     /// <summary>Total des régularisations côté produits − côté charges (signées).</summary>
@@ -56,10 +74,14 @@ public sealed class Bilan
 
     // PASSIF = solde d'ouverture + report (−régularisations nettes) + résultat + écart non ventilé.
     public long Report => -NetAdjustments;
-    public long LiabilitiesTotal => OpeningTotal + Report + Result + UnallocatedGap;
+    // Les immobilisations (valeur nette) s'ajoutent à l'actif ; leur valeur d'ouverture est une ressource reportée.
+    public long LiabilitiesTotal => OpeningTotal + AssetsNetOpening + Report + Result + UnallocatedGap;
+
+    /// <summary>Total de l'actif : trésorerie + immobilisations nettes.</summary>
+    public long AssetsTotal => ClosingTotal + AssetsNetClosing;
 
     /// <summary>Doit toujours être 0 : c'est le contrôle de cohérence du bilan.</summary>
-    public long BalanceDifference => ClosingTotal - LiabilitiesTotal;
+    public long BalanceDifference => AssetsTotal - LiabilitiesTotal;
 }
 
 public sealed partial class Compta
@@ -150,7 +172,8 @@ public sealed partial class Compta
         return new Bilan
         {
             Year = year, Accounts = balances, Products = products, Charges = charges, Operations = operations,
-            UnallocatedGap = gap, UnbalancedEntries = unbalanced, EntriesToFill = toFill
+            UnallocatedGap = gap, UnbalancedEntries = unbalanced, EntriesToFill = toFill,
+            Assets = AssetLines(yearId)
         };
     }
 
@@ -351,6 +374,11 @@ public sealed partial class Compta
             charges = b.ChargesTotal,
             result = b.Result,
             report = b.Report,
+            assets = b.Assets.Count == 0 ? null : new
+            {
+                opening = b.AssetsNetOpening, closing = b.AssetsNetClosing, depreciation = b.AssetsDepreciation,
+                reclass = b.AssetsReclass, disposals = b.AssetsDisposals
+            },
             accounts = b.Accounts.Select(a => new { a.Account.Name, a.Opening, a.Closing }),
             forced = forcedIssues.Count == 0 ? null : new { by = UserName, count = forcedIssues.Count, issues = forcedIssues.Take(50).Select(i => i.Message) }
         });

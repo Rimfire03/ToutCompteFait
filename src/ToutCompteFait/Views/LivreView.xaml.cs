@@ -105,6 +105,9 @@ public partial class LivreView : UserControl, IPage
         ResetButton.IsEnabled = false;
         MergeTransfersButton.IsEnabled = _canWrite;
         FecImportButton.IsEnabled = _canWrite && App.Can(Permission.ManageStructure);
+        try { AssetButton.Visibility = _c.AssetsEnabled() ? Visibility.Visible : Visibility.Collapsed; }
+        catch { AssetButton.Visibility = Visibility.Collapsed; }
+        AssetButton.IsEnabled = false;
         if (year.Validated)
             SubText.Text = "Exercice validé : consultation seule (aucune ligne ne peut être ajoutée, modifiée ou retirée). " +
                            "L'import du relevé bancaire reste possible : les lignes vont dans l'exercice correspondant à leur date.";
@@ -337,6 +340,27 @@ public partial class LivreView : UserControl, IPage
         EditButton.IsEnabled = _canWrite && live;
         DeleteButton.IsEnabled = _canWrite && live;
         ResetButton.IsEnabled = _canWrite && Selected is { IsFrozen: false, Source.Allocations.Count: > 0 };
+        AssetButton.IsEnabled = !App.IsReadOnly && App.Can(Permission.ManageStructure) &&
+                                Selected is { IsFrozen: false, Source.Entry: { Kind: EntryKind.Normal, Direction: Direction.Out } };
+    }
+
+    /// <summary>Transforme une dépense en immobilisation amortie (bouton visible si la fonction est activée).</summary>
+    private void Asset_Click(object sender, RoutedEventArgs e)
+    {
+        if (Selected is not { } row) return;
+        var en = row.Source.Entry;
+        var charges = _c.Categories(_year.Id).Where(k => k.Kind == CategoryKind.Charge).ToList();
+        var catName = row.Source.Allocations
+            .Select(a => charges.FirstOrDefault(k => k.Id == a.CategoryId)?.Name).FirstOrDefault(n => n is not null);
+        var dlg = new AssetWindow("Immobiliser cette dépense", charges.Select(k => k.Name), _c.AssetThresholdCents(),
+            label: en.Label, date: en.Date, costCents: en.AmountCents, category: catName) { Owner = Window.GetWindow(this) };
+        if (dlg.ShowDialog() != true) return;
+        if (Ui.Try(() => _c.AddFixedAsset(dlg.AssetLabel, dlg.AcquiredOn, dlg.CostCents, dlg.Years, dlg.Prorata, dlg.Existing,
+                dlg.CategoryName, en.Id, dlg.Note)))
+        {
+            Ui.Info("Immobilisation enregistrée : la dépense est étalée sur sa durée d'amortissement (voir l'onglet « Immobilisations » et le bilan).");
+            Reload();
+        }
     }
 
     private void Grid_DoubleClick(object sender, MouseButtonEventArgs e)

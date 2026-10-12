@@ -374,6 +374,60 @@ public sealed partial class Compta
             lines.Add(new FecLine("OD", "Opérations diverses", next, year.End, counter.Number, counter.Label, "REG" + adj.Id, libAdj, catCredit, catDebit));
         }
 
+        // Immobilisations : achats neutralisés (21x / charge), dotations (681 / 28x), sorties (28x + 675 / 21x) et valeurs
+        // d'ouverture (à-nouveaux). Écritures équilibrées, comme les autres.
+        var assetLines = AssetLines(yearId);
+        if (assetLines.Count > 0)
+        {
+            var assetAcc = new FecAccount("218000", "Matériel et outillage - immobilisations", "OD", "Opérations diverses");
+            var deprAcc = new FecAccount("281800", "Amortissements du matériel", "OD", "Opérations diverses");
+            var dotAcc = new FecAccount("681120", "Dotations aux amortissements des immobilisations corporelles", "OD", "Opérations diverses");
+            var lossAcc = new FecAccount("675000", "Valeurs comptables des éléments d'actif cédés", "OD", "Opérations diverses");
+
+            var opening = assetLines.Where(a => a.Opening > 0).ToList();
+            if (opening.Count > 0)
+            {
+                next++;
+                foreach (var a in opening)
+                {
+                    var cumulPrev = a.Asset.CostCents - a.Opening;
+                    var lib = FecText(a.Asset.Label);
+                    lines.Add(new FecLine("AN", "À-nouveaux", next, year.Start, assetAcc.Number, assetAcc.Label, "AN", lib, a.Asset.CostCents, 0));
+                    if (cumulPrev > 0)
+                        lines.Add(new FecLine("AN", "À-nouveaux", next, year.Start, deprAcc.Number, deprAcc.Label, "AN", lib, 0, cumulPrev));
+                    lines.Add(new FecLine("AN", "À-nouveaux", next, year.Start, "110000", "Report à nouveau (solde créditeur)", "AN", lib, 0, a.Opening));
+                }
+            }
+            foreach (var a in assetLines)
+            {
+                var lib = FecText(a.Asset.Label);
+                var piece = "IMMO" + a.Asset.Id;
+                if (a.Reclass > 0)
+                {
+                    next++;
+                    var charge = a.Asset.CategoryName is { Length: > 0 } cn
+                        ? catNumbers.GetValueOrDefault((CategoryKind.Charge, cn.ToLowerInvariant())) ?? "600000" : "600000";
+                    lines.Add(new FecLine("OD", "Opérations diverses", next, a.Asset.AcquiredOn, assetAcc.Number, assetAcc.Label, piece, lib, a.Reclass, 0));
+                    lines.Add(new FecLine("OD", "Opérations diverses", next, a.Asset.AcquiredOn, charge, a.Asset.CategoryName ?? "Achats", piece, lib, 0, a.Reclass));
+                }
+                if (a.Depreciation > 0)
+                {
+                    next++;
+                    lines.Add(new FecLine("OD", "Opérations diverses", next, year.End, dotAcc.Number, dotAcc.Label, piece, lib, a.Depreciation, 0));
+                    lines.Add(new FecLine("OD", "Opérations diverses", next, year.End, deprAcc.Number, deprAcc.Label, piece, lib, 0, a.Depreciation));
+                }
+                if (a.Disposal > 0 || (a.Asset.DisposedOn is { } d && d >= year.Start && d <= year.End))
+                {
+                    next++;
+                    var when = a.Asset.DisposedOn ?? year.End;
+                    lines.Add(new FecLine("OD", "Opérations diverses", next, when, deprAcc.Number, deprAcc.Label, piece, lib, a.CumulativeAtClose, 0));
+                    if (a.Disposal > 0)
+                        lines.Add(new FecLine("OD", "Opérations diverses", next, when, lossAcc.Number, lossAcc.Label, piece, lib, a.Disposal, 0));
+                    lines.Add(new FecLine("OD", "Opérations diverses", next, when, assetAcc.Number, assetAcc.Label, piece, lib, 0, a.Asset.CostCents));
+                }
+            }
+        }
+
         // Contrôle : chaque écriture est équilibrée, le fichier aussi.
         foreach (var g in lines.GroupBy(l => l.Num))
             if (g.Sum(l => l.Debit) != g.Sum(l => l.Credit))

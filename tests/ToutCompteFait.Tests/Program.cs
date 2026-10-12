@@ -1425,6 +1425,68 @@ Console.WriteLine("Format Crédit Agricole");
     Eq(Dt(2026, 1, 1), bal.Start, "CA : début de période « entre le … et le … »");
     Check(!Money.TryParse("123456789012345678901234567890", out _), "numéro très long : pas un montant (pas de dépassement)");
 }
+// ---- Immobilisations : amortissement linéaire, bilan équilibré, exercices validés protégés
+Console.WriteLine("Immobilisations");
+{
+    var machine = new FixedAsset(1, "Machine", Dt(2026, 3, 15), 100000, 4, AssetProrata.Monthly, false, null, null, null, null);
+    Eq(20833L, AssetCalc.Cumulative(machine, Dt(2026, 12, 31)), "amortissement : 10 mois sur 48 (prorata mensuel)");
+    Eq(100000L, AssetCalc.Cumulative(machine, Dt(2030, 12, 31)), "amortissement : plafonné au coût");
+    Eq(0L, AssetCalc.Cumulative(machine, Dt(2026, 2, 28)), "amortissement : rien avant l'acquisition");
+    var daily = machine with { Prorata = AssetProrata.Daily };
+    Eq(100000L, AssetCalc.Cumulative(daily, Dt(2030, 3, 14)), "amortissement : au jour, fin exacte de la durée");
+    var sold = machine with { DisposedOn = Dt(2027, 6, 30) };
+    Eq(AssetCalc.Cumulative(machine, Dt(2027, 6, 30)), AssetCalc.Cumulative(sold, Dt(2028, 12, 31)), "amortissement : arrêté à la sortie");
+
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    var cats = c.Categories(y.Id);
+    var adh = cats.First(k => k.Kind == CategoryKind.Product && k.Name == "Adhésions");
+    var assur = cats.First(k => k.Kind == CategoryKind.Charge && k.Name == "Assurance");
+    c.SaveEntry(new Entry(0, y.Id, Dt(2026, 2, 1), "Cotisations", false, EntryKind.Normal, banque.Id, Direction.In, null, 500000, null, null),
+        new[] { new Allocation(adh.Id, 500000) });
+    c.SaveEntry(new Entry(0, y.Id, Dt(2026, 3, 15), "Machine à popcorn", false, EntryKind.Normal, banque.Id, Direction.Out, null, 100000, null, null),
+        new[] { new Allocation(assur.Id, 100000) });
+    var b0 = c.ComputeBilan(y.Id);
+    Eq(400000L, b0.Result, "sans immobilisation : l'achat est une charge de 1 000 €");
+
+    var id = c.AddFixedAsset("Machine à popcorn", Dt(2026, 3, 15), 100000, 4, AssetProrata.Monthly, existing: false, categoryName: "Assurance");
+    var b1 = c.ComputeBilan(y.Id);
+    Eq(100000L, b1.AssetsReclass, "bilan : achat porté à l'actif");
+    Eq(20833L, b1.AssetsDepreciation, "bilan : dotation de l'exercice");
+    Eq(500000L - 20833L, b1.Result, "bilan : résultat après amortissement");
+    Eq(79167L, b1.AssetsNetClosing, "bilan : valeur nette à la clôture");
+    Eq(0L, b1.BalanceDifference, "bilan : actif = passif avec immobilisation");
+
+    var fec = c.ExportFec(y.Id);
+    Check(fec.Contains("681120") && fec.Contains("281800") && fec.Contains("218000"), "FEC : dotation, amortissement et immobilisation");
+
+    c.ValidateYear(y.Id, Dt(2026, 12, 31));
+    Throws(() => c.UpdateFixedAsset(id, "Machine", Dt(2026, 3, 15), 90000, 4, AssetProrata.Monthly, false, null, null),
+        "immobilisation d'un exercice validé : valeur figée", "exercice validé");
+    c.UpdateFixedAsset(id, "Machine à popcorn (salle)", Dt(2026, 3, 15), 100000, 4, AssetProrata.Monthly, false, "Assurance", "libellé seul");
+    Throws(() => c.DeleteFixedAsset(id), "immobilisation d'un exercice validé : suppression refusée", "exercice validé");
+    Throws(() => c.AddFixedAsset("Rétroactif", Dt(2026, 5, 1), 50000, 3, AssetProrata.Monthly, false), "acquisition dans un exercice validé refusée", "exercice validé");
+    Throws(() => c.DisposeFixedAsset(id, Dt(2026, 10, 1)), "sortie dans un exercice validé refusée", "postérieure");
+
+    var y2 = c.NextYear(c.Year(y.Id)!) ?? c.CreateYear(Dt(2027, 1, 1), Dt(2027, 12, 31), cloneStructure: true);
+    var b2 = c.ComputeBilan(y2.Id);
+    Eq(79167L, b2.AssetsNetOpening, "exercice suivant : valeur nette reportée");
+    Eq(25000L, b2.AssetsDepreciation, "exercice suivant : dotation annuelle");
+    Eq(0L, b2.BalanceDifference, "exercice suivant : actif = passif");
+
+    c.DisposeFixedAsset(id, Dt(2027, 6, 30));
+    var b3 = c.ComputeBilan(y2.Id);
+    Eq(0L, b3.AssetsNetClosing, "sortie : plus d'immobilisation à la clôture");
+    Eq(100000L - AssetCalc.Cumulative(sold, Dt(2027, 6, 30)), b3.AssetsDisposals, "sortie : valeur nette passée en charge");
+    Eq(0L, b3.BalanceDifference, "sortie : actif = passif");
+
+    Eq(Compta.DefaultAssetThresholdCents, c.AssetThresholdCents(), "seuil : 500 € par défaut");
+    c.SaveAssetSettings(true, 30000);
+    Check(c.AssetsEnabled() && c.AssetThresholdCents() == 30000, "réglages : activation et seuil enregistrés");
+}
+
 // ---- Déconnexion automatique : réglage de la base, administrateur seulement
 Console.WriteLine("Déconnexion automatique");
 {

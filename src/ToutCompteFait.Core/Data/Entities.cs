@@ -36,6 +36,29 @@ public sealed class BusinessSettingEntity
     public string Value { get; set; } = "";
 }
 
+/// <summary>Immobilisation amortie (matériel acheté et étalé sur sa durée d'utilisation). Registre hors des tables
+/// verrouillées avec les exercices : les règles de modification protègent les exercices validés.</summary>
+public sealed class FixedAssetEntity
+{
+    public long Id { get; set; }
+    public string Label { get; set; } = "";
+    public string AcquiredOn { get; set; } = "";
+    public long CostCents { get; set; }
+    public int Years { get; set; }
+
+    /// <summary>« M » : prorata au mois ; « D » : prorata au jour.</summary>
+    public string Prorata { get; set; } = "M";
+
+    /// <summary>« P » : achat porté en charge dans le livre (neutralisé par l'immobilisation) ; « E » : bien déjà existant
+    /// repris à sa valeur nette (aucune charge dans le livre).</summary>
+    public string Origin { get; set; } = "P";
+    public string? CategoryName { get; set; }
+    public long? EntryId { get; set; }
+    public string? DisposedOn { get; set; }
+    public string? Note { get; set; }
+    public string CreatedAt { get; set; } = "";
+}
+
 /// <summary>Type de déclaration URSSAF d'une catégorie de produit (par nom, tous exercices confondus), comme
 /// <see cref="CategoryAccountEntity"/> : modifiable après clôture sans toucher aux exercices validés.</summary>
 public sealed class CategoryUrssafEntity
