@@ -32,8 +32,7 @@
         <Setter Property="IsReadOnly" Value="True"/>
         <Setter Property="CanUserDeleteRows" Value="False"/>
         <Setter Property="HeadersVisibility" Value="Column"/>
-        <!-- Moins « tableur » : angles arrondis, lignes horizontales seulement. -->
-        <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+        <!-- Moins « tableur » : angles arrondis (les lignes horizontales et verticales du thème sont conservées). -->
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGrid">
