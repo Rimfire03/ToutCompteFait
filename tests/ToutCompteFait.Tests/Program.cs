@@ -1508,6 +1508,31 @@ Console.WriteLine("Déconnexion automatique");
     Throws(() => reader.RecordForcedTakeover(null), "reprise forcée : non administrateur refusé", "");
 }
 
+// ---- Format livret : ligne de préambule (compte, numéro masqué, solde) puis opérations sans en-tête, montant signé
+Console.WriteLine("Format livret (préambule sans en-tête)");
+{
+    var csv = "Livret A;Livret A;****6322;09/10/2026;;30\r\n" +
+              "16/10/2026;DEPOT INITIAL;DEPOT INITIAL;DEPOT INITIAL DU COMPTE 30004005680000382885163;30;\r\n";
+    var table = BankStatementParser.ReadCsv(csv);
+    var map = BankStatementParser.DetectMapping(table);
+    Check(map is not null, "livret : colonnes reconnues sans en-tête");
+    var warns = new List<string>();
+    var lines = map is null ? new List<BankLine>() : BankStatementParser.ParseCsv(table, map, warns);
+    Eq(1, lines.Count, "livret : une seule opération (préambule ignoré)");
+    Eq(0, warns.Count, "livret : aucun avertissement");
+    Check(lines.Count == 1 && lines[0].Date == Dt(2026, 10, 16), "livret : date de l'opération (colonne 1, pas celle du préambule)");
+    Check(lines.Count == 1 && lines[0].AmountCents == 3000, "livret : dépôt de 30,00 € en entrée");
+    Check(lines.Count == 1 && lines[0].Label.StartsWith("DEPOT INITIAL"), "livret : libellé");
+
+    // Même format, plusieurs opérations dont un retrait négatif.
+    var csv2 = csv + "20/10/2026;RETRAIT;RETRAIT;RETRAIT DAB;-12,50;\r\n";
+    var t2 = BankStatementParser.ReadCsv(csv2);
+    var m2 = BankStatementParser.DetectMapping(t2)!;
+    var l2 = BankStatementParser.ParseCsv(t2, m2, new List<string>());
+    Eq(2, l2.Count, "livret : deux opérations");
+    Eq(-1250L, l2.Last().AmountCents, "livret : retrait négatif lu comme sortie");
+}
+
 // ---- Moyen de paiement déduit du libellé bancaire
 Console.WriteLine("Moyen de paiement");
 {

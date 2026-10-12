@@ -279,15 +279,23 @@ public static class BankStatementParser
             if (amount >= 0) return new BankCsvMapping(date, label, amount, null, null, r + 1);
         }
 
-        // Sans en-tête exploitable : on cherche par le contenu à partir de la première ligne qui commence par une date.
-        var first = rows.ToList().FindIndex(r => r.Any(c => TryParseDate(c, out _)));
+        // Sans en-tête exploitable : on cherche par le contenu. La colonne des dates est celle qui en contient le plus
+        // (la plus à gauche à égalité) ; les lignes qui précèdent la première date de cette colonne sont un préambule
+        // (nom du compte, numéro masqué, solde : « Livret A;Livret A;****6322;09/10/2026;;30 »), jamais des opérations.
+        if (rows.Count == 0) return null;
+        var window = rows.Take(40).ToList();
+        int? dateCol = null;
+        var bestCount = 0;
+        for (var c = 0; c < window.Max(r => r.Length); c++)
+        {
+            var count = window.Count(r => c < r.Length && TryParseDate(r[c], out _));
+            if (count > bestCount) { bestCount = count; dateCol = c; }
+        }
+        if (dateCol is null) return null;
+        var first = rows.ToList().FindIndex(r => dateCol.Value < r.Length && TryParseDate(r[dateCol.Value], out _));
         if (first < 0) return null;
         var sample = rows.Skip(first).Take(20).ToList();
         var width = sample.Max(r => r.Length);
-        int? dateCol = null;
-        for (var c = 0; c < width && dateCol is null; c++)
-            if (sample.Count(r => c < r.Length && TryParseDate(r[c], out _)) >= Math.Max(1, sample.Count / 2)) dateCol = c;
-        if (dateCol is null) return null;
         var numeric = new List<int>();
         int? labelCol = null;
         var bestLen = 0.0;
