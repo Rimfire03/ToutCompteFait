@@ -132,6 +132,18 @@
                 <StackPanel Margin="0,12,0,0">
                     <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,10"
                                Text="Seul un administrateur crée les comptes. Rôles : Administrateur (tous les droits), Trésorier (saisie, reports, structure, validation), Lecteur (consultation seule). Le mot de passe saisi à la création est provisoire : la personne devra le changer à sa première connexion."/>
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Déconnexion automatique" Style="{StaticResource SectionText}" Margin="0,0,0,4"/>
+                            <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,8"
+                                       Text="Après ce délai sans aucune action (souris ou clavier), l'utilisateur est déconnecté et le logiciel revient à l'écran de connexion. Le réglage vaut pour tous les utilisateurs et tous les postes. 0 = jamais."/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBox x:Name="IdleMinutesBox" Width="70" VerticalAlignment="Center"/>
+                                <TextBlock Text="minute(s) d'inactivité" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                <Button x:Name="IdleSaveButton" Content="Enregistrer" Style="{StaticResource PrimaryButton}" Margin="16,0,0,0" Click="SaveIdle_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                     <WrapPanel Margin="0,0,0,6">
                         <Button Content="＋ Nouvel utilisateur" Style="{StaticResource PrimaryButton}" Click="AddUser_Click"/>
                         <Button Content="Modifier" Style="{StaticResource SecondaryButton}" Click="EditUser_Click"/>

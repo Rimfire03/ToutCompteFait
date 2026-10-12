@@ -358,6 +358,9 @@ public partial class SettingsView : UserControl, IPage
 
     private void LoadUsers()
     {
+        var idle = _c.GetIdleTimeoutMinutes();
+        IdleMinutesBox.Text = idle.ToString();
+        IdleSaveButton.IsEnabled = !App.IsReadOnly;
         UsersGrid.ItemsSource = _c.Users().Select(u => new UserRow
         {
             User = u,
@@ -367,6 +370,20 @@ public partial class SettingsView : UserControl, IPage
     }
 
     private UserRow? SelectedUser => UsersGrid.SelectedItem as UserRow;
+
+    private void SaveIdle_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.IsReadOnly) { Ui.Error("Ce poste est en lecture seule : un autre poste détient l'écriture."); return; }
+        if (!int.TryParse(IdleMinutesBox.Text.Trim(), out var minutes) || minutes < 0 || minutes > Compta.MaxIdleTimeoutMinutes)
+        {
+            Ui.Error($"Indiquez un nombre de minutes entre 0 (jamais) et {Compta.MaxIdleTimeoutMinutes}.");
+            return;
+        }
+        if (!Ui.Try(() => _c.SetIdleTimeoutMinutes(minutes))) return;
+        MainWindow.Current?.RefreshIdleTimeout();
+        Ui.Info(minutes == 0 ? "Déconnexion automatique désactivée."
+                             : $"Les utilisateurs seront déconnectés après {minutes} minute(s) d'inactivité.");
+    }
 
     /// <summary>Fichier de configuration (connexion à la base) pour le premier lancement d'un autre poste.
     /// Réservé aux administrateurs : il peut contenir le mot de passe du serveur.</summary>

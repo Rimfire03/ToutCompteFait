@@ -1425,6 +1425,24 @@ Console.WriteLine("Format Crédit Agricole");
     Eq(Dt(2026, 1, 1), bal.Start, "CA : début de période « entre le … et le … »");
     Check(!Money.TryParse("123456789012345678901234567890", out _), "numéro très long : pas un montant (pas de dépassement)");
 }
+// ---- Déconnexion automatique : réglage de la base, administrateur seulement
+Console.WriteLine("Déconnexion automatique");
+{
+    var f = NewFactory(TempDb());
+    var admin = NewCompta(f);
+    var reader = NewCompta(f, new Session(9, "lecteur", "Lecteur", Role.Reader));
+    Eq(0, admin.GetIdleTimeoutMinutes(), "inactivité : désactivée par défaut");
+    admin.SetIdleTimeoutMinutes(15);
+    Eq(15, admin.GetIdleTimeoutMinutes(), "inactivité : délai enregistré");
+    Eq(15, reader.GetIdleTimeoutMinutes(), "inactivité : même délai pour tous les utilisateurs");
+    Throws(() => reader.SetIdleTimeoutMinutes(5), "inactivité : non administrateur refusé", "");
+    Throws(() => admin.SetIdleTimeoutMinutes(5000), "inactivité : délai trop long refusé", "entre 0");
+    Eq(15, admin.GetIdleTimeoutMinutes(), "inactivité : valeur refusée sans effet");
+    admin.SetIdleTimeoutMinutes(0);
+    Eq(0, reader.GetIdleTimeoutMinutes(), "inactivité : désactivation");
+    Check(admin.AuditLog(10).Any(l => l.Action == "Déconnexion automatique"), "inactivité : changement tracé au journal");
+}
+
 // ---- Moyen de paiement déduit du libellé bancaire
 Console.WriteLine("Moyen de paiement");
 {
