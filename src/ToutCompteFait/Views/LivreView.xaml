@@ -97,7 +97,6 @@
                     </Style>
                 </DataGrid.RowStyle>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="N°" Binding="{Binding Number}" Width="40" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
                     <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="80" ElementStyle="{StaticResource LeftCell}"/>
                     <DataGridTextColumn Header="Libellé" Binding="{Binding Label}" Width="2*" MinWidth="110" ElementStyle="{StaticResource LeftCell}"/>
                     <DataGridTextColumn Header="Moyen" Binding="{Binding ModeText}" Width="84" ElementStyle="{StaticResource LeftCell}"/>
