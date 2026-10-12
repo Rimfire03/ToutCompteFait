@@ -10,7 +10,7 @@
     <AssemblyName>ToutCompteFait</AssemblyName>
     <RootNamespace>ToutCompteFait</RootNamespace>
     <InvariantGlobalization>false</InvariantGlobalization>
-    <Version>1.1.2</Version>
+    <Version>1.2.0</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Company>TomLine prod&amp;co</Company>
     <Product>Tout Compte Fait</Product>
