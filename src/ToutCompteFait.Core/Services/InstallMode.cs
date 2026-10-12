@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 
 namespace ToutCompteFait.Core.Services;
 
@@ -8,7 +8,9 @@ namespace ToutCompteFait.Core.Services;
 /// l'installateur est passé reste portable.</summary>
 public static class InstallMode
 {
-    public const string RegistryKeyPath = @"SOFTWARE\TomLine\ToutCompteFait";
+    /// <summary>Clé propre à la version du logiciel : deux versions installées côte à côte ne se confondent pas
+    /// (<c>HKLM\SOFTWARE\TomLine\ToutCompteFait</c> pour la version historique).</summary>
+    public static string RegistryKeyPath => @"SOFTWARE\TomLine\" + Editions.Current.DataName;
 
     private static bool? _installed;
 

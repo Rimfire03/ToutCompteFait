@@ -28,6 +28,10 @@
 - Le paramétrage qui doit rester modifiable après clôture (numéros de compte FEC, réglages d'export) va dans des tables
   ou colonnes hors des tables verrouillées et hors de l'empreinte.
 
+## Versions (éditions) du logiciel
+
+- Plusieurs versions cohabitent (une installation par version) : editions.json + src\ToutCompteFait.Core\Editions.cs.\n  Version actuelle = **Asso** (ToutCompteFaitAsso.exe). Le numéro de version est commun ; ne jamais renommer les\n  noms de données de la version historique (ToutCompteFait : réglages, registre, licence, dossier d'installation).\n- Jamais de nom d'exécutable, de nom affiché ou de nom de fichier de release en dur : passer par Editions.Current\n  (code) ou editions.json (scripts). Un UpgradeCode / GUID de dossier n'est jamais partagé entre deux versions.\n- Une licence = une seule version (LicenseOptions.Edition, champ edition du serveur License-server).\n- 	ools\Release.ps1 publie toutes les versions dans **une** release, version historique en premier (les anciennes\n  installations prennent le premier .msi/.zip) ; ne pas changer cet ordre ni retirer ToutCompteFait.exe (lanceur).
+
 ## Release
 
 - Incrémenter `<Version>` dans `src\ToutCompteFait\ToutCompteFait.csproj`, committer et pousser, puis lancer

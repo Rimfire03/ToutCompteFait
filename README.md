@@ -5,7 +5,7 @@ Application Windows (WPF, .NET 8), un seul `.exe` autonome ; les données sont d
 
 ## Utilisation rapide
 
-1. Lancer `dist\ToutCompteFait\ToutCompteFait.exe` (la base est dans `Donnees\compta.db`).
+1. Lancer `dist\ToutCompteFaitAsso\ToutCompteFaitAsso.exe` (la base est dans `Donnees\compta.db`).
 2. **Livre** : « Nouvelle écriture » → type (dépense, recette, virement entre comptes, remboursement à un membre,
    sans mouvement d'argent), date, libellé, montant, catégorie. Le montant est repris dans la ventilation ; un bandeau
    vert/rouge indique si tout est ventilé. La rentabilité de l'opération concernée s'affiche pendant la saisie.
@@ -156,6 +156,28 @@ l'année) ou une **image** (PNG, JPEG, TIFF, BMP).
 * Diagnostics : `ToutCompteFait.exe --ocrtest <dossier>` (relevé factice PDF + image, lecture complète) ;
   `--readstatement <fichier> <sortie.txt>` (texte positionné + lecture d'un vrai relevé) ;
   `--ocrui <dossier de PDF> <capture.png>` (écran de vérification sur tous les PDF d'un dossier).
+## Versions (éditions) du logiciel
+
+Le logiciel existe en plusieurs **versions** qui s'installent **côte à côte** sur un même poste (une installation par
+version). Le numéro de version est **commun** à toutes ; chaque version y ajoute sa mention (« 1.3.0 · version Asso »).
+
+| | Version Asso (historique) |
+|---|---|
+| Nom affiché | Tout Compte Fait Asso |
+| Exécutable | `ToutCompteFaitAsso.exe` |
+| Installateur / archive | `ToutCompteFaitAsso-v<version>-win-x64.msi` / `.zip` |
+| Dossier d'installation | `C:\Program Files\ToutCompteFait` (inchangé : les données `Donnees\` restent en place) |
+| Réglages, clé de registre, licence | `ToutCompteFait` (inchangés : les installations et licences existantes continuent) |
+
+* **Une seule base de code.** La version est choisie à la compilation (`-p:Edition=asso`, métadonnée d'assembly lue par
+  `Editions.Current`). Les versions sont déclarées dans `editions.json` (nom, exécutable, `UpgradeCode`, GUID des dossiers).
+  Ajouter une version = ajouter une entrée (nouveaux GUID) puis `Release.ps1` la construit et la publie.
+* **Mises à jour.** Une release GitHub contient les fichiers de toutes les versions ; chaque installation ne prend que celui
+  de sa version et ne se met jamais à jour vers une autre. Les anciennes installations (≤ 1.2.x, avant les versions) passent
+  automatiquement sur la version Asso : leur mise à jour prend le premier `.msi`/`.zip` de la release (Asso, publié en premier)
+  et le lanceur `ToutCompteFait.exe` livré avec Asso (`tools\LegacyLauncher`) les relance après la mise à jour.
+* **Licences.** Une licence ne donne droit qu'à **une** version (champ « version » côté serveur de licences, `asso` par
+  défaut pour toutes les licences déjà émises). Le produit et le nom de la licence ne changent pas.
 ## Mises à jour automatiques
 
 Même système que FiltresApp : le logiciel interroge la dernière **release GitHub** du dépôt

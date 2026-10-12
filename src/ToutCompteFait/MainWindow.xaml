@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:app="clr-namespace:ToutCompteFait"
         xmlns:ctl="clr-namespace:ToutCompteFait.Controls"
-        Title="Tout Compte Fait" Height="860" Width="1480" MinWidth="1100" MinHeight="620"
+        xmlns:core="clr-namespace:ToutCompteFait.Core;assembly=ToutCompteFait.Core"
+        Title="{x:Static core:Editions.AppName}" Height="860" Width="1480" MinWidth="1100" MinHeight="620"
         WindowStartupLocation="CenterScreen" Background="{StaticResource BrushBackground}">
     <Window.Resources>
         <Style x:Key="NavButton" TargetType="RadioButton">
@@ -40,7 +41,7 @@
             <Grid>
                 <!-- Version de l'application et de la base, tout à droite. -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Source={x:Static app:App.DisplayVersion}, StringFormat='Core v{0}'}" FontSize="11" Foreground="#64748B"/>
+                    <TextBlock x:Name="CoreVersionText" FontSize="11" Foreground="#64748B"/>
                     <TextBlock x:Name="DbVersionText" FontSize="11" Foreground="#64748B" Margin="12,0,0,0"/>
                     <TextBlock x:Name="DbModeText" FontSize="11" Foreground="#64748B" Margin="6,0,0,0"/>
                     <!-- Puce d'état de la base : grise (vérification), verte (accessible), orange (lecture seule), rouge (connexion perdue). -->
@@ -72,7 +73,7 @@
                                DataContext="{x:Static app:App.DatabaseHealth}"
                                Visibility="{Binding IsDown, Converter={StaticResource BoolToVis}}"/>
                 </StackPanel>
-                <TextBlock Text="© TomLine prod&amp;co by Thomas Guidez  ·  Tout Compte Fait" FontSize="11" Foreground="#64748B" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="CopyrightText" FontSize="11" Foreground="#64748B" HorizontalAlignment="Center"/>
                 <!-- État de l'accès en écriture, aligné à gauche (à la place de l'état de licence de FiltresApp). -->
                 <TextBlock x:Name="AccessFooter" FontSize="11" Foreground="#64748B" HorizontalAlignment="Left" VerticalAlignment="Center"/>
             </Grid>
@@ -89,7 +90,7 @@
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Top" Margin="16,18,16,8">
                         <ctl:AppLogo Width="60" Height="60" HorizontalAlignment="Left" Margin="0,0,0,10"/>
-                        <TextBlock Text="Tout Compte Fait" FontSize="19" FontWeight="Bold" Foreground="{StaticResource BrushTextOnDark}"/>
+                        <TextBlock Text="{x:Static core:Editions.AppName}" FontSize="17" FontWeight="Bold" TextWrapping="Wrap" Foreground="{StaticResource BrushTextOnDark}"/>
                         <TextBlock Text="Livre de trésorerie" FontSize="11" Foreground="#94A3B8" Margin="0,1,0,0"/>
 
                         <Border Background="#152138" CornerRadius="6" Padding="10,8" Margin="0,16,0,0"

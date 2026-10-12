@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Threading;
 using TomLine.Licensing;
+using ToutCompteFait.Core;
 using ToutCompteFait.Core.Licensing;
 using ToutCompteFait.Dialogs;
 
@@ -16,8 +17,11 @@ public static class LicenseGate
     /// puis passer <c>RequireSignature</c> à vrai une fois le serveur déployé avec sa clé de signature.</summary>
     private static readonly LicenseOptions Options = new()
     {
-        ProductSlug = "tout-compte-fait",
-        StoreName = "ToutCompteFait",
+        // Propres à la version du logiciel (voir Editions) : la version historique garde le produit et le nom de stockage
+        // d'origine, donc les licences déjà enregistrées restent lisibles ; une licence ne donne droit qu'à une version.
+        ProductSlug = Editions.Current.ProductSlug,
+        StoreName = Editions.Current.DataName,
+        Edition = Editions.Current.LicenseEdition,
         // Clé publique du serveur de licences (vérification seule, sans danger dans le dépôt).
         PublicKeys = new[] { "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjairPbdPQuYiWSJ6MtVo6xchepZYn9h+JFdSI72MNzuVwmFgTCiYBRuPHJBJT45eC+qloOQbBWZDSZSkZxttvQ==" },
         // Le serveur signe activate/validate/request-demo : une réponse sans signature valide est refusée.

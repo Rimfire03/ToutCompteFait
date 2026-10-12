@@ -1423,6 +1423,59 @@ Console.WriteLine("Format Crédit Agricole");
     Eq(227363L, bal.Closing, "CA : « Solde au … » lu comme solde");
     Eq(Dt(2026, 1, 1), bal.Start, "CA : début de période « entre le … et le … »");
     Check(!Money.TryParse("123456789012345678901234567890", out _), "numéro très long : pas un montant (pas de dépassement)");
+}// ---- Versions (éditions) du logiciel : noms, fichiers de release, cohérence avec editions.json
+Console.WriteLine("Versions du logiciel");
+{
+    Eq("asso", Editions.Current.Id, "tests : version historique par défaut");
+    var asso = new AppEdition("asso");
+    Eq("Tout Compte Fait Asso", asso.AppName, "nom affiché de la version Asso");
+    Eq("version Asso", asso.VersionMention, "mention ajoutée au numéro de version");
+    Eq("ToutCompteFaitAsso.exe", asso.ExeFileName, "exécutable de la version Asso");
+    Eq("ToutCompteFait", asso.DataName, "version historique : noms de données d'origine (réglages, registre, licence)");
+    Eq("tout_compte_fait", asso.DefaultServerDatabaseName, "version historique : base serveur d'origine");
+    Eq("asso", asso.LicenseEdition, "version envoyée au serveur de licences");
+    Eq("tout-compte-fait", asso.ProductSlug, "produit de licence commun à toutes les versions");
+    var pro = new AppEdition("pro");
+    Eq("ToutCompteFaitPro", pro.DataName, "autre version : noms de données propres");
+    Eq("tout_compte_fait_pro", pro.DefaultServerDatabaseName, "autre version : base serveur propre");
+    Check(asso.DataName != pro.DataName && asso.ExeFileName != pro.ExeFileName, "deux versions ne partagent ni exécutable ni données");
+    Check(AppEdition.IsValidId("asso") && AppEdition.IsValidId("pro2") && !AppEdition.IsValidId("Pro") && !AppEdition.IsValidId("") && !AppEdition.IsValidId("2pro")
+          && !AppEdition.IsValidId("a b"), "identifiants de version valides");
+
+    // Fichiers d'une release : chaque version prend le sien ; la version historique reprend les anciens noms (≤ 1.2.x).
+    var files = new[]
+    {
+        ("ToutCompteFaitAsso-v1.3.0-win-x64.zip", "u/asso.zip"), ("ToutCompteFaitAsso-v1.3.0-win-x64.msi", "u/asso.msi"),
+        ("ToutCompteFaitPro-v1.3.0-win-x64.zip", "u/pro.zip"), ("ToutCompteFaitPro-v1.3.0-win-x64.msi", "u/pro.msi")
+    };
+    Eq("u/asso.msi", UpdateService.PickAsset(files, ".msi", asso)!.Value.Url, "Asso : son installateur");
+    Eq("u/pro.zip", UpdateService.PickAsset(files, ".zip", pro)!.Value.Url, "Pro : son archive");
+    var legacyFiles = new[] { ("ToutCompteFait-v1.2.2-win-x64.zip", "u/old.zip"), ("ToutCompteFait-v1.2.2-win-x64.msi", "u/old.msi") };
+    Eq("u/old.msi", UpdateService.PickAsset(legacyFiles, ".msi", asso)!.Value.Url, "Asso : repli sur les fichiers d'avant les versions");
+    Check(UpdateService.PickAsset(legacyFiles, ".msi", pro) is null, "Pro : jamais les fichiers de la version historique");
+    Check(UpdateService.PickAsset(files.Where(f => f.Item1.Contains("Asso")), ".msi", pro) is null, "release sans fichier pour cette version");
+
+    // editions.json (utilisé par les scripts de release) suit les mêmes règles de nommage que le programme.
+    var dir = new DirectoryInfo(AppContext.BaseDirectory);
+    while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "editions.json"))) dir = dir.Parent;
+    Check(dir is not null, "editions.json trouvé à la racine du dépôt");
+    if (dir is not null)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(dir.FullName, "editions.json")));
+        var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in doc.RootElement.GetProperty("editions").EnumerateArray())
+        {
+            var id = e.GetProperty("id").GetString()!;
+            var ed = new AppEdition(id);
+            Check(AppEdition.IsValidId(id), $"editions.json : identifiant « {id} » valide");
+            Eq(ed.ExeBaseName, e.GetProperty("exe").GetString(), $"editions.json[{id}] : exécutable");
+            Eq(ed.AppName, e.GetProperty("name").GetString(), $"editions.json[{id}] : nom affiché");
+            Eq(ed.DataName, e.GetProperty("dataName").GetString(), $"editions.json[{id}] : nom des données");
+            Check(codes.Add(e.GetProperty("upgradeCode").GetString()!) && codes.Add(e.GetProperty("dataFolderGuid").GetString()!)
+                  && codes.Add(e.GetProperty("backupFolderGuid").GetString()!), $"editions.json[{id}] : GUID uniques (jamais partagés entre versions)");
+        }
+        Check(codes.Contains("ADEA732C-8143-4CC9-AFCB-E08D07DE3AF1"), "UpgradeCode historique conservé : les installations existantes passent sur Asso");
+    }
 }// ---- Virements entre comptes : une seule écriture
 Console.WriteLine("Virements entre comptes");
 {

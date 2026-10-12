@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using ToutCompteFait.Core;
 using TomLine.Licensing;
 
 namespace ToutCompteFait.Dialogs;
@@ -18,7 +19,7 @@ public sealed class LicenseWindow : Window
     public LicenseWindow(LicenseService service, string? reason)
     {
         _service = service;
-        Title = "Licence — Tout Compte Fait";
+        Title = "Licence — " + Editions.AppName;
         Width = 520;
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;

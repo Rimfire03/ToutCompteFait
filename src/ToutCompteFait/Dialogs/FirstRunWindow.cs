@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using ToutCompteFait.Core;
 
 namespace ToutCompteFait.Dialogs;
 
@@ -17,7 +18,7 @@ public sealed class FirstRunWindow : Window
 
     public FirstRunWindow(string expectedPath)
     {
-        Title = "Tout Compte Fait — Première utilisation";
+        Title = Editions.AppName + " — Première utilisation";
         Width = 560;
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;

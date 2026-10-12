@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using ToutCompteFait.Core;
 using ToutCompteFait.Core.Security;
 
@@ -15,11 +15,13 @@ public partial class LoginWindow : Window
     public LoginWindow(AuthService auth)
     {
         InitializeComponent();
+        Title = Editions.AppName + " — Connexion";
+        AppTitleText.Text = Editions.AppName;
         _auth = auth;
         _setup = !auth.HasUsers();
         if (_setup)
         {
-            Title = "Tout Compte Fait — Création de l'administrateur";
+            Title = Editions.AppName + " — Création de l'administrateur";
             SubTitle.Text = "Création du compte administrateur";
             SetupNote.Visibility = Visibility.Visible;
             DisplayPanel.Visibility = Visibility.Visible;

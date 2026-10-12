@@ -50,7 +50,7 @@ public class DbConnectionInfo
     public DatabaseProvider Provider { get; set; } = DatabaseProvider.PostgreSql;
     public string Host { get; set; } = "localhost";
     public int Port { get; set; } = 5432;
-    public string Database { get; set; } = "tout_compte_fait";
+    public string Database { get; set; } = Editions.Current.DefaultServerDatabaseName;
     public string UserName { get; set; } = "";
 
     /// <summary>Connexion chiffrée (SSL/TLS) vers le serveur.</summary>

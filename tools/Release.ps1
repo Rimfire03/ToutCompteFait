@@ -1,39 +1,45 @@
-﻿<#
+<#
 .SYNOPSIS
-    Release complete de Tout Compte Fait : controles, publish, signature, zip, release GitHub.
+    Release complete de Tout Compte Fait : controles, publish, signature, zip, MSI, release GitHub.
 
 .DESCRIPTION
-    Version = <Version> de src\ToutCompteFait\ToutCompteFait.csproj (a incrementer et committer AVANT).
-    Etapes : controles (arbre propre, commits pousses, tag libre) -> tests -> dotnet publish -> signature
-    (tools\Sign-Release.ps1) -> zip ToutCompteFait-v<version>-win-x64.zip -> MSI ToutCompteFait-v<version>-win-x64.msi
-    (tools\Build-Installer.ps1) -> notes (fournies, ou generees en local
-    a partir des commits depuis le dernier tag) -> gh release create.
-    L'application installee lit cette release (Parametres > Mises a jour) : elle telecharge le zip et remplace
-    uniquement les fichiers du programme.
+    Version = <Version> de src\ToutCompteFait\ToutCompteFait.csproj (a incrementer et committer AVANT) : le numero est
+    COMMUN a toutes les versions (editions) du logiciel, declarees dans editions.json (build = true).
+    Etapes : controles (arbre propre, commits pousses, tag libre) -> tests -> pour chaque version : dotnet publish
+    (-p:Edition=<id>), signature (tools\Sign-Release.ps1), zip <Exe>-v<version>-win-x64.zip, MSI
+    <Exe>-v<version>-win-x64.msi (tools\Build-Installer.ps1) -> notes (fournies, ou generees en local a partir des commits
+    depuis le dernier tag) -> gh release create (une seule release, les fichiers de toutes les versions).
+    Ordre des fichiers : la version « historique » (legacyLauncher) d'abord ; les anciennes installations (<= 1.2.x), qui
+    prennent le premier .zip / .msi de la release, passent ainsi sur la version Asso. Cette version embarque aussi le
+    lanceur ToutCompteFait.exe (tools\LegacyLauncher) que ces anciennes installations relancent apres leur mise a jour.
+    Chaque application installee lit cette release (Parametres > Mises a jour) et ne prend que le fichier de SA version.
 
-    JAMAIS DE DONNEES : le zip ne contient que le programme. Le script refuse de continuer si le dossier publie ou le
+    JAMAIS DE DONNEES : les zip ne contiennent que le programme. Le script refuse de continuer si un dossier publie ou un
     zip contient une base (.db), un dossier Donnees\ ou Sauvegardes\, ou un fichier de reglages.
 
 .EXAMPLE
     .\tools\Release.ps1 -NoPublish                 # tout sauf la publication GitHub (test)
     .\tools\Release.ps1 -NotesFile notes.md
     .\tools\Release.ps1 -Notes "Correctif X"
+    .\tools\Release.ps1 -Edition asso -NoPublish   # une seule version
 #>
 param(
     [string]$Notes,
     [string]$NotesFile,
     [switch]$NoPublish,
     [ValidateSet("main","dev")][string]$Channel = "main",
-    [string]$Repo = "Rimfire03/ToutCompteFait"
+    [string]$Repo = "Rimfire03/ToutCompteFait",
+    [string[]]$Edition
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $csproj = Join-Path $root "src\ToutCompteFait\ToutCompteFait.csproj"
-$publishDir = Join-Path $root "dist\release"
+$distDir = Join-Path $root "dist\release"
 
 function Git { $ErrorActionPreference = "Continue"; & git.exe -C $root @args 2>&1 | ForEach-Object { "$_" } }
 function Step([string]$m) { Write-Host "[release] $m" }
+function DropDir([string]$p) { if (Test-Path $p) { [IO.Directory]::Delete($p, $true) } }
 
 # --- Version
 $m = [regex]::Match([IO.File]::ReadAllText($csproj), '<Version>(\d+\.\d+\.\d+)</Version>')
@@ -42,6 +48,13 @@ $version = $m.Groups[1].Value
 $dev = ($Channel -eq "dev")
 $tag = if ($dev) { "v$version-dev" } else { "v$version" }
 Step "version $version"
+
+# --- Versions (editions) a construire : la version historique d'abord (ordre des fichiers de la release)
+$all = @((Get-Content (Join-Path $root "editions.json") -Raw -Encoding UTF8 | ConvertFrom-Json).editions | Where-Object { $_.build })
+if ($Edition) { $all = @($all | Where-Object { $Edition -contains $_.id }) }
+if ($all.Count -eq 0) { throw "Aucune version (edition) a construire." }
+$all = @($all | Sort-Object @{ Expression = { if ($_.legacyLauncher) { 0 } else { 1 } } })
+Step ("versions : " + (($all | ForEach-Object { $_.id }) -join ", "))
 
 # --- Controles
 if (-not $NoPublish) {
@@ -62,52 +75,79 @@ Step "tests"
 & dotnet run --project (Join-Path $root "tests\ToutCompteFait.Tests") -c Release --nologo -v q | Select-Object -Last 1 | ForEach-Object { Write-Host "  $_" }
 if ($LASTEXITCODE -ne 0) { throw "Les tests ont echoue : release annulee." }
 
-# --- Publish
-Step "dotnet publish"
-if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
-& dotnet publish $csproj -c Release -r win-x64 `
-    --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:PublishReadyToRun=false -p:EnableCompressionInSingleFile=true -p:DebugType=None $(if ($dev) { "-p:ReleaseChannel=dev" }) `
-    -o $publishDir --nologo -v quiet | Out-Null
-if ($LASTEXITCODE -ne 0) { throw "dotnet publish a echoue (code $LASTEXITCODE)." }
-
-# --- Garde : aucune donnee dans ce qui sera publie
-$forbidden = @(Get-ChildItem $publishDir -Recurse -Force | Where-Object {
-    $_.Name -match '\.(db|db-journal|db-wal|db-shm|lock|bak|pfx|key)$' -or
-    $_.Name -like '*.settings.json' -or $_.Name -eq 'settings.json' -or
-    ($_.PSIsContainer -and $_.Name -in @('Donnees', 'Sauvegardes'))
-})
-if ($forbidden.Count -gt 0) {
-    throw ("DONNEES DANS LE DOSSIER PUBLIE, release annulee : " + (($forbidden | ForEach-Object { $_.FullName }) -join ", "))
-}
-
-# --- Signature (obligatoire avant le zip)
-Step "signature"
-$exe = Join-Path $publishDir "ToutCompteFait.exe"
-& (Join-Path $PSScriptRoot "Sign-Release.ps1") -ExePath $exe | Select-Object -Last 3 | ForEach-Object { Write-Host "  $_" }
-if (-not (Get-AuthenticodeSignature $exe).SignerCertificate) { throw "ToutCompteFait.exe n'est pas signe : zip annule." }
-
-# --- Zip (l'executable est a la racine : exige par UpdateService)
 $work = Join-Path $env:TEMP "toutcomptefait-release-$version"
 New-Item -ItemType Directory -Force $work | Out-Null
-$zip = Join-Path $work "ToutCompteFait-$tag-win-x64.zip"
-if (Test-Path $zip) { Remove-Item $zip -Force }
-Compress-Archive -Path (Join-Path $publishDir "*") -DestinationPath $zip -CompressionLevel Optimal
+DropDir $distDir
+$groups = @()   # fichiers a publier, par version : @(@{ Id; Files = @(zip, msi) })
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$archive = [IO.Compression.ZipFile]::OpenRead($zip)
-try {
-    $names = @($archive.Entries | ForEach-Object { $_.FullName })
-    if ($names -notcontains "ToutCompteFait.exe") { throw "ToutCompteFait.exe absent de la racine du zip." }
-    $bad = @($names | Where-Object { $_ -match '\.(db|db-journal|db-wal|db-shm|lock|bak|pfx|key)$' -or $_ -match '^(Donnees|Sauvegardes)[\\/]' -or $_ -like '*settings.json' })
-    if ($bad.Count -gt 0) { throw "DONNEES DANS LE ZIP, release annulee : $($bad -join ', ')" }
-} finally { $archive.Dispose() }
-Step ("zip {0} ({1:N0} Mo, {2} fichier(s), aucune donnee)" -f (Split-Path $zip -Leaf), ((Get-Item $zip).Length / 1MB), $names.Count)
+$forbiddenName = '\.(db|db-journal|db-wal|db-shm|lock|bak|pfx|key)$'
 
-# --- Installateur MSI (par machine) : meme exe signe, MSI signe a son tour ; aucune donnee embarquee
-Step "installateur MSI"
-$msi = Join-Path $work "ToutCompteFait-$tag-win-x64.msi"
-& (Join-Path $PSScriptRoot "Build-Installer.ps1") -Version $version -OutFile $msi -PublishDir $publishDir | Select-Object -Last 1 | ForEach-Object { Write-Host "  $_" }
-if (-not (Test-Path $msi)) { throw "MSI non genere." }
+foreach ($ed in $all) {
+    $id = $ed.id
+    $exeName = "$($ed.exe).exe"
+    $publishDir = Join-Path $distDir $id
+    Step "[$id] dotnet publish"
+    & dotnet publish $csproj -c Release -r win-x64 -p:Edition=$id `
+        --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+        -p:PublishReadyToRun=false -p:EnableCompressionInSingleFile=true -p:DebugType=None $(if ($dev) { "-p:ReleaseChannel=dev" }) `
+        -o $publishDir --nologo -v quiet | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "dotnet publish ($id) a echoue (code $LASTEXITCODE)." }
+
+    # Garde : aucune donnee dans ce qui sera publie
+    $forbidden = @(Get-ChildItem $publishDir -Recurse -Force | Where-Object {
+        $_.Name -match $forbiddenName -or $_.Name -like '*.settings.json' -or $_.Name -eq 'settings.json' -or
+        ($_.PSIsContainer -and $_.Name -in @('Donnees', 'Sauvegardes'))
+    })
+    if ($forbidden.Count -gt 0) {
+        throw ("DONNEES DANS LE DOSSIER PUBLIE, release annulee : " + (($forbidden | ForEach-Object { $_.FullName }) -join ", "))
+    }
+
+    # Signature (obligatoire avant le zip)
+    Step "[$id] signature"
+    $exe = Join-Path $publishDir $exeName
+    & (Join-Path $PSScriptRoot "Sign-Release.ps1") -ExePath $exe | Select-Object -Last 3 | ForEach-Object { Write-Host "  $_" }
+    if (-not (Get-AuthenticodeSignature $exe).SignerCertificate) { throw "$exeName n'est pas signe : zip annule." }
+
+    # Lanceur de compatibilite ToutCompteFait.exe (anciennes mises a jour automatiques et raccourcis existants)
+    $launcher = $null
+    if ($ed.legacyLauncher) {
+        Step "[$id] lanceur de compatibilite ToutCompteFait.exe"
+        $csc = Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+        if (-not (Test-Path $csc)) { throw "csc.exe (.NET Framework 4) introuvable : $csc" }
+        $launcher = Join-Path $work "ToutCompteFait.exe"
+        if (Test-Path $launcher) { [IO.File]::Delete($launcher) }
+        & $csc /nologo /target:winexe /optimize+ "/out:$launcher" "/win32icon:$(Join-Path $root 'src\ToutCompteFait\Assets\app.ico')" `
+            /r:System.Windows.Forms.dll (Join-Path $PSScriptRoot "LegacyLauncher\ToutCompteFait.cs") | Out-Null
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $launcher)) { throw "Compilation du lanceur de compatibilite echouee." }
+        & (Join-Path $PSScriptRoot "Sign-Release.ps1") -ExePath $launcher | Select-Object -Last 1 | ForEach-Object { Write-Host "  $_" }
+        if (-not (Get-AuthenticodeSignature $launcher).SignerCertificate) { throw "Le lanceur n'est pas signe." }
+        Copy-Item $launcher (Join-Path $publishDir "ToutCompteFait.exe") -Force
+    }
+
+    # Zip (l'executable est a la racine : exige par UpdateService)
+    $zip = Join-Path $work "$($ed.exe)-$tag-win-x64.zip"
+    if (Test-Path $zip) { [IO.File]::Delete($zip) }
+    Compress-Archive -Path (Join-Path $publishDir "*") -DestinationPath $zip -CompressionLevel Optimal
+    $archive = [IO.Compression.ZipFile]::OpenRead($zip)
+    try {
+        $names = @($archive.Entries | ForEach-Object { $_.FullName })
+        if ($names -notcontains $exeName) { throw "$exeName absent de la racine du zip." }
+        if ($ed.legacyLauncher -and $names -notcontains "ToutCompteFait.exe") { throw "ToutCompteFait.exe (lanceur) absent de la racine du zip." }
+        $bad = @($names | Where-Object { $_ -match $forbiddenName -or $_ -match '^(Donnees|Sauvegardes)[\\/]' -or $_ -like '*settings.json' })
+        if ($bad.Count -gt 0) { throw "DONNEES DANS LE ZIP, release annulee : $($bad -join ', ')" }
+    } finally { $archive.Dispose() }
+    Step ("[$id] zip {0} ({1:N0} Mo, {2} fichier(s), aucune donnee)" -f (Split-Path $zip -Leaf), ((Get-Item $zip).Length / 1MB), $names.Count)
+
+    # Installateur MSI (par machine) : meme exe signe, MSI signe a son tour ; aucune donnee embarquee
+    Step "[$id] installateur MSI"
+    $msi = Join-Path $work "$($ed.exe)-$tag-win-x64.msi"
+    $bi = @{ Version = $version; OutFile = $msi; PublishDir = $publishDir; Edition = $id }
+    if ($launcher) { $bi.LauncherPath = $launcher }
+    & (Join-Path $PSScriptRoot "Build-Installer.ps1") @bi | Select-Object -Last 1 | ForEach-Object { Write-Host "  $_" }
+    if (-not (Test-Path $msi)) { throw "MSI ($id) non genere." }
+
+    $groups += ,@{ Id = $id; Files = @($zip, $msi) }
+}
 
 # --- Notes
 $notesPath = Join-Path $work "notes.md"
@@ -145,13 +185,20 @@ if (-not $schema) { throw "Version du schema de base introuvable dans DatabaseMi
 [IO.File]::AppendAllText($notesPath, "`n`n<!-- db-schema: $schema -->`n", (New-Object Text.UTF8Encoding($false)))
 Step "schema de base $schema"
 if ($NoPublish) {
-    Write-Host "[release] -NoPublish : arret avant GitHub. Zip : $zip ; MSI : $msi ; notes : $notesPath"
+    Write-Host "[release] -NoPublish : arret avant GitHub. Fichiers : $((($groups | ForEach-Object { $_.Files }) | ForEach-Object { $_ }) -join ' ; ') ; notes : $notesPath"
     return
 }
 
-# --- Publication
+# --- Publication : la release est creee avec les fichiers de la premiere version (la version historique), puis ceux
+# des autres versions sont ajoutes UN PAR UN (ordre garanti : les anciennes installations prennent le premier .msi/.zip).
 Step "gh release create $tag"
 $sha = (Git rev-parse HEAD | Select-Object -First 1).Trim()
-& gh.exe release create $tag $zip $msi --repo $Repo --target $sha --title "Version $version$(if ($dev) { ' (dev)' })" --notes-file $notesPath $(if ($dev) { "--prerelease" } else { "--latest" })
+& gh.exe release create $tag $groups[0].Files --repo $Repo --target $sha --title "Version $version$(if ($dev) { ' (dev)' })" --notes-file $notesPath $(if ($dev) { "--prerelease" } else { "--latest" })
 if ($LASTEXITCODE -ne 0) { throw "gh release create a echoue (code $LASTEXITCODE)." }
+foreach ($g in ($groups | Select-Object -Skip 1)) {
+    foreach ($f in $g.Files) {
+        & gh.exe release upload $tag $f --repo $Repo
+        if ($LASTEXITCODE -ne 0) { throw "gh release upload ($($g.Id)) a echoue (code $LASTEXITCODE)." }
+    }
+}
 Write-Host "[release] OK : https://github.com/$Repo/releases/tag/$tag"

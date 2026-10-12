@@ -1,0 +1,17 @@
+{
+  "_comment": "Versions (éditions) du logiciel, installables côte à côte. Règles de nommage : voir src/ToutCompteFait.Core/Editions.cs (vérifiées par les tests). Une version ajoutée ici est construite et publiée par tools/Release.ps1 ; son UpgradeCode et ses GUID de dossiers sont propres (ne jamais en réutiliser un d'une autre version).",
+  "editions": [
+    {
+      "id": "asso",
+      "exe": "ToutCompteFaitAsso",
+      "name": "Tout Compte Fait Asso",
+      "dataName": "ToutCompteFait",
+      "installFolder": "ToutCompteFait",
+      "upgradeCode": "ADEA732C-8143-4CC9-AFCB-E08D07DE3AF1",
+      "dataFolderGuid": "3C2E8A88-99DF-4F94-A685-17F8B5180886",
+      "backupFolderGuid": "A210B9A4-8212-4955-A87F-55E620C28B02",
+      "legacyLauncher": true,
+      "build": true
+    }
+  ]
+}

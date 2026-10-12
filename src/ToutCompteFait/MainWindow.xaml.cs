@@ -31,7 +31,9 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Current = this;
-        Title = "Tout Compte Fait";
+        Title = Editions.AppName;
+        CoreVersionText.Text = $"v{App.DisplayVersion} · {Editions.Current.VersionMention}";
+        CopyrightText.Text = "© TomLine prod&co by Thomas Guidez  ·  " + Editions.AppName;
 
         App.DatabaseReopened += OnDatabaseReopened;
         UserNameText.Text = App.Session.DisplayName;
@@ -231,7 +233,7 @@ public partial class MainWindow : Window
     {
         Ui.Info("Bienvenue ! Commençons par créer le premier exercice (la période comptable).\n\n" +
                 "Vous pourrez ensuite saisir les soldes de départ des comptes dans « Paramètres », puis importer vos relevés bancaires depuis le Livre.",
-            "Tout Compte Fait");
+            Editions.AppName);
         CreateYearInteractive();
     }
 

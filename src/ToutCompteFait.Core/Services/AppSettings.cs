@@ -8,8 +8,9 @@ namespace ToutCompteFait.Core.Services;
 /// Les DONNÉES sont dans la base (fichier SQLite ou serveur), jamais dans l'exécutable ni dans ce fichier.</summary>
 public sealed class AppSettings
 {
-    private const string FileName = "ToutCompteFait.settings.json";
-    private const string DirectoryName = "ToutCompteFait";
+    // Propres à la version du logiciel (voir Editions) : la version historique garde les noms d'origine.
+    private static string FileName => Editions.Current.DataName + ".settings.json";
+    private static string DirectoryName => Editions.Current.DataName;
 
     /// <summary>Chemin du fichier SQLite (absolu, ou relatif au dossier de l'exécutable). Vide = Donnees\compta.db.</summary>
     public string? DatabasePath { get; set; }
@@ -40,7 +41,7 @@ public sealed class AppSettings
     /// courante), base64 ; jamais en clair. Vide = non mémorisé. Voir <see cref="SetRememberedPassword"/>.</summary>
     public string? RememberedPassword { get; set; }
 
-    private static readonly byte[] PasswordEntropy = Encoding.UTF8.GetBytes("ToutCompteFait.login");
+    private static readonly byte[] PasswordEntropy = Encoding.UTF8.GetBytes("ToutCompteFait.login");   // inchangé : un mot de passe mémorisé reste lisible
 
     /// <summary>Mémorise (ou oublie, si null/vide) le mot de passe de connexion de ce poste.</summary>
     public void SetRememberedPassword(string? password)

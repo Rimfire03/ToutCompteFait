@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Text;
@@ -38,7 +38,7 @@ public class UpdateService
     private static HttpClient CreateHttpClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("ToutCompteFait-UpdateChecker");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(Editions.Current.ExeBaseName + "-UpdateChecker");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return client;
     }
@@ -115,27 +115,51 @@ public class UpdateService
             channelSwitch = true;
         }
 
-        // Version installée (MSI) : on récupère le .msi ; version portable : le .zip.
+        // Version installée (MSI) : on récupère le .msi ; version portable : le .zip. Une release porte les fichiers de
+        // toutes les versions du logiciel : seul celui de CETTE version est pris (voir PickAsset).
         var ext = InstallMode.IsInstalled ? ".msi" : ".zip";
-        string? assetUrl = null;
-        string? assetName = null;
+        var files = new List<(string Name, string Url)>();
         if (root.TryGetProperty("assets", out var assets))
         {
             foreach (var asset in assets.EnumerateArray())
             {
                 var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                if (!name.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) continue;
-                assetUrl = asset.TryGetProperty("browser_download_url", out var u) ? u.GetString() : null;
-                assetName = name;
-                break;
+                var link = asset.TryGetProperty("browser_download_url", out var u) ? u.GetString() : null;
+                if (link is not null) files.Add((name, link));
             }
         }
-        if (assetUrl == null || assetName == null)
+        var picked = PickAsset(files, ext, Editions.Current);
+        if (picked is null)
+        {
+            // Aucun fichier pour cette version dans la release : elle n'a pas été mise à jour (pas une erreur).
+            if (files.Any(f => f.Name.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
+            {
+                LastCheckNote = $"La version {versionText} ne propose pas encore de fichier pour la {Editions.Current.VersionMention}.";
+                return null;
+            }
             throw new InvalidOperationException($"La release {tag} sur GitHub n'a pas de fichier {ext} en pièce jointe.");
+        }
+        var assetName = picked.Value.Name;
+        var assetUrl = picked.Value.Url;
 
         var htmlUrl = root.TryGetProperty("html_url", out var urlEl) ? urlEl.GetString() ?? "" : "";
 
         return new UpdateInfo(versionText, htmlUrl, releaseNotes, assetUrl, assetName, dbSchema, channelSwitch);
+    }
+
+    /// <summary>Fichier d'une release à télécharger pour une version du logiciel : nom commençant par le préfixe de la
+    /// version (<c>ToutCompteFaitAsso-v…</c>) et se terminant par l'extension ; à défaut, pour la version historique,
+    /// les fichiers des releases d'avant les versions (<c>ToutCompteFait-v…</c>). Null si la release n'en a pas.</summary>
+    public static (string Name, string Url)? PickAsset(IEnumerable<(string Name, string Url)> assets, string ext, AppEdition edition)
+    {
+        var list = assets.Where(a => a.Name.EndsWith(ext, StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (var prefix in new[] { edition.AssetPrefix, edition.LegacyAssetPrefix })
+        {
+            if (prefix is null) continue;
+            var hit = list.FirstOrDefault(a => a.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+            if (hit.Name is not null) return hit;
+        }
+        return null;
     }
 
     /// <summary>Télécharge l'archive .zip de la nouvelle version, la décompresse intégralement, puis lance
@@ -153,7 +177,7 @@ public class UpdateService
     /// faire tant qu'il est verrouillé).</para></summary>
     public async Task DownloadAndApplyAsync(UpdateInfo info, IProgress<double>? progress = null)
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "ToutCompteFait-Update-" + Guid.NewGuid().ToString("N"));
+        var tempDir = Path.Combine(Path.GetTempPath(), Editions.Current.ExeBaseName + "-Update-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         var zipPath = Path.Combine(tempDir, info.AssetName);
 

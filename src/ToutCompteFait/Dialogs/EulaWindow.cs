@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using ToutCompteFait.Core;
 using ToutCompteFait.Core.Licensing;
 
 namespace ToutCompteFait.Dialogs;
@@ -10,7 +11,7 @@ public sealed class EulaWindow : Window
 {
     public EulaWindow(bool requireAcceptance, bool changed = false)
     {
-        Title = "Contrat de licence — Tout Compte Fait";
+        Title = "Contrat de licence — " + Editions.AppName;
         Width = 720;
         Height = 640;
         MinWidth = 560;

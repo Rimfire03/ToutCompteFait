@@ -1,5 +1,6 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
+using ToutCompteFait.Core;
 using ToutCompteFait.Core.Security;
 using ToutCompteFait.Core.Services;
 
@@ -14,7 +15,7 @@ public partial class SettingsView
     private void InitUpdates()
     {
         _updateInit = true;
-        VersionText.Text = $"Tout Compte Fait — version {App.AppVersionText}";
+        VersionText.Text = $"{Editions.AppName} — version {App.AppVersionText} ({Editions.Current.VersionMention})";
         AutoUpdateBox.IsChecked = App.Settings.AutoUpdateEnabled;
         ChannelBox.ItemsSource = UpdateChannels.All;
         ChannelBox.SelectedItem = UpdateChannels.All.Contains(App.Settings.UpdateChannel) ? App.Settings.UpdateChannel : UpdateChannels.Main;

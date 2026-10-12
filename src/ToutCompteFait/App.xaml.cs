@@ -182,7 +182,7 @@ public partial class App : Application
         {
             while (ex.InnerException is not null && ex is not ComptaException) ex = ex.InnerException;
             MessageBox.Show("Impossible d'ouvrir la base de données :\n\n" + ex.Message,
-                "Tout Compte Fait", MessageBoxButton.OK, MessageBoxImage.Error);
+                Editions.AppName, MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();
             return;
         }
@@ -549,11 +549,11 @@ public partial class App : Application
 /// <summary>Petites boîtes de dialogue communes.</summary>
 public static class Ui
 {
-    public static void Info(string text, string title = "Tout Compte Fait") =>
-        MessageBox.Show(text, title, MessageBoxButton.OK, MessageBoxImage.Information);
+    public static void Info(string text, string? title = null) =>
+        MessageBox.Show(text, title ?? Editions.AppName, MessageBoxButton.OK, MessageBoxImage.Information);
 
-    public static void Error(string text, string title = "Tout Compte Fait") =>
-        MessageBox.Show(text, title, MessageBoxButton.OK, MessageBoxImage.Warning);
+    public static void Error(string text, string? title = null) =>
+        MessageBox.Show(text, title ?? Editions.AppName, MessageBoxButton.OK, MessageBoxImage.Warning);
 
     public static bool Confirm(string text, string title = "Confirmation") =>
         MessageBox.Show(text, title, MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
