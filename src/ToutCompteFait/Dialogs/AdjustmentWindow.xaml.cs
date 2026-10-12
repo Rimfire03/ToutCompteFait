@@ -68,6 +68,7 @@ public partial class AdjustmentWindow : Window
                 KindProduct.IsEnabled = false;
                 LabelBox.IsEnabled = false;
                 AmountBox.IsEnabled = false;
+                FamilyPanel.Visibility = Visibility.Collapsed;
                 TargetPanel.Visibility = Visibility.Collapsed;
             }
         }
@@ -87,6 +88,47 @@ public partial class AdjustmentWindow : Window
     }
 
     private void Kind_Changed(object sender, RoutedEventArgs e) => FillCategories();
+
+    /// <summary>Total du livre par catégorie de l'exercice (somme des ventilations), pour « Reporter toute la famille ».</summary>
+    private Dictionary<long, long>? _totals;
+
+    private long FamilyTotal(long categoryId)
+    {
+        if (_totals is null)
+        {
+            var b = _c.ComputeBilan(_year.Id);
+            _totals = b.Charges.Concat(b.Products).Where(r => r.CategoryId is not null)
+                .ToDictionary(r => r.CategoryId!.Value, r => r.Cash);
+        }
+        return _totals.GetValueOrDefault(categoryId);
+    }
+
+    private void Cat_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready || FamilyInfo is null) return;
+        FamilyInfo.Text = CatCombo.SelectedItem is Category c ? $"Total dans le livre : {Money.Format(FamilyTotal(c.Id))} €" : "";
+    }
+
+    /// <summary>Un clic : le montant devient le total de la catégorie choisie ; l'intitulé et la catégorie de l'exercice
+    /// suivant reprennent son nom s'ils sont vides.</summary>
+    private void Family_Click(object sender, RoutedEventArgs e)
+    {
+        ErrorText.Text = "";
+        if (CatCombo.SelectedItem is not Category cat)
+        {
+            ErrorText.Text = "Choisissez d'abord la famille (catégorie) à reporter.";
+            return;
+        }
+        var total = FamilyTotal(cat.Id);
+        if (total <= 0)
+        {
+            ErrorText.Text = $"« {cat.Name} » n'a aucun montant dans le livre de cet exercice.";
+            return;
+        }
+        AmountBox.Text = Money.Format(total);
+        if (string.IsNullOrWhiteSpace(LabelBox.Text)) LabelBox.Text = cat.Name;
+        if (string.IsNullOrWhiteSpace(TargetCombo.Text) && TargetPanel.Visibility == Visibility.Visible) TargetCombo.Text = cat.Name;
+    }
 
     private void Type_Changed(object sender, SelectionChangedEventArgs e)
     {

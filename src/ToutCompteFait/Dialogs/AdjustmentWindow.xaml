@@ -30,7 +30,12 @@
         </Grid>
 
         <TextBlock x:Name="CatLabel" Text="Catégorie concernée (cet exercice)" Margin="0,12,0,4"/>
-        <ComboBox x:Name="CatCombo" DisplayMemberPath="Name"/>
+        <ComboBox x:Name="CatCombo" DisplayMemberPath="Name" SelectionChanged="Cat_Changed"/>
+        <StackPanel x:Name="FamilyPanel" Orientation="Horizontal" Margin="0,6,0,0">
+            <Button x:Name="FamilyButton" Content="Reporter toute la famille" Style="{StaticResource SecondaryButton}" Click="Family_Click"
+                    ToolTip="Reprend en un clic le total de la catégorie choisie dans le livre (intitulé, montant et catégorie de l'exercice suivant)."/>
+            <TextBlock x:Name="FamilyInfo" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+        </StackPanel>
 
         <StackPanel x:Name="TargetPanel">
             <TextBlock Text="Catégorie qui recevra ce montant l'exercice suivant" Margin="0,12,0,4"/>
