@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -21,6 +21,7 @@
   <!-- Système de licence partagé (dépôt privé TomLine-core, GitHub Packages : voir nuget.config). -->
   <ItemGroup>
     <PackageReference Include="TomLine.Licensing" Version="1.0.0" />
+    <PackageReference Include="TomLine.AppInfo" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

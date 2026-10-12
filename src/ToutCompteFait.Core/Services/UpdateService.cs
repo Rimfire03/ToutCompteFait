@@ -277,21 +277,6 @@ public class UpdateService
         });
     }
 
-    private static bool IsNewer(string candidate, string current)
-    {
-        var (cMajor, cMinor, cPatch) = ParseVersion(candidate);
-        var (curMajor, curMinor, curPatch) = ParseVersion(current);
-
-        if (cMajor != curMajor) return cMajor > curMajor;
-        if (cMinor != curMinor) return cMinor > curMinor;
-        return cPatch > curPatch;
-    }
-
-    private static (int Major, int Minor, int Patch) ParseVersion(string version)
-    {
-        var dash = version.IndexOf('-');   // suffixe de canal ("-dev") ignoré pour la comparaison
-        var parts = (dash >= 0 ? version[..dash] : version).Split('.', StringSplitOptions.RemoveEmptyEntries);
-        int Part(int i) => i < parts.Length && int.TryParse(parts[i], out var n) ? n : 0;
-        return (Part(0), Part(1), Part(2));
-    }
+    // Comparaison de versions commune (suffixe de canal « -dev » ignoré) : voir TomLine.AppInfo.
+    private static bool IsNewer(string candidate, string current) => TomLine.AppInfo.AppVersion.IsNewer(candidate, current);
 }
