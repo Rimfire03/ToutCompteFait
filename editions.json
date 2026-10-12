@@ -12,6 +12,18 @@
       "backupFolderGuid": "A210B9A4-8212-4955-A87F-55E620C28B02",
       "legacyLauncher": true,
       "build": true
+    },
+    {
+      "id": "autoentreprise",
+      "exe": "ToutCompteFaitAutoentreprise",
+      "name": "Tout Compte Fait Autoentreprise",
+      "dataName": "ToutCompteFaitAutoentreprise",
+      "installFolder": "ToutCompteFaitAutoentreprise",
+      "upgradeCode": "F81EEB53-D4F9-4B2B-8870-35C5677F1C5C",
+      "dataFolderGuid": "2586F761-4F4B-4821-8B6C-B8CC1AE3BA34",
+      "backupFolderGuid": "F1DC7654-92DA-44E5-9F07-75CF4A55DE4C",
+      "legacyLauncher": false,
+      "build": true
     }
   ]
 }
