@@ -1,4 +1,5 @@
 using System.Windows;
+using TomLine.Licensing;
 using ToutCompteFait.Core.Licensing;
 using ToutCompteFait.Dialogs;
 using ToutCompteFait.Services;

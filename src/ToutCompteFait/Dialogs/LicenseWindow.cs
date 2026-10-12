@@ -1,6 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
-using ToutCompteFait.Core.Licensing;
+using TomLine.Licensing;
 
 namespace ToutCompteFait.Dialogs;
 

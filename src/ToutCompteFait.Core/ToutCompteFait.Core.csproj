@@ -18,5 +18,11 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
 
+  <!-- Système de licence partagé (dépôt TomLine-core, cloné à côté de ce dépôt) : à remplacer par le paquet NuGet
+       TomLine.Licensing une fois publié sur GitHub Packages. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\TomLine-core\src\TomLine.Licensing\TomLine.Licensing.csproj" />
+  </ItemGroup>
+
 </Project>
 

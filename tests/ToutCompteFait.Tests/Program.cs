@@ -1,6 +1,7 @@
 using ToutCompteFait.Core;
 using ToutCompteFait.Core.Data;
 using ToutCompteFait.Core.Import;
+using TomLine.Licensing;
 using ToutCompteFait.Core.Licensing;
 using ToutCompteFait.Core.Security;
 using ToutCompteFait.Core.Services;
@@ -1875,7 +1876,8 @@ Console.WriteLine("Licences");
     var dir = Path.Combine(Path.GetTempPath(), "tcf-lic-" + Guid.NewGuid().ToString("N"));
     Directory.CreateDirectory(dir);
     var device = new FakeDevice();
-    LicenseService NewService() => new(new LicenseClient(handler), device, store, new BypassFile(dir), () => clock);
+    var licOptions = new LicenseOptions { ProductSlug = "tout-compte-fait", StoreName = "ToutCompteFait" };
+    LicenseService NewService() => new(new LicenseClient(licOptions, handler), device, store, new BypassFile(dir), () => clock);
     string Ok(string key, string type = "full", bool full = true, string? expires = null, string features = "", string? customer = "Asso Test", string extra = "") =>
         $"{{\"valid\":true,\"license\":{{\"key\":\"{key}\",\"type\":\"{type}\",\"expiresAt\":{(expires is null ? "null" : "\"" + expires + "\"")}," +
         $"\"features\":[{features}],\"isFull\":{(full ? "true" : "false")},\"customerName\":{(customer is null ? "null" : "\"" + customer + "\"")},\"maxActivations\":2}}{extra}}}";
@@ -1896,7 +1898,7 @@ Console.WriteLine("Licences");
 
         // Stockage registre + DPAPI (clé de test, jamais celle de l'application).
         var testKey = @"Software\TomLine prod&co\ToutCompteFait.Tests\" + Guid.NewGuid().ToString("N");
-        var ws = new WindowsLicenseStore(testKey);
+        var ws = new WindowsLicenseStore("ToutCompteFait.Tests", testKey);
         Check(ws.Load() is null, "registre : aucune licence au départ");
         ws.Save(new StoredLicense { Key = "SECRET-KEY-123", Type = "full", IsFull = true, CustomerName = "Asso", LastValidatedAt = now });
         var back = ws.Load();

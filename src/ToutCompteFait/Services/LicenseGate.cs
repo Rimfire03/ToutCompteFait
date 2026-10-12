@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Threading;
+using TomLine.Licensing;
 using ToutCompteFait.Core.Licensing;
 using ToutCompteFait.Dialogs;
 
@@ -9,6 +10,15 @@ namespace ToutCompteFait.Services;
 public static class LicenseGate
 {
     private static DispatcherTimer? _timer;
+
+    /// <summary>Configuration du client de licences partagé (TomLine.Licensing). <c>StoreName</c> reprend les noms de stockage
+    /// historiques : les licences déjà enregistrées restent lisibles. <c>PublicKeys</c> : à renseigner (clé publique du serveur),
+    /// puis passer <c>RequireSignature</c> à vrai une fois le serveur déployé avec sa clé de signature.</summary>
+    private static readonly LicenseOptions Options = new()
+    {
+        ProductSlug = "tout-compte-fait",
+        StoreName = "ToutCompteFait",
+    };
 
     public static LicenseService Service { get; private set; } = null!;
 
@@ -22,7 +32,7 @@ public static class LicenseGate
 
         try
         {
-            Service = new LicenseService(new LicenseClient(), LicensePlatform.CreateIdentity(), LicensePlatform.CreateStore());
+            Service = new LicenseService(new LicenseClient(Options), LicensePlatform.CreateIdentity(), LicensePlatform.CreateStore(Options));
         }
         catch (Exception ex) when (ex is InvalidOperationException or PlatformNotSupportedException)
         {
@@ -65,7 +75,7 @@ public static class LicenseGate
             var state = await Service.RevalidateAsync();
             if (state.IsUsable) return;
             _timer?.Stop();
-            MessageBox.Show(Core.Licensing.LicenseReasons.Describe(state.Reason) + "\n\nLe logiciel va se fermer.",
+            MessageBox.Show(LicenseReasons.Describe(state.Reason) + "\n\nLe logiciel va se fermer.",
                 "Licence", MessageBoxButton.OK, MessageBoxImage.Warning);
             Application.Current.Shutdown();
         };
