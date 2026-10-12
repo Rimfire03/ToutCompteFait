@@ -68,6 +68,25 @@ public partial class App : Application
         }
     }
 
+    /// <summary>Nom de la base ouverte (base du serveur, ou fichier SQLite sans son extension).</summary>
+    public static string DatabaseName
+    {
+        get
+        {
+            try
+            {
+                if (Target.IsServer) return Target.Server?.Database ?? "";
+                return Path.GetFileNameWithoutExtension(Target.FilePath ?? "");
+            }
+            catch { return ""; }
+        }
+    }
+
+    /// <summary>Nom de la base si elle porte le mot « test » (base d'essai), sinon null : l'écran affiche alors un
+    /// bandeau d'avertissement rouge.</summary>
+    public static string? TestDatabaseName =>
+        DatabaseName is { Length: > 0 } n && n.Contains("test", StringComparison.OrdinalIgnoreCase) ? n : null;
+
     public static string ReadOnlyMessage
     {
         get

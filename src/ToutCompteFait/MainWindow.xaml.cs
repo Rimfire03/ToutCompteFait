@@ -185,6 +185,22 @@ public partial class MainWindow : Window
             ReadOnlyBanner.Visibility = Visibility.Collapsed;
         }
         NewYearButton.IsEnabled = App.Can(Permission.ManageStructure);
+
+        // Base d'essai : bandeau rouge sur tous les écrans, et marque [TEST] dans le titre de la fenêtre.
+        if (App.TestDatabaseName is { } testName)
+        {
+            TestDbText.Text = $"ATTENTION : vous êtes connecté à une base de données de TEST (« {testName} »). " +
+                              "Les écritures saisies ici ne sont pas celles de la comptabilité réelle et peuvent être effacées à tout moment. " +
+                              "Ne l'utilisez pas pour une déclaration, une clôture d'exercice ou un export destiné à un tiers (comptable, administration). " +
+                              "Pour travailler sur les vraies données, changez de base dans Paramètres › Base de données.";
+            TestDbBanner.Visibility = Visibility.Visible;
+            Title = Editions.AppName + " — BASE DE TEST";
+        }
+        else
+        {
+            TestDbBanner.Visibility = Visibility.Collapsed;
+            Title = Editions.AppName;
+        }
         _ = App.DatabaseHealth.CheckNowAsync();
     }
 

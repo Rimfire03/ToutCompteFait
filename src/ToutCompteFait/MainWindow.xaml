@@ -151,6 +151,14 @@
 
             <!-- Contenu -->
             <DockPanel Grid.Column="1">
+                <Border x:Name="TestDbBanner" DockPanel.Dock="Top" Background="#FEF2F2" BorderBrush="#DC2626"
+                        BorderThickness="0,0,0,2" Padding="18,10" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚠" FontSize="18" Foreground="#B91C1C" FontWeight="Bold" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TestDbText" TextWrapping="Wrap" Foreground="#991B1B" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" MaxWidth="900"/>
+                    </StackPanel>
+                </Border>
                 <Border x:Name="ReadOnlyBanner" DockPanel.Dock="Top" Background="#FFFBEB" BorderBrush="#FDE68A"
                         BorderThickness="0,0,0,1" Padding="18,10" Visibility="Collapsed">
                     <DockPanel>
