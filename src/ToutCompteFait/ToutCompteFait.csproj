@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -7,20 +7,20 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <LangVersion>12</LangVersion>
-    <!-- Version du logiciel (édition) : -p:Edition=asso (défaut). Voir editions.json et Editions.cs. -->
+    <!-- Version du logiciel (Ã©dition) : -p:Edition=asso (dÃ©faut). Voir editions.json et Editions.cs. -->
     <Edition Condition="'$(Edition)' == ''">asso</Edition>
     <EditionLabel>$([System.String]::Copy('$(Edition)').Substring(0,1).ToUpperInvariant())$([System.String]::Copy('$(Edition)').Substring(1))</EditionLabel>
     <AssemblyName>ToutCompteFait$(EditionLabel)</AssemblyName>
     <RootNamespace>ToutCompteFait</RootNamespace>
     <InvariantGlobalization>false</InvariantGlobalization>
-    <Version>1.3.2</Version>
+    <Version>1.4.0</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Company>TomLine prod&amp;co</Company>
     <Product>Tout Compte Fait $(EditionLabel)</Product>
-    <Copyright>Â© TomLine prod&amp;co by Thomas Guidez</Copyright>
+    <Copyright>Ã‚Â© TomLine prod&amp;co by Thomas Guidez</Copyright>
   </PropertyGroup>
 
-  <!-- Canal de la build (posÃ© par tools\Release.ps1 -Channel dev : -p:ReleaseChannel=dev) : lu par App.DisplayVersion. -->
+  <!-- Canal de la build (posÃƒÂ© par tools\Release.ps1 -Channel dev : -p:ReleaseChannel=dev) : lu par App.DisplayVersion. -->
   <ItemGroup Condition="'$(ReleaseChannel)' != ''">
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>ReleaseChannel</_Parameter1>
@@ -39,7 +39,7 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="TomLine.UI.Wpf" Version="1.0.0" />
-    <!-- Texte des PDF numÃ©riques (sans OCR) ; l'OCR et le rendu des pages utilisent Windows (Windows.Media.Ocr / Windows.Data.Pdf). -->
+    <!-- Texte des PDF numÃƒÂ©riques (sans OCR) ; l'OCR et le rendu des pages utilisent Windows (Windows.Media.Ocr / Windows.Data.Pdf). -->
     <PackageReference Include="PdfPig" Version="0.1.9" />
   </ItemGroup>
 
