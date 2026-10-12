@@ -20,6 +20,8 @@ public static class LicenseGate
         StoreName = "ToutCompteFait",
         // Clé publique du serveur de licences (vérification seule, sans danger dans le dépôt).
         PublicKeys = new[] { "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjairPbdPQuYiWSJ6MtVo6xchepZYn9h+JFdSI72MNzuVwmFgTCiYBRuPHJBJT45eC+qloOQbBWZDSZSkZxttvQ==" },
+        // Le serveur signe activate/validate/request-demo : une réponse sans signature valide est refusée.
+        RequireSignature = true,
     };
 
     public static LicenseService Service { get; private set; } = null!;
