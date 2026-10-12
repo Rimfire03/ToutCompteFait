@@ -180,6 +180,20 @@ version). Le numéro de version est **commun** à toutes ; chaque version y ajou
   défaut pour toutes les licences déjà émises). Le produit et le nom de la licence ne changent pas.
 ## Mises à jour automatiques
 
+### Version Autoentreprise
+
+Pour un auto-entrepreneur (micro-entreprise) : pas de remboursements aux membres ; à la place :
+
+* **Entreprise** (Paramètres) : on saisit le SIREN ou le SIRET, le nom, l'adresse et les codes APE sont récupérés auprès de
+  l'API publique *Recherche d'entreprises* de l'État (données Sirene ; seul le numéro est envoyé). Mode de déclaration
+  (mensuel ou trimestriel), taux de cotisations estimés (ACRE possible), plafonds du régime micro et seuils de TVA.
+* **Ventilation des recettes par type de déclaration** : *BIC vente*, *BIC prestation*, *BNC*, *BNC CIPAV*, avec un nom
+  personnalisé facultatif après le type (« BIC prestation – Dépannage »). Le type est proposé d'après le code APE
+  (`ApeMapper`, à vérifier : un même code peut relever de plusieurs types) et conservé hors des tables verrouillées.
+* **Reporting URSSAF** : pour chaque période, les montants à saisir sur le site (chiffre d'affaires encaissé par rubrique),
+  les cotisations estimées, l'échéance, le suivi des plafonds et de la TVA, et l'historique des déclarations marquées comme faites.
+* Tables : `business_settings`, `category_urssaf`, `urssaf_declarations` (migration v9, toutes versions).
+
 Même système que FiltresApp : le logiciel interroge la dernière **release GitHub** du dépôt
 [Rimfire03/ToutCompteFait](https://github.com/Rimfire03/ToutCompteFait/releases) au démarrage (désactivable) et propose
 à un administrateur de l'installer. Paramètres → **Mises à jour** : version, vérification automatique, canal (Main =

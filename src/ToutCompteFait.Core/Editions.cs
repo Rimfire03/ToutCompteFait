@@ -55,6 +55,9 @@ public sealed record AppEdition(string Id)
     /// la version Autoentreprise (écran, type d'écriture proposé, aide).</summary>
     public bool HasMemberRefunds => Id != "autoentreprise";
 
+    /// <summary>Version pour une entreprise individuelle : profil de l'entreprise (SIREN, codes APE), ventilation des recettes\n    /// par type de déclaration URSSAF, onglet Reporting de déclaration du chiffre d'affaires.</summary>
+    public bool IsBusiness => Id == "autoentreprise";
+
     /// <summary>Identifiant valide : minuscules et chiffres, commençant par une lettre.</summary>
     public static bool IsValidId(string? id) =>
         !string.IsNullOrEmpty(id) && id.Length <= 20 && char.IsAsciiLetterLower(id[0]) && id.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c));

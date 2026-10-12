@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ToutCompteFait.Core;
+using ToutCompteFait.Core.Business;
 using ToutCompteFait.Core.Import;
 using ToutCompteFait.Core.Security;
 using ToutCompteFait.Core.Services;
@@ -18,6 +19,8 @@ public sealed class CategoryRow
     public string Name => Cat.Name;
     public string Operation { get; init; } = "";
     public int Uses { get; init; }
+    /// <summary>Type de déclaration URSSAF (version Autoentreprise).</summary>
+    public string Type { get; init; } = "";
 }
 
 public sealed class AccountRow
@@ -83,6 +86,8 @@ public partial class SettingsView : UserControl, IPage
         BackupNowButton.IsEnabled = App.Can(Permission.ManageDatabase);
         RestoreButton.IsEnabled = App.Can(Permission.ManageDatabase);
 
+        InitBusiness();   // version Autoentreprise : onglet « Entreprise »
+
         _loading = true;
         FrequencyBox.ItemsSource = new[]
         {
@@ -118,9 +123,12 @@ public partial class SettingsView : UserControl, IPage
         foreach (var a in _c.Adjustments(_year.Id))
             if (a.CategoryId is { } id) uses[id] = uses.GetValueOrDefault(id) + 1;
 
+        var urssafKinds = Editions.Current.IsBusiness ? _c.CategoryUrssafKinds() : null;
         CategoryRow Row(Category c) => new()
         {
             Cat = c,
+            Type = urssafKinds is not null && c.Kind == CategoryKind.Product
+                ? (Compta.ResolveUrssafKind(urssafKinds, c.Name)?.Short() ?? "à classer") : "",
             Operation = c.OperationId is { } o && opName.TryGetValue(o, out var n) ? n : "",
             Uses = uses.GetValueOrDefault(c.Id)
         };
@@ -166,6 +174,16 @@ public partial class SettingsView : UserControl, IPage
     private void AddCategory_Click(object sender, RoutedEventArgs e)
     {
         var kind = KindOf(sender);
+        if (kind == CategoryKind.Product && Editions.Current.IsBusiness)
+        {
+            // Entreprise : une recette est d'un type de déclaration URSSAF (BIC vente, BIC prestation, BNC…), nom libre après.
+            var suggested = _c.GetBusinessProfile().ApeCodes.Select(ToutCompteFait.Core.Business.ApeMapper.Suggest)
+                .Where(s => s is not null).Select(s => s!.Kind).Distinct().ToList();
+            var choice = ActivityCategoryWindow.Ask(Window.GetWindow(this), suggested);
+            if (choice is null) return;
+            if (Ui.Try(() => _c.AddActivityCategory(_year.Id, choice.Value.Kind, choice.Value.Name))) Reload();
+            return;
+        }
         var name = PromptWindow.Ask(Window.GetWindow(this), kind == CategoryKind.Product ? "Nouveau produit" : "Nouvelle charge",
             "Nom :", okText: "Ajouter");
         if (name is null) return;

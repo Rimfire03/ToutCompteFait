@@ -365,13 +365,21 @@ public sealed partial class Compta
           "Loto Octobre", "Loto mars", "Tombola", "Kermesse", "Subvention exceptionnelle", "Subvention annuelle",
           "Chocolats", "Consommables locations", "Loto n+1" };
 
+    /// <summary>Charges proposées à une entreprise individuelle (version Autoentreprise). Les recettes n'ont pas de liste
+    /// par défaut : elles sont créées par type de déclaration URSSAF d'après les codes APE.</summary>
+    private static readonly string[] DefaultBusinessCharges =
+        { "Achats de marchandises", "Matières premières et fournitures", "Sous-traitance", "Matériel et équipement",
+          "Frais de déplacement", "Loyer et charges", "Assurances", "Abonnements et logiciels", "Formation",
+          "Frais bancaires", "Cotisations sociales (URSSAF)", "Impôts et taxes (CFE)", "Frais divers" };
+
     private static void SeedDefaultStructure(AppDbContext ctx, long yearId)
     {
         var i = 0;
-        foreach (var n in DefaultProducts)
+        var business = Editions.Current.IsBusiness;
+        foreach (var n in business ? Array.Empty<string>() : DefaultProducts)
             ctx.Categories.Add(new CategoryEntity { YearId = yearId, Kind = "P", Name = n, Position = ++i });
         i = 0;
-        foreach (var n in DefaultCharges)
+        foreach (var n in business ? DefaultBusinessCharges : DefaultCharges)
             ctx.Categories.Add(new CategoryEntity { YearId = yearId, Kind = "C", Name = n, Position = ++i });
     }
 

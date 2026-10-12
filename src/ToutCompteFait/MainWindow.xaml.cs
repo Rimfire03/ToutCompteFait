@@ -33,6 +33,17 @@ public partial class MainWindow : Window
         Current = this;
         Title = Editions.AppName;
         if (!Editions.Current.HasMemberRefunds) NavMembers.Visibility = Visibility.Collapsed;
+        if (Editions.Current.IsBusiness)
+        {
+            // Onglet Reporting (déclaration URSSAF) : propre à la version Autoentreprise.
+            var nav = new RadioButton
+            {
+                Content = "📈   Reporting URSSAF", GroupName = "nav", Tag = "reporting",
+                Style = (Style)FindResource("NavButton")
+            };
+            nav.Checked += Nav_Checked;
+            if (NavMembers.Parent is Panel navPanel) navPanel.Children.Insert(navPanel.Children.IndexOf(NavMembers) + 1, nav);
+        }
         CoreVersionText.Text = $"v{App.DisplayVersion} · {Editions.Current.VersionMention}";
         CopyrightText.Text = "© TomLine prod&co by Thomas Guidez  ·  " + Editions.AppName;
 
@@ -280,6 +291,12 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Le profil de l'entreprise a changé : le reporting est recalculé s'il est affiché.</summary>
+    public void RefreshBusinessNav()
+    {
+        if (_page == "reporting") ShowPage("reporting");
+    }
+
     private void ShowPage(string tag)
     {
         _page = tag;
@@ -294,6 +311,7 @@ public partial class MainWindow : Window
                 "bilan" => new BilanView(y),
                 "reports" => new ReportsView(y),
                 "members" => new MembersView(y),
+                "reporting" => new ReportingView(),
                 "settings" => new SettingsView(y),
                 _ => new LivreView(y)
             };
@@ -322,17 +340,17 @@ public partial class MainWindow : Window
             enc.Save(fs);
         }
 
-        foreach (var page in new[] { "livre", "bilan", "reports", "members", "settings", "help" })
+        foreach (var page in new[] { "livre", "bilan", "reports", "members", "settings", "help" }.Concat(Editions.Current.IsBusiness ? new[] { "reporting" } : Array.Empty<string>()))
         {
             ShowPage(page);
             await Shot(this, page);
         }
 
-        foreach (var tab in new[] { "Utilisateurs", "Base de données" })
+        foreach (var tab in new[] { "Utilisateurs", "Base de données" }.Concat(Editions.Current.IsBusiness ? new[] { "Entreprise" } : Array.Empty<string>()))
         {
             ShowPage("settings");
             if (Host.Content is Views.SettingsView sv) sv.SelectTab(tab);
-            await Shot(this, "settings-" + (tab == "Utilisateurs" ? "users" : "db"));
+            await Shot(this, "settings-" + (tab == "Utilisateurs" ? "users" : tab == "Entreprise" ? "business" : "db"));
         }
 
         if (CurrentYear is { } yy && App.Can(Permission.WriteLedger))
