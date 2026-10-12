@@ -62,6 +62,54 @@ public partial class BilanView : UserControl, IPage
         Reload();
     }
 
+    // ------------------------------------------------------------------ impression
+
+    /// <summary>Menu d'impression : édition synthétique (les chiffres de cette page) ou détaillée (avec chaque ligne de compte).</summary>
+    private void Print_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+        MenuItem Item(string header, string tip, bool detailed)
+        {
+            var mi = new MenuItem { Header = header, ToolTip = tip };
+            mi.Click += (_, _) => PrintBilan(detailed);
+            return mi;
+        }
+        menu.Items.Add(Item("Édition synthétique — chiffres du bilan",
+            "Synthèse, compte de fonctionnement, rentabilité des opérations et situation (ce qui est affiché sur cette page).", false));
+        menu.Items.Add(Item("Édition détaillée — avec toutes les lignes de compte",
+            "L'édition synthétique, puis chaque catégorie avec toutes les lignes du livre et les reports qui la composent.", true));
+        menu.IsOpen = true;
+    }
+
+    private void PrintBilan(bool detailed)
+    {
+        var org = App.Settings.OrganizationName;
+        if (string.IsNullOrWhiteSpace(org) && Editions.Current.IsBusiness)
+        {
+            try { org = _c.GetBusinessProfile().Name; } catch { /* profil non renseigné */ }
+        }
+        var label = _year.Label.Replace('/', '-');
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Imprimer le bilan",
+            Filter = "Document PDF (*.pdf)|*.pdf",
+            FileName = $"Bilan {(detailed ? "détaillé" : "synthétique")} {label}{(_year.Validated ? "" : " (provisoire)")}.pdf"
+        };
+        if (dlg.ShowDialog() != true) return;
+        byte[]? pdf = null;
+        if (!Ui.Try(() => pdf = _c.ExportBilanPdf(_year.Id, detailed, org, App.Session.DisplayName)) || pdf is null) return;
+        try
+        {
+            File.WriteAllBytes(dlg.FileName, pdf);
+            // Ouverture dans le lecteur PDF par défaut, d'où l'impression.
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            Ui.Error("Impossible d'enregistrer ou d'ouvrir le PDF : " + ex.Message);
+        }
+    }
+
     /// <summary>Double-clic sur une catégorie ou une opération : lignes du livre (et reports) qui la composent.</summary>
     private void Detail_DoubleClick(object sender, MouseButtonEventArgs e)
     {

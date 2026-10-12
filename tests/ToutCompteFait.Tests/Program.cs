@@ -1462,7 +1462,26 @@ Console.WriteLine("Immobilisations");
     var fec = c.ExportFec(y.Id);
     Check(fec.Contains("681120") && fec.Contains("281800") && fec.Contains("218000"), "FEC : dotation, amortissement et immobilisation");
 
+    // Impression du bilan : exercice non clôturé = filigrane et mention provisoire ; clôturé = ni l'un ni l'autre.
+    string PdfText(byte[] pdf) => System.Text.Encoding.Latin1.GetString(pdf);
+    var provisional = PdfText(c.ExportBilanPdf(y.Id, detailed: false, "Association test", "tresorier"));
+    Check(provisional.StartsWith("%PDF-1.4") && provisional.Contains("%%EOF"), "bilan PDF : structure valide");
+    Check(provisional.Contains("BILAN PROVISOIRE") && provisional.Contains("NON CL"), "bilan PDF : filigrane et mention « non clôturé »");
+    Check(provisional.Contains("synth"), "bilan PDF : édition synthétique");
+    var provisionalFull = c.ExportBilanPdf(y.Id, detailed: true, "Association test");
+    // Diagnostic visuel : TCF_PDF_OUT=<dossier> écrit les éditions d'exemple (non utilisé en test normal).
+    if (Environment.GetEnvironmentVariable("TCF_PDF_OUT") is { Length: > 0 } pdfDir)
+    {
+        Directory.CreateDirectory(pdfDir);
+        File.WriteAllBytes(Path.Combine(pdfDir, "bilan-provisoire-detail.pdf"), provisionalFull);
+        File.WriteAllBytes(Path.Combine(pdfDir, "bilan-provisoire-synthese.pdf"), c.ExportBilanPdf(y.Id, detailed: false, "Association test", "tresorier"));
+    }
+    Check(PdfText(provisionalFull).Contains("Machine") || PdfText(provisionalFull).Contains("Assurance"), "bilan PDF détaillé : lignes de compte");
+    Check(provisionalFull.Length > c.ExportBilanPdf(y.Id, detailed: false).Length, "bilan PDF détaillé : plus complet que la synthèse");
+
     c.ValidateYear(y.Id, Dt(2026, 12, 31));
+    var closedPdf = PdfText(c.ExportBilanPdf(y.Id, detailed: false, "Association test"));
+    Check(!closedPdf.Contains("BILAN PROVISOIRE") && closedPdf.Contains("EXERCICE CL"), "bilan PDF : exercice clôturé sans filigrane");
     Throws(() => c.UpdateFixedAsset(id, "Machine", Dt(2026, 3, 15), 90000, 4, AssetProrata.Monthly, false, null, null),
         "immobilisation d'un exercice validé : valeur figée", "exercice validé");
     c.UpdateFixedAsset(id, "Machine à popcorn (salle)", Dt(2026, 3, 15), 100000, 4, AssetProrata.Monthly, false, "Assurance", "libellé seul");

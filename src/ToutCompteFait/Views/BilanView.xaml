@@ -5,6 +5,8 @@
         <StackPanel Margin="0,0,10,20">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                    <Button x:Name="PrintButton" Content="🖨  Imprimer ▾" Style="{StaticResource PrimaryButton}" Click="Print_Click"
+                            ToolTip="Édition synthétique ou détaillée du bilan, en PDF imprimable (document officiel)."/>
                     <Button Content="Exporter (CSV)" Style="{StaticResource SecondaryButton}" Click="Export_Click"/>
                     <Button x:Name="ValidateButton" Content="🔒  Valider l'exercice" Style="{StaticResource SuccessButton}" Click="Validate_Click" Margin="0"/>
                     <Button x:Name="ReopenButton" Content="Rouvrir l'exercice" Style="{StaticResource DangerButton}" Click="Reopen_Click" Margin="0" Visibility="Collapsed"/>

@@ -12,6 +12,12 @@ internal sealed class SimplePdf
     private readonly List<StringBuilder> _pages = new();
     private StringBuilder _page = new();
     private static readonly Encoding Win1252 = CreateEncoding();
+    private readonly double _w;
+    private readonly double _h;
+
+    /// <summary>Dimensions de la page de ce document (A4 paysage par défaut, portrait pour le bilan).</summary>
+    public double PageW => _w;
+    public double PageH => _h;
 
     // Largeurs Helvetica (AFM, 1/1000 em) des caractères 32 à 126.
     private static readonly int[] Widths =
@@ -24,7 +30,29 @@ internal sealed class SimplePdf
         556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584                  // 112-126
     };
 
-    public SimplePdf() => NewPage();
+    public SimplePdf(bool landscape = true)
+    {
+        _w = landscape ? PageWidth : PageHeight;
+        _h = landscape ? PageHeight : PageWidth;
+        NewPage();
+    }
+
+    /// <summary>Couleur du texte et des remplissages (0 à 1) jusqu'au prochain changement.</summary>
+    public void SetFill(double r, double g, double b) =>
+        _page.Append(Num(r)).Append(' ').Append(Num(g)).Append(' ').Append(Num(b)).Append(" rg\n");
+
+    /// <summary>Couleur des traits (0 à 1) jusqu'au prochain changement.</summary>
+    public void SetStroke(double r, double g, double b) =>
+        _page.Append(Num(r)).Append(' ').Append(Num(g)).Append(' ').Append(Num(b)).Append(" RG\n");
+
+    /// <summary>Rectangle plein (couleur de remplissage courante).</summary>
+    public void FillRect(double x, double y, double width, double height) =>
+        _page.Append(Num(x)).Append(' ').Append(Num(y)).Append(' ').Append(Num(width)).Append(' ').Append(Num(height)).Append(" re f\n");
+
+    /// <summary>Contour d'un rectangle (couleur de trait courante).</summary>
+    public void StrokeRect(double x, double y, double width, double height, double lineWidth = 0.5) =>
+        _page.Append(Num(lineWidth)).Append(" w ").Append(Num(x)).Append(' ').Append(Num(y)).Append(' ')
+            .Append(Num(width)).Append(' ').Append(Num(height)).Append(" re S\n");
 
     private static Encoding CreateEncoding()
     {
@@ -45,7 +73,7 @@ internal sealed class SimplePdf
     {
         double w = 0;
         foreach (var c in text)
-            w += c is >= (char)32 and <= (char)126 ? Widths[c - 32] : 556;
+            w += c is >= (char)32 and <= (char)126 ? Widths[c - 32] : c is '\u00A0' or '\u202F' or '\u2009' ? 278 : 556;
         return w * size / 1000.0;
     }
 
@@ -78,7 +106,9 @@ internal sealed class SimplePdf
     /// <summary>Chaîne littérale PDF : octets Windows-1252, parenthèses et barre oblique échappées.</summary>
     private static string Escape(string text)
     {
-        var bytes = Win1252.GetBytes(text.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' '));
+        // Espaces insécables fines (séparateur de milliers français) : absentes de Windows-1252, rendues par une espace.
+        var bytes = Win1252.GetBytes(text.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ')
+            .Replace('\u202F', ' ').Replace('\u2009', ' ').Replace('\u00A0', ' '));
         var sb = new StringBuilder(bytes.Length + 8);
         foreach (var b in bytes)
         {
@@ -90,7 +120,7 @@ internal sealed class SimplePdf
     }
 
     /// <summary>Document complet. <paramref name="footer"/> : texte de pied de page (le numéro « Page i / n » est ajouté).</summary>
-    public byte[] Save(string footer)
+    public byte[] Save(string footer, string? watermark = null)
     {
         var pages = new List<StringBuilder>(_pages) { _page };
         var n = pages.Count;
@@ -110,11 +140,27 @@ internal sealed class SimplePdf
         Obj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
         for (var i = 0; i < n; i++)
         {
-            Obj($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {Num(PageWidth)} {Num(PageHeight)}] " +
-                $"/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents {6 + 2 * i} 0 R >>");
-            var content = new StringBuilder(pages[i].ToString());
+            Obj($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {Num(_w)} {Num(_h)}] " +
+                $"/Resources << /Font << /F1 3 0 R /F2 4 0 R >> /ExtGState << /GS1 << /ca 0.16 /CA 0.16 >> >> >> /Contents {6 + 2 * i} 0 R >>");
+            var content = new StringBuilder("0 g 0 G\n").Append(pages[i].ToString());
             var pageText = $"{footer}  -  Page {i + 1} / {n}";
-            content.Append("BT /F1 7 Tf 30 18 Td (").Append(Escape(pageText)).Append(") Tj ET\n");
+            content.Append("0 g BT /F1 7 Tf 30 18 Td (").Append(Escape(pageText)).Append(") Tj ET\n");
+            if (!string.IsNullOrEmpty(watermark))
+            {
+                // Filigrane : texte gras en travers de la page, semi-transparent, par-dessus le contenu.
+                var angle = Math.Atan2(_h, _w);
+                var diagonal = Math.Sqrt(_w * _w + _h * _h);
+                var size = Math.Min(120, 0.72 * diagonal / (Width(watermark, 1) * 1.08));
+                var tw = Width(watermark, size);
+                var cap = 0.72 * size;
+                var cos = Math.Cos(angle);
+                var sin = Math.Sin(angle);
+                var x0 = _w / 2 - tw / 2 * cos + cap / 2 * sin;
+                var y0 = _h / 2 - tw / 2 * sin - cap / 2 * cos;
+                content.Append("q /GS1 gs 0.75 0.1 0.1 rg BT /F2 ").Append(Num(size)).Append(" Tf ")
+                    .Append(Num(cos)).Append(' ').Append(Num(sin)).Append(' ').Append(Num(-sin)).Append(' ').Append(Num(cos)).Append(' ')
+                    .Append(Num(x0)).Append(' ').Append(Num(y0)).Append(" Tm (").Append(Escape(watermark)).Append(") Tj ET Q\n");
+            }
             Obj($"<< /Length {content.Length} >>\nstream\n{content}endstream");
         }
 
