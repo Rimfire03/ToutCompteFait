@@ -17,11 +17,18 @@ public partial class SettingsView
     private readonly TextBox _bizPostal = new();
     private readonly TextBox _bizCity = new();
     private readonly TextBox _bizNature = new();
-    private readonly TextBox _bizApe = new();
+    // Codes APE : une entreprise peut en avoir plusieurs (activités différentes) ; tous sont listés et modifiables.
+    private readonly List<string> _apeCodes = new();
+    private readonly DataGrid _apeGrid = new()
+    {
+        AutoGenerateColumns = false, IsReadOnly = true, CanUserAddRows = false, SelectionMode = DataGridSelectionMode.Single,
+        HeadersVisibility = DataGridHeadersVisibility.Column, MinHeight = 60, MaxHeight = 220
+    };
+    private readonly TextBox _apeNew = new() { Width = 110, MaxLength = 12 };
+    private sealed record ApeRow(string Code, string Type, string Note);
     private readonly DatePicker _bizCreated = new();
     private readonly ComboBox _bizMode = new();
     private readonly TextBlock _bizStatus = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
-    private readonly TextBlock _bizApeInfo = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
     private readonly Dictionary<UrssafKind, TextBox> _bizRates = new();
     private readonly TextBox _bizCeilTotal = new(), _bizCeilServices = new(), _bizVatSale = new(), _bizVatSaleMax = new(),
         _bizVatService = new(), _bizVatServiceMax = new(), _bizAcreDiscount = new();
@@ -91,10 +98,36 @@ public partial class SettingsView
         Row(id, "Commune", _bizCity);
         Row(id, "Nature juridique (code INSEE)", _bizNature);
         Row(id, "Date de création", _bizCreated);
-        Row(id, "Code(s) APE (séparés par « ; »)", _bizApe);
         root.Children.Add(id);
         root.Children.Add(_bizStatus);
-        root.Children.Add(_bizApeInfo);
+
+        // --- Codes APE (un par activité)
+        root.Children.Add(Section("Activités (codes APE)"));
+        root.Children.Add(new TextBlock
+        {
+            Style = Sty("MutedText"), TextWrapping = TextWrapping.Wrap,
+            Text = "Une entreprise peut exercer plusieurs activités. Le registre public ne fournit que le code APE principal (et ceux des " +
+                   "établissements) : ajoutez ici les codes de vos autres activités. Chaque code donne un type de déclaration URSSAF."
+        });
+        _apeGrid.Margin = new Thickness(0, 6, 0, 0);
+        _apeGrid.Columns.Add(new DataGridTextColumn { Header = "Code APE", Binding = new System.Windows.Data.Binding("Code"), Width = 100 });
+        _apeGrid.Columns.Add(new DataGridTextColumn { Header = "Type de déclaration proposé", Binding = new System.Windows.Data.Binding("Type"), Width = 220 });
+        _apeGrid.Columns.Add(new DataGridTextColumn { Header = "Remarque", Binding = new System.Windows.Data.Binding("Note"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        root.Children.Add(_apeGrid);
+        var apeBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+        var addApe = new Button { Content = "Ajouter ce code APE", Style = Sty("SecondaryButton"), Margin = new Thickness(8, 0, 8, 0), IsEnabled = canEdit };
+        var removeApe = new Button { Content = "Retirer le code sélectionné", Style = Sty("SecondaryButton"), IsEnabled = canEdit };
+        addApe.Click += (_, _) => AddApeCode();
+        removeApe.Click += (_, _) =>
+        {
+            if (_apeGrid.SelectedItem is ApeRow row) { _apeCodes.Remove(row.Code); RefreshApeInfo(); }
+        };
+        _apeNew.KeyDown += (_, a) => { if (a.Key == System.Windows.Input.Key.Enter) AddApeCode(); };
+        apeBar.Children.Add(_apeNew);
+        apeBar.Children.Add(addApe);
+        apeBar.Children.Add(removeApe);
+        root.Children.Add(apeBar);
+        _apeNew.IsEnabled = canEdit;
         var createCats = new Button
         {
             Content = $"Créer les catégories de recettes de l'exercice d'après ces codes APE", Style = Sty("SecondaryButton"),
@@ -102,7 +135,6 @@ public partial class SettingsView
         };
         createCats.Click += BizCreateCategories_Click;
         root.Children.Add(createCats);
-        _bizApe.TextChanged += (_, _) => RefreshApeInfo();
 
         // --- Déclaration
         root.Children.Add(Section("Déclaration de chiffre d'affaires"));
@@ -166,7 +198,7 @@ public partial class SettingsView
                 Text = "Votre rôle ne permet que la consultation de ces réglages.", Style = Sty("MutedText"), Margin = new Thickness(0, 8, 0, 0)
             });
 
-        foreach (var tb in new[] { _bizSiren, _bizName, _bizAddress, _bizPostal, _bizCity, _bizNature, _bizApe, _bizAcreDiscount, _bizCeilTotal,
+        foreach (var tb in new[] { _bizSiren, _bizName, _bizAddress, _bizPostal, _bizCity, _bizNature, _bizAcreDiscount, _bizCeilTotal,
                                    _bizCeilServices, _bizVatSale, _bizVatSaleMax, _bizVatService, _bizVatServiceMax }.Concat(_bizRates.Values))
             tb.IsEnabled = canEdit;
         _bizCreated.IsEnabled = canEdit;
@@ -208,26 +240,34 @@ public partial class SettingsView
         _bizCity.Text = p.City ?? "";
         _bizNature.Text = p.LegalNature ?? "";
         _bizCreated.SelectedDate = p.CreationDate?.ToDateTime(TimeOnly.MinValue);
-        _bizApe.Text = string.Join(" ; ", p.ApeCodes.Count > 0 ? p.ApeCodes : p.ApeMain is { } m ? new[] { m } : Array.Empty<string>());
+        _apeCodes.Clear();
+        _apeCodes.AddRange(p.ApeCodes.Count > 0 ? p.ApeCodes : p.ApeMain is { } m ? new[] { m } : Array.Empty<string>());
         _bizMode.SelectedIndex = p.Mode == DeclarationMode.Monthly ? 1 : 0;
         RefreshApeInfo();
     }
 
-    private List<string> ApeCodesFromBox() =>
-        _bizApe.Text.Split(new[] { ';', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(c => ApeMapper.Normalize(c) ?? c).Distinct().ToList();
+    private List<string> ApeCodesFromBox() => _apeCodes.Distinct().ToList();
+
+    private void AddApeCode()
+    {
+        var raw = _apeNew.Text.Trim();
+        if (raw.Length == 0) return;
+        var code = ApeMapper.Normalize(raw);
+        if (code is null) { Ui.Error("Code APE invalide : format attendu 4 chiffres et une lettre, par exemple 56.10A ou 5610A."); return; }
+        if (!_apeCodes.Contains(code)) _apeCodes.Add(code);
+        _apeNew.Clear();
+        RefreshApeInfo();
+    }
 
     private void RefreshApeInfo()
     {
-        var lines = new List<string>();
-        foreach (var code in ApeCodesFromBox())
+        _apeGrid.ItemsSource = _apeCodes.Distinct().Select(code =>
         {
             var s = ApeMapper.Suggest(code);
-            lines.Add(s is null
-                ? $"{code} : type non reconnu — choisissez le type de déclaration à la création d'une catégorie."
-                : $"{code} → {s.Kind.Label()} ({s.Reason})" + (s.Certain ? "" : " — à vérifier : ce code peut relever d'un autre type."));
-        }
-        _bizApeInfo.Text = lines.Count == 0 ? "" : "Types de déclaration proposés :\n" + string.Join("\n", lines);
+            return s is null
+                ? new ApeRow(code, "Non reconnu", "Choisissez le type à la création de la catégorie.")
+                : new ApeRow(code, s.Kind.Label(), s.Reason + (s.Certain ? "" : " — à vérifier : ce code peut relever d'un autre type."));
+        }).ToList();
     }
 
     private async void BizLookup_Click(object sender, RoutedEventArgs e)
@@ -237,7 +277,10 @@ public partial class SettingsView
         try
         {
             var info = await BusinessLookup.LookupAsync(_bizSiren.Text);
+            var kept = _apeCodes.ToList();   // activités ajoutées à la main : conservées
             ShowProfile(info with { Mode = _bizMode.SelectedIndex == 1 ? DeclarationMode.Monthly : DeclarationMode.Quarterly });
+            foreach (var c in kept) if (!_apeCodes.Contains(c)) _apeCodes.Add(c);
+            RefreshApeInfo();
             _bizLoaded = info;
             _bizStatus.Text = $"Informations récupérées le {DateTime.Now:dd/MM/yyyy à HH:mm} (source : API Recherche d'entreprises, " +
                               "données Sirene/INSEE). Vérifiez-les puis cliquez sur « Enregistrer ».";
