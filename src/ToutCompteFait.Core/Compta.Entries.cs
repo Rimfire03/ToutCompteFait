@@ -74,7 +74,7 @@ public sealed partial class Compta
             sb.Append(" · ventilation : ").Append(string.Join(" ; ", allocations.Select(a =>
                 $"{(cats.TryGetValue(a.CategoryId, out var n) ? n : "?")} {Money.Format(a.AmountCents)} €")));
         if (e.Pointed) sb.Append(" · pointée");
-        if (!string.IsNullOrWhiteSpace(e.Note)) sb.Append(" · note : ").Append(e.Note);
+        if (!string.IsNullOrWhiteSpace(e.Note)) sb.Append(" · commentaire : ").Append(e.Note);
         return sb.ToString();
     }
 
@@ -451,7 +451,7 @@ public sealed partial class Compta
     {
         var cat = a.CategoryId is { } cid ? ctxCategoryName(cid) : "catégorie à affecter";
         return $"{Labels.Of(AdjFromDb(a.Type))} · « {a.Label} » · {Money.Format(a.AmountCents)} € · {cat}" +
-               (string.IsNullOrWhiteSpace(a.Note) ? "" : $" · note : {a.Note}");
+               (string.IsNullOrWhiteSpace(a.Note) ? "" : $" · commentaire : {a.Note}");
 
         string ctxCategoryName(long id)
         {

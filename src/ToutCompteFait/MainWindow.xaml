@@ -4,7 +4,7 @@
         xmlns:app="clr-namespace:ToutCompteFait"
         xmlns:ctl="clr-namespace:ToutCompteFait.Controls"
         xmlns:core="clr-namespace:ToutCompteFait.Core;assembly=ToutCompteFait.Core"
-        Title="{x:Static core:Editions.AppName}" Height="860" Width="1480" MinWidth="1100" MinHeight="620"
+        Title="{x:Static core:Editions.AppName}" Height="860" Width="1480" MinWidth="1280" MinHeight="620"
         WindowStartupLocation="CenterScreen" Background="{StaticResource BrushBackground}">
     <Window.Resources>
         <Style x:Key="NavButton" TargetType="RadioButton">

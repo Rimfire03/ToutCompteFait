@@ -87,7 +87,7 @@
             <Grid Margin="0,14,0,0">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="Note (facultatif)" Margin="0,0,0,4"/>
+                    <TextBlock Text="Commentaire (facultatif)" Margin="0,0,0,4"/>
                     <TextBox x:Name="NoteBox"/>
                 </StackPanel>
                 <CheckBox x:Name="PointedBox" Grid.Column="1" Content="Pointé sur le relevé" Margin="16,22,0,0"/>

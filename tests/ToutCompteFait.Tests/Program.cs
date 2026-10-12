@@ -1425,6 +1425,30 @@ Console.WriteLine("Format Crédit Agricole");
     Eq(Dt(2026, 1, 1), bal.Start, "CA : début de période « entre le … et le … »");
     Check(!Money.TryParse("123456789012345678901234567890", out _), "numéro très long : pas un montant (pas de dépassement)");
 }
+// ---- Moyen de paiement déduit du libellé bancaire
+Console.WriteLine("Moyen de paiement");
+{
+    void Pay(string raw, string mode, string clean)
+    {
+        var (m, c) = PaymentLabel.Split(raw);
+        Check(m == mode && c == clean, $"Moyen « {raw} » → {m} / {c}");
+    }
+    Pay("CARTE 02/10 PARC DE MOULINS", "CB", "PARC DE MOULINS");
+    Pay("CB LECLERC 03/09", "CB", "LECLERC 03/09");
+    Pay("PRLV PayPal Europe S.a.r.l. et C", "Prélèvement", "PayPal Europe S.a.r.l. et C");
+    Pay("PRELEVEMENT SEPA EDF", "Prélèvement", "EDF");
+    Pay("VIR INST Sumup Limited", "Virement", "Sumup Limited");
+    Pay("VIR SECURSOLUTION", "Virement", "SECURSOLUTION");
+    Pay("VIR", "Virement", "VIR");
+    Pay("CHEQUE 1234567", "Chèque", "1234567");
+    Pay("RETRAIT DAB 12/03 MOULINS", "Retrait", "MOULINS");
+    Pay("FRAIS TENUE DE COMPTE", "Frais", "FRAIS TENUE DE COMPTE");
+    Pay("Cotisation membres", "", "Cotisation membres");
+    Pay("BANQUE PRIME OUVERTURE", "", "BANQUE PRIME OUVERTURE");
+    Pay("CARTONS EMBALLAGE", "", "CARTONS EMBALLAGE");
+    Pay("", "", "");
+}
+
 // ---- Format Fortuneo : « Date opération » + « Date valeur », débits négatifs sur 4 champs, crédits « ; 9,36; »
 Console.WriteLine("Format Fortuneo");
 {

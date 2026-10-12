@@ -23,6 +23,15 @@ public sealed class LivreRow
     public int Number { get; init; }
     public string DateText { get; init; } = "";
     public string Label { get; init; } = "";
+
+    /// <summary>Moyen de paiement déduit du libellé bancaire (CB, Prélèvement, Virement…).</summary>
+    public string ModeText { get; init; } = "";
+
+    /// <summary>Libellé enregistré, avant retrait du préfixe bancaire (recherche et info-bulle).</summary>
+    public string FullLabel { get; init; } = "";
+
+    /// <summary>Note de l'écriture, suivie du lien de remboursement le cas échéant.</summary>
+    public string CommentText { get; init; } = "";
     public bool Pointed { get; init; }
     public string AccountText { get; init; } = "";
     public string InText { get; init; } = "";
@@ -32,9 +41,6 @@ public sealed class LivreRow
 
     /// <summary>« 📎 n » quand l'écriture a des justificatifs joints.</summary>
     public string AttachText { get; init; } = "";
-
-    /// <summary>Dépense : « ↩ remboursé x € (reste y €) » ; remboursement : « ↩ de &lt;dépense d'origine&gt; ».</summary>
-    public string RefundText { get; init; } = "";
 
     /// <summary>Ventilation incohérente avec le montant, ou date hors exercice : à corriger (rouge).</summary>
     public bool Problem { get; init; }
@@ -215,19 +221,23 @@ public partial class LivreView : UserControl, IPage
                     ? $"Écriture n° {e.Seq} annulée par une écriture inverse : conservée pour la piste d'audit, elle n'est plus modifiable."
                     : $"Écriture n° {e.Seq} : annulation d'une autre écriture (même montant, sens inverse). L'ensemble n'a aucun effet sur les comptes.");
 
+            var refundInfo = refundOrigins.TryGetValue(e.Id, out var origin) ? "↩ de " + origin
+                : refunded.TryGetValue(e.Id, out var back)
+                    ? back >= e.AmountCents ? $"↩ remboursé en totalité ({Money.Format(back)} €)"
+                                            : $"↩ remboursé {Money.Format(back)} € (reste {Money.Format(e.AmountCents - back)} €)"
+                    : "";
+            var comment = string.Join(" · ", new[] { e.Note?.Trim() ?? "", refundInfo }.Where(s => s.Length > 0));
+            var (payMode, shortLabel) = PaymentLabel.Split(e.Label);
+
             list.Add(new LivreRow
             {
-                Id = e.Id, Number = e.Seq > 0 ? (int)e.Seq : n, IsFrozen = e.Frozen, DateText = e.Date.ToString("dd/MM/yyyy"), Label = e.Label,
+                Id = e.Id, Number = e.Seq > 0 ? (int)e.Seq : n, IsFrozen = e.Frozen, DateText = e.Date.ToString("dd/MM/yyyy"),
+                Label = shortLabel, FullLabel = e.Label, ModeText = payMode, CommentText = comment,
                 Pointed = e.Pointed, AccountText = accText,
                 InText = transferAll ? "" : Money.FormatOrBlank(inC),
                 OutText = transferAll ? "" : Money.FormatOrBlank(outC),
                 BalanceText = Money.Format(running), Breakdown = breakdown,
                 AttachText = attachCounts.TryGetValue(e.Id, out var attachN) ? "📎 " + attachN : "",
-                RefundText = refundOrigins.TryGetValue(e.Id, out var origin) ? "↩ de " + origin
-                    : refunded.TryGetValue(e.Id, out var back)
-                        ? back >= e.AmountCents ? $"↩ remboursé en totalité ({Money.Format(back)} €)"
-                                                : $"↩ remboursé {Money.Format(back)} € (reste {Money.Format(e.AmountCents - back)} €)"
-                        : "",
                 Problem = (!needs && gap != 0) || !_year.Contains(e.Date),
                 ToFill = needs,
                 ProblemTip = tips.Count > 0 ? string.Join("\n", tips) : null,
@@ -269,7 +279,9 @@ public partial class LivreView : UserControl, IPage
         IEnumerable<LivreRow> q = _all;
         var text = SearchBox.Text.Trim();
         if (text.Length > 0)
-            q = q.Where(r => r.Label.Contains(text, StringComparison.CurrentCultureIgnoreCase)
+            q = q.Where(r => r.FullLabel.Contains(text, StringComparison.CurrentCultureIgnoreCase)
+                             || r.CommentText.Contains(text, StringComparison.CurrentCultureIgnoreCase)
+                             || r.ModeText.Contains(text, StringComparison.CurrentCultureIgnoreCase)
                              || r.Breakdown.Contains(text, StringComparison.CurrentCultureIgnoreCase)
                              || r.InText.Contains(text) || r.OutText.Contains(text)
                              || (r.Source.Entry.MemberName?.Contains(text, StringComparison.CurrentCultureIgnoreCase) ?? false));
@@ -408,6 +420,15 @@ public partial class LivreView : UserControl, IPage
             "Motif de l'annulation (facultatif) :", "", "Annuler l'écriture");
         if (reason is null) return;
         if (Ui.Try(() => _c.CancelEntry(en.Id, reason))) Reload();
+    }
+
+    /// <summary>Panneau « Rentabilité des opérations » : masqué par défaut pour que le tableau tienne sans défilement.</summary>
+    private void ShowOperations_Click(object sender, RoutedEventArgs e)
+    {
+        var on = ShowOperations.IsChecked == true;
+        OpsPanel.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        OpsGap.Width = new GridLength(on ? 12 : 0);
+        OpsCol.Width = new GridLength(on ? 290 : 0);
     }
 
     private void ShowCancelled_Click(object sender, RoutedEventArgs e)

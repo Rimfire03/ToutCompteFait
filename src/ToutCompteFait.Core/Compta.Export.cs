@@ -75,13 +75,13 @@ public sealed partial class Compta
     {
         var data = BuildLedger(yearId);
         var sb = new StringBuilder();
-        sb.Append("N°;Date;Libellé;Type;Compte;Compte destination;Entrée;Sortie;Virement;Ventilation;Pointée;Statut;")
-          .Append("Annule l'écriture n°;Membre;Note;Justificatifs;Saisie le\r\n");
+        sb.Append("N°;Date;Libellé;Type;Compte;Compte destination;Débit;Crédit;Virement;Ventilation;Pointée;Statut;")
+          .Append("Annule l'écriture n°;Membre;Commentaire;Justificatifs;Saisie le\r\n");
         foreach (var l in data.Lines)
         {
             sb.Append(l.Seq).Append(';').Append(l.Date.ToString("dd/MM/yyyy")).Append(';').Append(CsvField(l.Label)).Append(';')
               .Append(CsvField(l.Type)).Append(';').Append(CsvField(l.Account)).Append(';').Append(CsvField(l.ToAccount)).Append(';')
-              .Append(l.CashIn == 0 ? "" : Plain(l.CashIn)).Append(';').Append(l.CashOut == 0 ? "" : Plain(l.CashOut)).Append(';')
+              .Append(l.CashOut == 0 ? "" : Plain(l.CashOut)).Append(';').Append(l.CashIn == 0 ? "" : Plain(l.CashIn)).Append(';')
               .Append(l.Transfer == 0 ? "" : Plain(l.Transfer)).Append(';').Append(CsvField(l.Allocation)).Append(';')
               .Append(l.Pointed ? "oui" : "non").Append(';').Append(l.Status).Append(';')
               .Append(l.ReversalOfSeq?.ToString() ?? "").Append(';').Append(CsvField(l.Member)).Append(';')
@@ -98,8 +98,8 @@ public sealed partial class Compta
         var y = data.Year;
         var pdf = new SimplePdf();
         const double left = 30, right = SimplePdf.PageWidth - 30, top = SimplePdf.PageHeight - 40, rowH = 11.5, size = 7.5;
-        // Colonnes : N°, Date, Libellé, Compte, Entrée, Sortie, Ventilation / statut.
-        const double cSeq = left, cDate = left + 26, cLabel = left + 74, cAcc = left + 292, cIn = left + 440, cOut = left + 500, cAlloc = left + 510;
+        // Colonnes : N°, Date, Libellé, Compte, Débit (sortie), Crédit (entrée), Ventilation / statut (sens du relevé bancaire).
+        const double cSeq = left, cDate = left + 26, cLabel = left + 74, cAcc = left + 292, cOut = left + 440, cIn = left + 500, cAlloc = left + 510;
 
         double yPos = 0;
         void Header()
@@ -113,8 +113,8 @@ public sealed partial class Compta
             pdf.Text(cDate, yPos, "Date", size, true);
             pdf.Text(cLabel, yPos, "Libellé", size, true);
             pdf.Text(cAcc, yPos, "Compte", size, true);
-            pdf.TextRight(cIn + 52, yPos, "Entrée", size, true);
-            pdf.TextRight(cOut + 52 - 2, yPos, "Sortie", size, true);
+            pdf.TextRight(cOut + 52, yPos, "Débit", size, true);
+            pdf.TextRight(cIn + 52 - 2, yPos, "Crédit", size, true);
             pdf.Text(cAlloc + 60, yPos, "Ventilation / statut", size, true);
             pdf.Line(left, yPos - 3, right, yPos - 3);
             yPos -= rowH + 2;
@@ -127,9 +127,9 @@ public sealed partial class Compta
             pdf.Text(cDate, yPos, l.Date.ToString("dd/MM/yyyy"), size);
             pdf.Text(cLabel, yPos, SimplePdf.Fit(l.Label, size, cAcc - cLabel - 6), size);
             var account = l.Transfer > 0 ? $"{l.Account} > {l.ToAccount}" : l.Account;
-            pdf.Text(cAcc, yPos, SimplePdf.Fit(account, size, cIn - cAcc - 4), size);
-            if (l.CashIn > 0) pdf.TextRight(cIn + 52, yPos, Money.Format(l.CashIn), size);
-            if (l.CashOut > 0) pdf.TextRight(cOut + 52 - 2, yPos, Money.Format(l.CashOut), size);
+            pdf.Text(cAcc, yPos, SimplePdf.Fit(account, size, cOut - cAcc - 4), size);
+            if (l.CashOut > 0) pdf.TextRight(cOut + 52, yPos, Money.Format(l.CashOut), size);
+            if (l.CashIn > 0) pdf.TextRight(cIn + 52 - 2, yPos, Money.Format(l.CashIn), size);
             var tail = l.Status switch
             {
                 "Annulée" => "ANNULÉE",
@@ -143,8 +143,8 @@ public sealed partial class Compta
         pdf.Line(left, yPos + 7, right, yPos + 7);
         yPos -= 4;
         pdf.Text(cLabel, yPos, $"Totaux (hors annulations) - {data.Lines.Count} écriture(s), dont {data.CancelledCount} annulée(s)", size, true);
-        pdf.TextRight(cIn + 52, yPos, Money.Format(data.TotalIn), size, true);
-        pdf.TextRight(cOut + 52 - 2, yPos, Money.Format(data.TotalOut), size, true);
+        pdf.TextRight(cOut + 52, yPos, Money.Format(data.TotalOut), size, true);
+        pdf.TextRight(cIn + 52 - 2, yPos, Money.Format(data.TotalIn), size, true);
         return pdf.Save($"Édité le {DateTime.Now:dd/MM/yyyy HH:mm} - Tout Compte Fait");
     }
 

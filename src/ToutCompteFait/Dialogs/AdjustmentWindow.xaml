@@ -39,7 +39,7 @@
                        Text="Ex. des lots de loto payés en juin et rangés dans « Loto n+1 » : l'exercice suivant ils compteront dans « Loto Octobre »."/>
         </StackPanel>
 
-        <TextBlock Text="Note (facultatif)" Margin="0,12,0,4"/>
+        <TextBlock Text="Commentaire (facultatif)" Margin="0,12,0,4"/>
         <TextBox x:Name="NoteBox"/>
 
         <TextBlock x:Name="ErrorText" Foreground="{StaticResource BrushDangerDark}" Margin="0,12,0,0" TextWrapping="Wrap"/>

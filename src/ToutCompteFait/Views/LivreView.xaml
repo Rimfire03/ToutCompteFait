@@ -43,6 +43,8 @@
                           ToolTip="N'afficher que les écritures sans produit ni charge (jaune)"/>
                 <CheckBox x:Name="OnlyIssues" Content="À corriger" Margin="12,0,0,0" Click="Filter_Click"
                           ToolTip="N'afficher que les écritures dont la ventilation est incohérente (rouge)"/>
+                <CheckBox x:Name="ShowOperations" Content="Rentabilité" Margin="12,0,0,0" Click="ShowOperations_Click"
+                          ToolTip="Afficher le panneau « Rentabilité des opérations » à droite du livre (masqué par défaut pour laisser la place au tableau)."/>
                 <CheckBox x:Name="ShowCancelled" Content="Annulations" Margin="12,0,0,0" Click="ShowCancelled_Click"
                           ToolTip="Afficher aussi les écritures annulées et leurs écritures d'annulation (grisées). Le numéro d'ordre est continu."/>
             </StackPanel>
@@ -62,11 +64,11 @@
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="12"/>
-                <ColumnDefinition Width="290"/>
+                <ColumnDefinition x:Name="OpsGap" Width="0"/>
+                <ColumnDefinition x:Name="OpsCol" Width="0"/>
             </Grid.ColumnDefinitions>
 
-            <DataGrid x:Name="EntriesGrid" MouseDoubleClick="Grid_DoubleClick" SelectionChanged="Grid_SelectionChanged">
+            <DataGrid x:Name="EntriesGrid" HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="Grid_DoubleClick" SelectionChanged="Grid_SelectionChanged">
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow">
                         <Setter Property="Background" Value="White"/>
@@ -91,10 +93,11 @@
                     </Style>
                 </DataGrid.RowStyle>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="N°" Binding="{Binding Number}" Width="42" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
-                    <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="84" ElementStyle="{StaticResource LeftCell}"/>
-                    <DataGridTextColumn Header="Libellé" Binding="{Binding Label}" Width="*" MinWidth="170" ElementStyle="{StaticResource LeftCell}"/>
-                    <DataGridTemplateColumn Header="Pointé" Width="56">
+                    <DataGridTextColumn Header="N°" Binding="{Binding Number}" Width="40" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                    <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="80" ElementStyle="{StaticResource LeftCell}"/>
+                    <DataGridTextColumn Header="Libellé" Binding="{Binding Label}" Width="2*" MinWidth="110" ElementStyle="{StaticResource LeftCell}"/>
+                    <DataGridTextColumn Header="Moyen" Binding="{Binding ModeText}" Width="84" ElementStyle="{StaticResource LeftCell}"/>
+                    <DataGridTemplateColumn Header="Pointé" Width="52">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <CheckBox IsChecked="{Binding Pointed, Mode=OneWay}" HorizontalAlignment="Center"
@@ -102,13 +105,14 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="Compte" Binding="{Binding AccountText}" Width="120" ElementStyle="{StaticResource LeftCell}"/>
-                    <DataGridTextColumn Header="Entrée" Binding="{Binding InText}" Width="88" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
-                    <DataGridTextColumn Header="Sortie" Binding="{Binding OutText}" Width="88" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
-                    <DataGridTextColumn Header="Solde" Binding="{Binding BalanceText}" Width="96" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
-                    <DataGridTextColumn Header="Remboursement" Binding="{Binding RefundText}" Width="170" ElementStyle="{StaticResource LeftCell}"/>
-                    <DataGridTextColumn Header="Justif." Binding="{Binding AttachText}" Width="58" ElementStyle="{StaticResource LeftCell}"/>
-                    <DataGridTemplateColumn Header="Ventilation" Width="250">
+                    <DataGridTextColumn Header="Compte" Binding="{Binding AccountText}" Width="100" ElementStyle="{StaticResource LeftCell}"/>
+                    <!-- Sens du relevé bancaire : Débit = sortie d'argent, Crédit = entrée. -->
+                    <DataGridTextColumn Header="Débit" Binding="{Binding OutText}" Width="80" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                    <DataGridTextColumn Header="Crédit" Binding="{Binding InText}" Width="80" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                    <DataGridTextColumn Header="Solde" Binding="{Binding BalanceText}" Width="88" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                    <DataGridTextColumn Header="Commentaire" Binding="{Binding CommentText}" Width="*" MinWidth="80" ElementStyle="{StaticResource LeftCell}"/>
+                    <DataGridTextColumn Header="Justif." Binding="{Binding AttachText}" Width="54" ElementStyle="{StaticResource LeftCell}"/>
+                    <DataGridTemplateColumn Header="Ventilation" Width="1.5*" MinWidth="130">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <Grid>
@@ -132,7 +136,7 @@
             </DataGrid>
 
             <!-- Rentabilité des opérations, en direct -->
-            <Border Grid.Column="2" Style="{StaticResource Card}">
+            <Border x:Name="OpsPanel" Grid.Column="2" Style="{StaticResource Card}" Visibility="Collapsed">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Top">
                         <TextBlock Text="Rentabilité des opérations" Style="{StaticResource SectionText}" Margin="0,0,0,2"/>
