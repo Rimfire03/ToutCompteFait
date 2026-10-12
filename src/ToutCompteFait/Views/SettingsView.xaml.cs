@@ -765,7 +765,7 @@ public partial class SettingsView : UserControl, IPage
                 "Archive-exercices-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
             try
             {
-                var n = await Task.Run(() => _c.ArchiveValidatedYears(archiveFolder, App.Settings.OrganizationName));
+                var n = await Task.Run(() => _c.ArchiveValidatedYears(archiveFolder, App.OrganizationName));
                 Ui.Info($"{n} exercice(s) archivé(s) dans :\n{archiveFolder}\n\nConservez ce dossier avec la sauvegarde complète.");
             }
             catch (Exception ex)

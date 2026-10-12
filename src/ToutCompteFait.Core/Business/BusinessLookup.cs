@@ -122,6 +122,7 @@ public static class BusinessLookup
                 City = target is { } tc ? Str(tc, "libelle_commune") : null,
                 CreationDate = ParseDate(Str(e, "date_creation")),
                 LegalNature = Str(e, "nature_juridique"),
+                Rna = e.TryGetProperty("complements", out var comp) ? Str(comp, "identifiant_association") : null,
                 ApeMain = ape,
                 ApeCodes = codes,
                 FetchedAt = DateTime.Now

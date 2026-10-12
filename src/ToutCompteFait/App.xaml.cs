@@ -82,6 +82,27 @@ public partial class App : Application
         }
     }
 
+    /// <summary>Nom de l'association ou de l'entreprise : réglage de ce poste s'il existe, sinon celui de la fiche
+    /// enregistrée dans la base (récupérée par SIREN / SIRET, partagée entre les postes).</summary>
+    public static string? OrganizationName
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Settings.OrganizationName)) return Settings.OrganizationName.Trim();
+            try { return Compta.GetBusinessProfile().Name; } catch { return null; }
+        }
+    }
+
+    /// <summary>SIREN : réglage de ce poste s'il existe, sinon celui de la fiche enregistrée dans la base.</summary>
+    public static string? Siren
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Settings.Siren)) return Settings.Siren.Trim();
+            try { return Compta.GetBusinessProfile().Siren; } catch { return null; }
+        }
+    }
+
     /// <summary>Nom de la base si elle porte le mot « test » (base d'essai), sinon null : l'écran affiche alors un
     /// bandeau d'avertissement rouge.</summary>
     public static string? TestDatabaseName =>

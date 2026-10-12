@@ -494,7 +494,7 @@ public partial class LivreView : UserControl, IPage
             case "pdf": defaultName = $"Livre-journal {fileLabel}.pdf"; filter = "PDF (*.pdf)|*.pdf"; break;
             case "csv": defaultName = $"Livre-journal {fileLabel}.csv"; filter = "CSV (*.csv)|*.csv"; break;
             default:
-                if (string.IsNullOrWhiteSpace(settings.Siren))
+                if (string.IsNullOrWhiteSpace(App.Siren))
                 {
                     var siren = PromptWindow.Ask(Window.GetWindow(this), "Export FEC",
                         "Le nom du fichier FEC commence par le numéro SIREN de l'association (9 chiffres). " +
@@ -504,7 +504,7 @@ public partial class LivreView : UserControl, IPage
                     settings.Siren = new string(siren.Where(char.IsDigit).ToArray());
                     settings.Save();
                 }
-                defaultName = Compta.FecFileName(settings.Siren, _year.End); filter = "FEC (*.txt)|*.txt"; break;
+                defaultName = Compta.FecFileName(App.Siren, _year.End); filter = "FEC (*.txt)|*.txt"; break;
         }
         var dlg = new Microsoft.Win32.SaveFileDialog { FileName = defaultName, Filter = filter, Title = "Exporter" };
         if (dlg.ShowDialog() != true) return;
@@ -512,7 +512,7 @@ public partial class LivreView : UserControl, IPage
         {
             switch (kind)
             {
-                case "pdf": File.WriteAllBytes(dlg.FileName, _c.ExportLedgerPdf(_year.Id, settings.OrganizationName)); break;
+                case "pdf": File.WriteAllBytes(dlg.FileName, _c.ExportLedgerPdf(_year.Id, App.OrganizationName)); break;
                 case "csv": File.WriteAllText(dlg.FileName, _c.ExportLedgerCsv(_year.Id), new System.Text.UTF8Encoding(true)); break;
                 default: File.WriteAllText(dlg.FileName, _c.ExportFec(_year.Id), new System.Text.UTF8Encoding(false)); break;
             }

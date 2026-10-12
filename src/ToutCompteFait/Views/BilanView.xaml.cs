@@ -83,11 +83,7 @@ public partial class BilanView : UserControl, IPage
 
     private void PrintBilan(bool detailed)
     {
-        var org = App.Settings.OrganizationName;
-        if (string.IsNullOrWhiteSpace(org) && Editions.Current.IsBusiness)
-        {
-            try { org = _c.GetBusinessProfile().Name; } catch { /* profil non renseigné */ }
-        }
+        var org = App.OrganizationName;
         var label = _year.Label.Replace('/', '-');
         var dlg = new Microsoft.Win32.SaveFileDialog
         {

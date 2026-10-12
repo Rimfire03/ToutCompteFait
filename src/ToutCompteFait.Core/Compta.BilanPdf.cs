@@ -57,29 +57,56 @@ public sealed partial class Compta
         var closed = y.Validated;
         string Eur(long cents) => Money.Format(cents) + " €";
 
+        // Identité de l'association / entreprise (fiche récupérée par SIREN ou SIRET), si elle est renseignée.
+        var identity = "";
+        try
+        {
+            var prof = GetBusinessProfile();
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(prof.Siret) || !string.IsNullOrWhiteSpace(prof.Siren))
+                parts.Add(!string.IsNullOrWhiteSpace(prof.Siret) ? "SIRET " + prof.Siret : "SIREN " + prof.Siren);
+            if (!string.IsNullOrWhiteSpace(prof.Rna)) parts.Add("RNA " + prof.Rna);
+            if (!string.IsNullOrWhiteSpace(prof.Address))
+            {
+                var addr = prof.Address!;
+                if (!string.IsNullOrWhiteSpace(prof.PostalCode) && !addr.Contains(prof.PostalCode!, StringComparison.Ordinal))
+                    addr += $", {prof.PostalCode} {prof.City}";
+                parts.Add(addr);
+            }
+            identity = string.Join(" — ", parts);
+        }
+        catch (Exception) { /* fiche indisponible : l'en-tête reste sans identité */ }
+        var dy = identity.Length > 0 ? 13 : 0;
+
         void Header()
         {
             pdf.SetFill(0.1, 0.15, 0.25);
             pdf.Text(left, top, org, 12, true);
-            pdf.Text(left, top - 18, title, 10, true);
+            if (identity.Length > 0)
+            {
+                pdf.SetFill(0.3, 0.35, 0.42);
+                pdf.Text(left, top - 13, SimplePdf.Fit(identity, 8, right - left), 8);
+                pdf.SetFill(0.1, 0.15, 0.25);
+            }
+            pdf.Text(left, top - 18 - dy, title, 10, true);
             pdf.SetFill(0.3, 0.35, 0.42);
-            pdf.Text(left, top - 32, $"Exercice {y.Label} — du {y.Start:dd/MM/yyyy} au {y.End:dd/MM/yyyy}", 9);
+            pdf.Text(left, top - 32 - dy, $"Exercice {y.Label} — du {y.Start:dd/MM/yyyy} au {y.End:dd/MM/yyyy}", 9);
             if (closed)
             {
                 pdf.SetFill(0.02, 0.37, 0.27);
-                pdf.Text(left, top - 46, $"EXERCICE CLÔTURÉ — validé le {y.ValidatedAt:dd/MM/yyyy}" +
+                pdf.Text(left, top - 46 - dy, $"EXERCICE CLÔTURÉ — validé le {y.ValidatedAt:dd/MM/yyyy}" +
                                          (string.IsNullOrWhiteSpace(y.ValidatedBy) ? "" : $" par {y.ValidatedBy}"), 9, true);
             }
             else
             {
                 pdf.SetFill(0.73, 0.11, 0.11);
-                pdf.Text(left, top - 46, "EXERCICE NON CLÔTURÉ — BILAN PROVISOIRE : chiffres susceptibles d'évoluer jusqu'à la validation", 9, true);
+                pdf.Text(left, top - 46 - dy, "EXERCICE NON CLÔTURÉ — BILAN PROVISOIRE : chiffres susceptibles d'évoluer jusqu'à la validation", 9, true);
             }
             pdf.SetStroke(0.6, 0.65, 0.72);
-            pdf.Line(left, top - 54, right, top - 54, 0.8);
+            pdf.Line(left, top - 54 - dy, right, top - 54 - dy, 0.8);
             pdf.SetFill(0, 0, 0);
             pdf.SetStroke(0, 0, 0);
-            pos = top - 72;
+            pos = top - 72 - dy;
         }
 
         void Need(double height)

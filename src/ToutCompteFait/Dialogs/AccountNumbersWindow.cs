@@ -53,10 +53,10 @@ public sealed class AccountNumbersWindow : Window
             TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10)
         });
         top.Children.Add(new TextBlock { Text = "Nom de l'association (en-tête du livre exporté)" });
-        _org.Text = App.Settings.OrganizationName ?? "";
+        _org.Text = App.OrganizationName ?? "";
         top.Children.Add(_org);
         top.Children.Add(new TextBlock { Text = "SIREN (9 chiffres, nom du fichier FEC)" });
-        _siren.Text = App.Settings.Siren ?? "";
+        _siren.Text = App.Siren ?? "";
         top.Children.Add(_siren);
         DockPanel.SetDock(top, Dock.Top);
         root.Children.Add(top);

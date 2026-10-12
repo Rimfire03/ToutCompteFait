@@ -178,6 +178,8 @@ public sealed record BusinessProfile
     public string? City { get; init; }
     public DateOnly? CreationDate { get; init; }
     public string? LegalNature { get; init; }
+    /// <summary>Numéro RNA d'une association (W + 9 chiffres), fourni par le registre quand il existe.</summary>
+    public string? Rna { get; init; }
     /// <summary>Code APE (NAF rév. 2) principal, tel que renvoyé par la source (ex. « 62.02A »).</summary>
     public string? ApeMain { get; init; }
     /// <summary>Tous les codes APE de l'activité (principal compris), saisis ou récupérés.</summary>

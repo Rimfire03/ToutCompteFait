@@ -1705,6 +1705,17 @@ Console.WriteLine("Autoentreprise");
     Eq("1 RUE DES ESSAIS 03000 MOULINS", info.Address, "adresse");
     Eq(new DateOnly(2024, 2, 1), info.CreationDate, "date de création");
     Eq(siren + "00012", info.Siret, "SIRET du siège");
+    Eq(null, info.Rna, "pas de numéro RNA pour une entreprise");
+    // Association : le registre fournit le numéro RNA dans « complements ».
+    var assoJson = $$$"""
+        {"results":[{"siren":"{{{siren}}}","nom_complet":"CLUB DES ESSAIS","nature_juridique":"9220",
+          "date_creation":"1999-06-15","complements":{"est_association":true,"identifiant_association":"W031000123"},
+          "siege":{"siret":"{{{siren}}}00012","adresse":"2 PLACE DU CLUB 03000 MOULINS","code_postal":"03000","libelle_commune":"MOULINS"}}]}
+        """;
+    var asso = BusinessLookup.Parse(assoJson, siren);
+    Eq("W031000123", asso.Rna, "association : numéro RNA");
+    Eq("9220", asso.LegalNature, "association : forme juridique");
+    Eq("CLUB DES ESSAIS", asso.Name, "association : nom");
     Throws(() => BusinessLookup.Parse("{\"results\":[]}", siren), "aucune entreprise : message clair", "Aucune entreprise");
     Throws(() => BusinessLookup.Parse("pas du json", siren), "réponse illisible : message clair", "inattendue");
 

@@ -38,9 +38,24 @@ public partial class SettingsView
 
     private static Style Sty(string key) => (Style)Application.Current.FindResource(key);
 
+    private readonly TextBox _assocRna = new();
+
     private void InitBusiness()
     {
-        if (!Editions.Current.IsBusiness) return;
+        if (!Editions.Current.IsBusiness)
+        {
+            // Édition association : fiche récupérée par SIREN / SIRET, dans le paramétrage du dossier.
+            if (_scope != SettingsScope.Dossier) return;
+            Tabs.Items.Insert(0, new TabItem { Header = "Association", Content = BuildAssociationPanel() });
+            Tabs.SelectedIndex = 0;
+            var ap = _c.GetBusinessProfile();
+            _bizLoaded = ap;
+            ShowProfile(ap);
+            _bizStatus.Text = ap.FetchedAt is { } fa
+                ? $"Informations récupérées le {fa:dd/MM/yyyy à HH:mm} (source : API Recherche d'entreprises, données Sirene/INSEE)."
+                : ap.IsEmpty ? "Aucune association renseignée : saisissez votre SIREN ou SIRET puis « Récupérer les informations »." : "";
+            return;
+        }
         // Colonne « Type URSSAF » dans la liste des produits.
         ProductsGrid.Columns.Insert(1, new DataGridTextColumn
         {
@@ -209,6 +224,86 @@ public partial class SettingsView
         return new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
 
+    /// <summary>Fiche de l'association (édition historique) : SIREN ou SIRET, puis nom, adresse, forme juridique et numéro
+    /// RNA récupérés auprès de l'API publique « Recherche d'entreprises ». Enregistrée dans la base (tous les postes).</summary>
+    private UIElement BuildAssociationPanel()
+    {
+        var canEdit = App.Can(Permission.ManageStructure) && !App.IsReadOnly;
+        var root = new StackPanel { Margin = new Thickness(0, 12, 0, 24), MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };
+        root.Children.Add(new TextBlock
+        {
+            Style = Sty("MutedText"), TextWrapping = TextWrapping.Wrap,
+            Text = "Saisissez le SIREN (9 chiffres) ou le SIRET (14 chiffres) de l'association : son nom, son adresse, sa forme juridique " +
+                   "et son numéro RNA sont récupérés automatiquement auprès de l'API publique « Recherche d'entreprises » de l'État " +
+                   "(données Sirene de l'INSEE). Seul ce numéro est envoyé. Vous pouvez corriger les informations avant d'enregistrer. " +
+                   "Elles figurent sur les documents imprimés (bilan, livre-journal, nom du fichier FEC)."
+        });
+        root.Children.Add(new TextBlock { Text = "Identification de l'association", Style = Sty("SectionText"), Margin = new Thickness(0, 18, 0, 6) });
+
+        var form = new Grid
+        {
+            ColumnDefinitions = { new ColumnDefinition { Width = new GridLength(230) }, new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) } }
+        };
+        void Row(string label, UIElement control)
+        {
+            var r = form.RowDefinitions.Count;
+            form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var t = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 8, 4) };
+            Grid.SetRow(t, r);
+            Grid.SetRow(control, r);
+            Grid.SetColumn(control, 1);
+            if (control is FrameworkElement fe) fe.Margin = new Thickness(0, 3, 0, 3);
+            form.Children.Add(t);
+            form.Children.Add(control);
+        }
+
+        var sirenPanel = new DockPanel();
+        _bizLookupButton = new Button { Content = "Récupérer les informations", Style = Sty("PrimaryButton"), Margin = new Thickness(8, 0, 0, 0), IsEnabled = canEdit };
+        _bizLookupButton.Click += BizLookup_Click;
+        DockPanel.SetDock(_bizLookupButton, Dock.Right);
+        sirenPanel.Children.Add(_bizLookupButton);
+        sirenPanel.Children.Add(_bizSiren);
+        Row("SIREN ou SIRET", sirenPanel);
+        Row("Nom de l'association", _bizName);
+        Row("Adresse", _bizAddress);
+        Row("Code postal", _bizPostal);
+        Row("Commune", _bizCity);
+        Row("Forme juridique (code INSEE)", _bizNature);
+        Row("Numéro RNA", _assocRna);
+        Row("Date de création", _bizCreated);
+        root.Children.Add(form);
+        root.Children.Add(_bizStatus);
+
+        var save = new Button
+        {
+            Content = "Enregistrer", Style = Sty("PrimaryButton"), HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 20, 0, 0), IsEnabled = canEdit
+        };
+        save.Click += AssocSave_Click;
+        root.Children.Add(save);
+        if (!canEdit)
+            root.Children.Add(new TextBlock
+            {
+                Text = "Votre rôle ou l'état de ce poste ne permet que la consultation de ces informations.",
+                Style = Sty("MutedText"), Margin = new Thickness(0, 8, 0, 0)
+            });
+        foreach (var tb in new[] { _bizSiren, _bizName, _bizAddress, _bizPostal, _bizCity, _bizNature, _assocRna }) tb.IsEnabled = canEdit;
+        _bizCreated.IsEnabled = canEdit;
+        return new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+    }
+
+    private void AssocSave_Click(object sender, RoutedEventArgs e)
+    {
+        var profile = ReadProfileFromBoxes();
+        if (!Ui.Try(() => _c.SaveBusinessProfile(profile))) return;
+        _bizLoaded = _c.GetBusinessProfile();
+        // Nom et SIREN servent aussi aux exports de ce poste (nom du fichier FEC, en-tête des PDF).
+        App.Settings.OrganizationName = profile.Name;
+        App.Settings.Siren = profile.Siren;
+        App.Settings.Save();
+        Ui.Info("Informations de l'association enregistrées. Elles figureront sur les documents imprimés (bilan, livre-journal, fichier FEC).");
+    }
+
     private static string Euros(long cents) => (cents / 100m).ToString("0.##", CultureInfo.GetCultureInfo("fr-FR"));
     private static string Percent(int bp) => (bp / 100m).ToString("0.##", CultureInfo.GetCultureInfo("fr-FR"));
 
@@ -241,6 +336,7 @@ public partial class SettingsView
         _bizCity.Text = p.City ?? "";
         _bizNature.Text = p.LegalNature ?? "";
         _bizCreated.SelectedDate = p.CreationDate?.ToDateTime(TimeOnly.MinValue);
+        _assocRna.Text = p.Rna ?? "";
         _apeCodes.Clear();
         _apeCodes.AddRange(p.ApeCodes.Count > 0 ? p.ApeCodes : p.ApeMain is { } m ? new[] { m } : Array.Empty<string>());
         _bizMode.SelectedIndex = p.Mode == DeclarationMode.Monthly ? 1 : 0;
@@ -309,6 +405,7 @@ public partial class SettingsView
             PostalCode = _bizPostal.Text.Trim(),
             City = _bizCity.Text.Trim(),
             LegalNature = _bizNature.Text.Trim(),
+            Rna = _assocRna.Text.Trim() is { Length: > 0 } rna ? rna : _bizLoaded.Rna,
             CreationDate = _bizCreated.SelectedDate is { } d ? DateOnly.FromDateTime(d) : null,
             ApeMain = codes.FirstOrDefault(),
             ApeCodes = codes,
