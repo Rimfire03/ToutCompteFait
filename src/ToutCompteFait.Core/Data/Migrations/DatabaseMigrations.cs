@@ -23,6 +23,7 @@ internal static class DatabaseMigrations
         (6, "Numérotation continue des écritures et contre-passation (annulation sans suppression)", AddEntrySequence),
         (7, "Journal d'audit chaîné par empreintes (inaltérable)", AddAuditChain),
         (8, "Numéros de compte comptable pour l'export FEC", AddAccountNumbers),
+        (9, "Entreprise (version Autoentreprise) : profil, types de déclaration URSSAF, déclarations", AddBusinessTables),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -41,6 +42,7 @@ internal static class DatabaseMigrations
         (6, "Numérotation continue des écritures et contre-passation (annulation sans suppression)", AddEntrySequence),
         (7, "Journal d'audit chaîné par empreintes (inaltérable)", AddAuditChain),
         (8, "Numéros de compte comptable pour l'export FEC", AddAccountNumbers),
+        (9, "Entreprise (version Autoentreprise) : profil, types de déclaration URSSAF, déclarations", AddBusinessTables),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -290,6 +292,68 @@ internal static class DatabaseMigrations
         ctx.Database.ExecuteSqlRaw(create);
     }
 
+    // ------------------------------------------------------------------ v9 : entreprise (version Autoentreprise)
+
+    /// <summary>Tables de la version Autoentreprise : réglages de l'entreprise (clé / valeur), type de déclaration URSSAF
+    /// des catégories de produits (par nom) et déclarations marquées comme faites. Créées dans toutes les bases (vides et
+    /// sans effet pour les autres versions) pour que le schéma soit le même partout.</summary>
+    private static void AddBusinessTables(AppDbContext ctx)
+    {
+        void Create(string table, string sqlite, string pg, string maria, string mssql)
+        {
+            if (ServerSql.TableExists(ctx, table)) return;
+            ctx.Database.ExecuteSqlRaw(ctx.Provider switch
+            {
+                DatabaseProvider.Sqlite => sqlite,
+                DatabaseProvider.PostgreSql => pg,
+                DatabaseProvider.MariaDb => maria,
+                DatabaseProvider.SqlServer => mssql,
+                _ => throw new NotSupportedException()
+            });
+        }
+
+        Create("business_settings",
+            """CREATE TABLE "business_settings" ("key" TEXT NOT NULL CONSTRAINT "PK_business_settings" PRIMARY KEY, "value" TEXT NOT NULL);""",
+            """CREATE TABLE "business_settings" ("key" varchar(100) NOT NULL CONSTRAINT "PK_business_settings" PRIMARY KEY, "value" text NOT NULL);""",
+            "CREATE TABLE `business_settings` (`key` varchar(100) NOT NULL, `value` longtext NOT NULL, CONSTRAINT `PK_business_settings` PRIMARY KEY (`key`));",
+            "CREATE TABLE [business_settings] ([key] nvarchar(100) NOT NULL CONSTRAINT [PK_business_settings] PRIMARY KEY, [value] nvarchar(max) NOT NULL);");
+
+        Create("category_urssaf",
+            """CREATE TABLE "category_urssaf" ("name" TEXT NOT NULL CONSTRAINT "PK_category_urssaf" PRIMARY KEY, "kind" TEXT NOT NULL);""",
+            """CREATE TABLE "category_urssaf" ("name" varchar(200) NOT NULL CONSTRAINT "PK_category_urssaf" PRIMARY KEY, "kind" varchar(20) NOT NULL);""",
+            "CREATE TABLE `category_urssaf` (`name` varchar(200) NOT NULL, `kind` varchar(20) NOT NULL, CONSTRAINT `PK_category_urssaf` PRIMARY KEY (`name`));",
+            "CREATE TABLE [category_urssaf] ([name] nvarchar(200) NOT NULL CONSTRAINT [PK_category_urssaf] PRIMARY KEY, [kind] nvarchar(20) NOT NULL);");
+
+        Create("urssaf_declarations",
+            """
+            CREATE TABLE "urssaf_declarations" (
+                "period_key" TEXT NOT NULL CONSTRAINT "PK_urssaf_declarations" PRIMARY KEY,
+                "period_start" TEXT NOT NULL, "period_end" TEXT NOT NULL, "declared_at" TEXT NOT NULL,
+                "declared_by" TEXT NULL, "turnover_cents" INTEGER NOT NULL, "note" TEXT NULL
+            );
+            """,
+            """
+            CREATE TABLE "urssaf_declarations" (
+                "period_key" varchar(20) NOT NULL CONSTRAINT "PK_urssaf_declarations" PRIMARY KEY,
+                "period_start" varchar(10) NOT NULL, "period_end" varchar(10) NOT NULL, "declared_at" varchar(30) NOT NULL,
+                "declared_by" varchar(200) NULL, "turnover_cents" bigint NOT NULL, "note" varchar(500) NULL
+            );
+            """,
+            """
+            CREATE TABLE `urssaf_declarations` (
+                `period_key` varchar(20) NOT NULL, `period_start` varchar(10) NOT NULL, `period_end` varchar(10) NOT NULL,
+                `declared_at` varchar(30) NOT NULL, `declared_by` varchar(200) NULL, `turnover_cents` bigint NOT NULL,
+                `note` varchar(500) NULL, CONSTRAINT `PK_urssaf_declarations` PRIMARY KEY (`period_key`)
+            );
+            """,
+            """
+            CREATE TABLE [urssaf_declarations] (
+                [period_key] nvarchar(20) NOT NULL CONSTRAINT [PK_urssaf_declarations] PRIMARY KEY,
+                [period_start] nvarchar(10) NOT NULL, [period_end] nvarchar(10) NOT NULL, [declared_at] nvarchar(30) NOT NULL,
+                [declared_by] nvarchar(200) NULL, [turnover_cents] bigint NOT NULL, [note] nvarchar(500) NULL
+            );
+            """);
+    }
     // ------------------------------------------------------------------ v2 : comptes utilisateurs (SQLite)
 
     private static void AddUsers(AppDbContext ctx)

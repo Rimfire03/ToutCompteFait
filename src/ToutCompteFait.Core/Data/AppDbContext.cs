@@ -24,6 +24,9 @@ public class AppDbContext : DbContext
 
     public DbSet<AccountEntity> Accounts => Set<AccountEntity>();
     public DbSet<CategoryAccountEntity> CategoryAccounts => Set<CategoryAccountEntity>();
+    public DbSet<BusinessSettingEntity> BusinessSettings => Set<BusinessSettingEntity>();
+    public DbSet<CategoryUrssafEntity> CategoryUrssaf => Set<CategoryUrssafEntity>();
+    public DbSet<UrssafDeclarationEntity> UrssafDeclarations => Set<UrssafDeclarationEntity>();
     public DbSet<YearEntity> Years => Set<YearEntity>();
     public DbSet<YearOpeningEntity> YearOpenings => Set<YearOpeningEntity>();
     public DbSet<OperationEntity> Operations => Set<OperationEntity>();
@@ -125,6 +128,35 @@ public class AppDbContext : DbContext
             e.Property(x => x.Kind).HasColumnName("kind").HasMaxLength(1).IsRequired();
             e.Property(x => x.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
             e.Property(x => x.AccountNumber).HasColumnName("account_number").HasMaxLength(20).IsRequired();
+        });
+
+        b.Entity<BusinessSettingEntity>(e =>
+        {
+            e.ToTable("business_settings");
+            e.HasKey(x => x.Key);
+            e.Property(x => x.Key).HasColumnName("key").HasMaxLength(100).IsRequired();
+            e.Property(x => x.Value).HasColumnName("value").IsRequired();
+        });
+
+        b.Entity<CategoryUrssafEntity>(e =>
+        {
+            e.ToTable("category_urssaf");
+            e.HasKey(x => x.Name);
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            e.Property(x => x.Kind).HasColumnName("kind").HasMaxLength(20).IsRequired();
+        });
+
+        b.Entity<UrssafDeclarationEntity>(e =>
+        {
+            e.ToTable("urssaf_declarations");
+            e.HasKey(x => x.PeriodKey);
+            e.Property(x => x.PeriodKey).HasColumnName("period_key").HasMaxLength(20).IsRequired();
+            e.Property(x => x.PeriodStart).HasColumnName("period_start").HasMaxLength(10).IsRequired();
+            e.Property(x => x.PeriodEnd).HasColumnName("period_end").HasMaxLength(10).IsRequired();
+            e.Property(x => x.DeclaredAt).HasColumnName("declared_at").HasMaxLength(30).IsRequired();
+            e.Property(x => x.DeclaredBy).HasColumnName("declared_by").HasMaxLength(200);
+            e.Property(x => x.TurnoverCents).HasColumnName("turnover_cents");
+            e.Property(x => x.Note).HasColumnName("note").HasMaxLength(500);
         });
 
         b.Entity<YearEntity>(e =>

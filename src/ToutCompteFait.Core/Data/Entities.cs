@@ -28,6 +28,34 @@ public sealed class CategoryAccountEntity
     public string AccountNumber { get; set; } = "";
 }
 
+/// <summary>Réglage de l'entreprise (version Autoentreprise) : profil (SIREN, nom, adresse, codes APE), mode de
+/// déclaration, taux de cotisations, plafonds. Clé / valeur, hors des tables verrouillées avec les exercices.</summary>
+public sealed class BusinessSettingEntity
+{
+    public string Key { get; set; } = "";
+    public string Value { get; set; } = "";
+}
+
+/// <summary>Type de déclaration URSSAF d'une catégorie de produit (par nom, tous exercices confondus), comme
+/// <see cref="CategoryAccountEntity"/> : modifiable après clôture sans toucher aux exercices validés.</summary>
+public sealed class CategoryUrssafEntity
+{
+    public string Name { get; set; } = "";
+    public string Kind { get; set; } = "";
+}
+
+/// <summary>Déclaration de chiffre d'affaires à l'URSSAF, marquée comme faite (trace : date, montant, auteur).</summary>
+public sealed class UrssafDeclarationEntity
+{
+    public string PeriodKey { get; set; } = "";
+    public string PeriodStart { get; set; } = "";
+    public string PeriodEnd { get; set; } = "";
+    public string DeclaredAt { get; set; } = "";
+    public string? DeclaredBy { get; set; }
+    public long TurnoverCents { get; set; }
+    public string? Note { get; set; }
+}
+
 public sealed class YearEntity
 {
     public long Id { get; set; }

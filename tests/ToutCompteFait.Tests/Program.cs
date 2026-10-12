@@ -1,3 +1,4 @@
+using ToutCompteFait.Core.Business;
 using ToutCompteFait.Core;
 using ToutCompteFait.Core.Data;
 using ToutCompteFait.Core.Import;
@@ -1478,6 +1479,130 @@ Console.WriteLine("Versions du logiciel");
         }
         Check(codes.Contains("ADEA732C-8143-4CC9-AFCB-E08D07DE3AF1"), "UpgradeCode historique conservé : les installations existantes passent sur Asso");
     }
+}// ---- Autoentreprise : profil, types de déclaration URSSAF, rapport, recherche d'entreprise
+Console.WriteLine("Autoentreprise");
+{
+    // Codes APE → type proposé
+    Eq(UrssafKind.Sale, ApeMapper.Suggest("47.91B")!.Kind, "APE commerce de détail : BIC vente");
+    Eq(UrssafKind.Service, ApeMapper.Suggest("43.21A")!.Kind, "APE travaux d'installation : BIC prestation");
+    Eq(UrssafKind.LiberalSsi, ApeMapper.Suggest("6202A")!.Kind, "APE informatique : BNC (format sans point accepté)");
+    Eq(UrssafKind.LiberalCipav, ApeMapper.Suggest("71.11Z")!.Kind, "APE architecture : BNC CIPAV");
+    Eq(UrssafKind.Service, ApeMapper.Suggest("45.20A")!.Kind, "réparation automobile : prestation (pas vente)");
+    Eq("62.02A", ApeMapper.Normalize("6202a"), "normalisation d'un code APE");
+    Check(ApeMapper.Suggest("00.00Z") is null && ApeMapper.Normalize("abc") is null, "code APE inconnu ou invalide");
+
+    // Noms de catégories
+    Eq("BIC vente", UrssafKinds.CategoryName(UrssafKind.Sale, null), "nom sans personnalisation");
+    Eq("BIC prestation – Dépannage", UrssafKinds.CategoryName(UrssafKind.Service, " Dépannage "), "nom personnalisé après le type");
+    Eq(UrssafKind.Service, UrssafKinds.FromCategoryName("BIC prestation – Dépannage"), "type retrouvé d'après le nom");
+    Eq(UrssafKind.LiberalCipav, UrssafKinds.FromCategoryName("BNC CIPAV – Plans"), "BNC CIPAV avant BNC");
+    Check(UrssafKinds.FromCategoryName("Cotisations") is null, "nom sans type");
+
+    // Périodes et échéances
+    var q3 = UrssafPeriod.ForDate(new DateOnly(2026, 8, 15), DeclarationMode.Quarterly);
+    Eq("2026-T3", q3.Key, "trimestre du 15/08");
+    Eq(new DateOnly(2026, 10, 31), q3.DueDate, "échéance du 3e trimestre");
+    Eq(new DateOnly(2027, 1, 31), UrssafPeriod.Quarterly(2026, 4).DueDate, "échéance du 4e trimestre : janvier suivant");
+    var m = UrssafPeriod.ForDate(new DateOnly(2026, 2, 10), DeclarationMode.Monthly);
+    Eq(new DateOnly(2026, 2, 28), m.End, "fin de février");
+    Eq(new DateOnly(2026, 3, 31), m.DueDate, "échéance mensuelle : fin du mois suivant");
+    Eq(4, UrssafPeriod.OfYear(2026, DeclarationMode.Quarterly).Count, "4 trimestres");
+    Eq(12, UrssafPeriod.OfYear(2026, DeclarationMode.Monthly).Count, "12 mois");
+
+    // SIREN / SIRET
+    string WithLuhn(string eight)
+    {
+        for (var d = 0; d < 10; d++) if (BusinessLookup.TryParseNumber(eight + d, out _)) return eight + d;
+        throw new InvalidOperationException();
+    }
+    var siren = WithLuhn("12345678");
+    Check(BusinessLookup.TryParseNumber(siren, out var digits) && digits == siren, "SIREN valide (clé de Luhn)");
+    Check(!BusinessLookup.TryParseNumber(siren[..8] + ((siren[8] - '0' + 1) % 10), out _), "SIREN à la clé fausse refusé");
+    Check(!BusinessLookup.TryParseNumber("12 34", out _), "numéro trop court refusé");
+
+    // Lecture de la réponse de l'API (jeu fictif, mêmes champs que le service réel)
+    var json = $$$"""
+        {"results":[{"siren":"{{{siren}}}","nom_complet":"DUPONT JEAN (DUPONT SERVICES)","nature_juridique":"1000",
+          "activite_principale":"43.21A","date_creation":"2024-02-01",
+          "siege":{"siret":"{{{siren}}}00012","activite_principale":"43.21A","adresse":"1 RUE DES ESSAIS 03000 MOULINS",
+                   "code_postal":"03000","libelle_commune":"MOULINS"}}],"total_results":1}
+        """;
+    var info = BusinessLookup.Parse(json, siren);
+    Eq("DUPONT JEAN (DUPONT SERVICES)", info.Name, "nom de l'entreprise");
+    Eq("43.21A", info.ApeMain, "code APE principal");
+    Eq("1 RUE DES ESSAIS 03000 MOULINS", info.Address, "adresse");
+    Eq(new DateOnly(2024, 2, 1), info.CreationDate, "date de création");
+    Eq(siren + "00012", info.Siret, "SIRET du siège");
+    Throws(() => BusinessLookup.Parse("{\"results\":[]}", siren), "aucune entreprise : message clair", "Aucune entreprise");
+    Throws(() => BusinessLookup.Parse("pas du json", siren), "réponse illisible : message clair", "inattendue");
+
+    // Base : profil, types, rapport
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
+    Check(c.GetBusinessProfile().IsEmpty, "profil vide au départ");
+    c.SaveBusinessProfile(info with { Mode = DeclarationMode.Monthly });
+    var back = c.GetBusinessProfile();
+    Eq("43.21A", back.ApeMain, "profil relu : APE");
+    Eq(DeclarationMode.Monthly, back.Mode, "profil relu : mode de déclaration");
+    Eq(new DateOnly(2024, 2, 1), back.CreationDate, "profil relu : date de création");
+
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    var vente = c.AddActivityCategory(y.Id, UrssafKind.Sale, "Boutique");
+    var presta = c.AddActivityCategory(y.Id, UrssafKind.Service, null);
+    var libre = c.AddCategory(y.Id, CategoryKind.Product, "Apport libre test");
+    var charge = c.AddCategory(y.Id, CategoryKind.Charge, "Charge libre test");
+    Eq("BIC vente – Boutique", vente.Name, "catégorie d'activité nommée d'après le type");
+    var kinds = c.CategoryUrssafKinds();
+    Eq(UrssafKind.Sale, kinds["BIC vente – Boutique"], "type enregistré");
+    Check(!kinds.ContainsKey("Apport libre test"), "produit libre : sans type");
+
+    void Income(DateOnly d, long cents, params (long cat, long amount)[] split) =>
+        c.SaveEntry(new Entry(0, y.Id, d, "client", false, EntryKind.Normal, banque.Id, Direction.In, null, cents, null, null),
+            split.Select(s => new Allocation(s.cat, s.amount)).ToList());
+    Income(Dt(2026, 7, 5), 100_000, (vente.Id, 100_000));
+    Income(Dt(2026, 8, 20), 50_000, (presta.Id, 30_000), (vente.Id, 20_000));
+    Income(Dt(2026, 9, 30), 10_000, (libre.Id, 10_000));
+    Income(Dt(2026, 10, 2), 70_000, (presta.Id, 70_000));      // hors du 3e trimestre
+    c.SaveEntry(new Entry(0, y.Id, Dt(2026, 8, 25), "achat", false, EntryKind.Normal, banque.Id, Direction.Out, null, 5_000, null, null),
+        new[] { new Allocation(charge.Id, 5_000) });          // une charge n'est jamais du chiffre d'affaires
+    c.SaveEntry(new Entry(0, y.Id, Dt(2026, 9, 10), "reçu non classé", false, EntryKind.Normal, banque.Id, Direction.In, null, 4_000, null, null),
+        Array.Empty<Allocation>(), strict: false);
+
+    var rep = c.ComputeUrssafReport(q3);
+    Eq(150_000L, rep.TotalTurnoverCents, "CA du 3e trimestre : ventes + prestations");
+    Eq(120_000L, rep.Lines.First(l => l.Kind == UrssafKind.Sale).TurnoverCents, "CA BIC vente");
+    Eq(30_000L, rep.Lines.First(l => l.Kind == UrssafKind.Service).TurnoverCents, "CA BIC prestation");
+    Eq(10_000L, rep.UnclassifiedCents, "produit sans type : signalé, hors total");
+    Eq(1, rep.PendingEntries, "entrée non ventilée signalée");
+    Eq(120_000L * 1230 / 10000 + 30_000L * 2120 / 10000, rep.TotalContributionCents, "cotisations estimées aux taux par défaut");
+    Check(rep.DeclaredAt is null, "période non déclarée");
+
+    // ACRE : réduction de 50 % jusqu'à la date indiquée
+    c.SaveUrssafParams(c.GetUrssafParams() with { AcreUntil = Dt(2026, 12, 31) });
+    var acre = c.ComputeUrssafReport(q3);
+    Eq(120_000L * 615 / 10000 + 30_000L * 1060 / 10000, acre.TotalContributionCents, "cotisations avec ACRE (taux divisés par deux)");
+    Eq(1060, c.GetUrssafParams().RateFor(UrssafKind.Service, Dt(2026, 9, 30)) , "taux ACRE d'une prestation");
+
+    // Plafonds
+    var ceil = c.ComputeUrssafCeilings(2026);
+    Eq(220_000L, ceil.TotalCents, "CA cumulé de l'année");
+    Eq(100_000L, ceil.ServicesCents, "dont prestations");
+
+    // Déclaration marquée comme faite
+    c.MarkUrssafDeclared(q3, "déclarée sur le site");
+    Check(c.ComputeUrssafReport(q3).DeclaredAt is not null, "période marquée comme déclarée");
+    Eq(150_000L, c.Declarations().Single().TurnoverCents, "montant conservé avec la déclaration");
+    c.UnmarkUrssafDeclared(q3.Key);
+    Check(c.Declarations().Count == 0, "marque retirée");
+
+    // Renommer la catégorie emporte son type
+    c.RenameCategory(vente.Id, "BIC vente – Marché");
+    Eq(UrssafKind.Sale, c.CategoryUrssafKinds()["BIC vente – Marché"], "le type suit le renommage");
+
+    // Un lecteur ne modifie ni le profil ni les types
+    var reader = NewCompta(f, new Session(9, "lecteur", "Lecteur", Role.Reader));
+    Throws(() => reader.SaveBusinessProfile(info), "lecteur : profil refusé", "ne permet pas");
 }// ---- Virements entre comptes : une seule écriture
 Console.WriteLine("Virements entre comptes");
 {

@@ -662,7 +662,9 @@ public sealed partial class Compta
         if (ctx.Categories.AsNoTracking().Where(x => x.YearId == c.YearId && x.Kind == c.Kind && x.Id != categoryId)
                 .AsEnumerable().Any(x => SameName(x.Name, name)))
             throw new ComptaException($"« {name} » existe déjà dans cette liste.");
+        var oldName = c.Name;
         c.Name = name;
+        MoveCategoryUrssaf(ctx, oldName, name);   // le type de déclaration URSSAF suit le nom
         Save(ctx);
         if (AutoLinkSameName(ctx, c.YearId, c.Id) > 0) Save(ctx);
     }
