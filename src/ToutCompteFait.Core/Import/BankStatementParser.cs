@@ -269,7 +269,8 @@ public static class BankStatementParser
             var cells = rows[r];
             var date = Array.FindIndex(cells, c => HasKey(c, DateKeys) && !c.Contains("valeur", StringComparison.CurrentCultureIgnoreCase));
             if (date < 0) date = Array.FindIndex(cells, c => HasKey(c, DateKeys));
-            var label = Array.FindIndex(cells, c => HasKey(c, LabelKeys));
+            // « Date opération » est une date, pas le libellé : on écarte les titres qui contiennent « date ».
+            var label = Array.FindIndex(cells, c => HasKey(c, LabelKeys) && !HasKey(c, DateKeys));
             var debit = Array.FindIndex(cells, c => HasKey(c, DebitKeys));
             var credit = Array.FindIndex(cells, c => HasKey(c, CreditKeys));
             var amount = Array.FindIndex(cells, c => HasKey(c, AmountKeys));

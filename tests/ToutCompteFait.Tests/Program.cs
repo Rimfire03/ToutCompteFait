@@ -1424,6 +1424,27 @@ Console.WriteLine("Format Crédit Agricole");
     Eq(227363L, bal.Closing, "CA : « Solde au … » lu comme solde");
     Eq(Dt(2026, 1, 1), bal.Start, "CA : début de période « entre le … et le … »");
     Check(!Money.TryParse("123456789012345678901234567890", out _), "numéro très long : pas un montant (pas de dépassement)");
+}
+// ---- Format Fortuneo : « Date opération » + « Date valeur », débits négatifs sur 4 champs, crédits « ; 9,36; »
+Console.WriteLine("Format Fortuneo");
+{
+    const string csv = "Date opération;Date valeur;libellé;Débit;Crédit;\n" +
+        "08/10/2026;08/10/2026;VIR INST PAYPAL;; 9,36;\n" +
+        "03/10/2026;03/10/2026;CARTE 02/10 PARC DE MOULINS;-0,6;\n" +
+        "18/06/2026;18/06/2026;PRLV PayPal Europe S.a.r.l. et C;-100;\n" +
+        "18/06/2026;18/06/2026;PRLV PayPal Europe S.a.r.l. et C;-100;\n" +
+        "07/02/2026;06/02/2026;BANQUE PRIME OUVERTURE;; 160;\n";
+    var table = BankStatementParser.ReadCsv(csv);
+    var map = BankStatementParser.DetectMapping(table)!;
+    Eq(2, map.LabelColumn, "Fortuneo : libellé = 3e colonne (pas « Date opération »)");
+    Eq(0, map.DateColumn, "Fortuneo : date = date d'opération");
+    var warn = new List<string>();
+    var lines = BankStatementParser.ParseCsv(table, map, warn);
+    Eq(5, lines.Count, "Fortuneo : 5 opérations (deux prélèvements identiques conservés)");
+    Eq(0, warn.Count, "Fortuneo : aucun avertissement");
+    Eq(936L, lines[0].AmountCents, "Fortuneo : crédit avec espace");
+    Eq(-60L, lines[1].AmountCents, "Fortuneo : débit négatif sur ligne courte");
+    Eq("VIR INST PAYPAL", lines[0].Label, "Fortuneo : libellé");
 }// ---- Versions (éditions) du logiciel : noms, fichiers de release, cohérence avec editions.json
 Console.WriteLine("Versions du logiciel");
 {
