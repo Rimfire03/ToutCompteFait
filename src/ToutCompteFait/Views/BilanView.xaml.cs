@@ -68,7 +68,7 @@ public partial class BilanView : UserControl, IPage
     {
         var b = _c.ComputeBilan(_year.Id);
         _bilan = b;
-        TitleText.Text = $"Bilan — exercice {_year.Label}";
+        TitleText.Text = $"Bilan & comptes annuels — exercice {_year.Label}";
         SubText.Text = $"Du {_year.Start:dd/MM/yyyy} au {_year.End:dd/MM/yyyy}" +
                        (_year.Validated ? $" · validé le {_year.ValidatedAt:dd/MM/yyyy}" : " · exercice ouvert (chiffres provisoires)");
 

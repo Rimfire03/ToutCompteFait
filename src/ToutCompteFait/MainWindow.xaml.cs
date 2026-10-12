@@ -192,7 +192,7 @@ public partial class MainWindow : Window
             TestDbText.Text = $"ATTENTION : vous êtes connecté à une base de données de TEST (« {testName} »). " +
                               "Les écritures saisies ici ne sont pas celles de la comptabilité réelle et peuvent être effacées à tout moment. " +
                               "Ne l'utilisez pas pour une déclaration, une clôture d'exercice ou un export destiné à un tiers (comptable, administration). " +
-                              "Pour travailler sur les vraies données, changez de base dans Paramètres › Base de données.";
+                              "Pour travailler sur les vraies données, changez de base dans Paramétrage appli › Base de données.";
             TestDbBanner.Visibility = Visibility.Visible;
             Title = Editions.AppName + " — BASE DE TEST";
         }
@@ -338,7 +338,7 @@ public partial class MainWindow : Window
     private void PromptFirstYear()
     {
         Ui.Info("Bienvenue ! Commençons par créer le premier exercice (la période comptable).\n\n" +
-                "Vous pourrez ensuite saisir les soldes de départ des comptes dans « Paramètres », puis importer vos relevés bancaires depuis le Livre.",
+                "Vous pourrez ensuite saisir les soldes de départ des comptes dans le Paramétrage du dossier, puis importer vos relevés bancaires depuis le Livre.",
             Editions.AppName);
         CreateYearInteractive();
     }
@@ -370,7 +370,7 @@ public partial class MainWindow : Window
             Ui.Info($"L'exercice {created.Label} est créé.\n\n" +
                     (years.Count > 0
                         ? "Les listes de produits et de charges ont été recopiées depuis l'exercice précédent, et les soldes d'ouverture ainsi que les reports sont repris automatiquement."
-                        : "Pensez à saisir les soldes de départ des comptes dans « Paramètres »."));
+                        : "Pensez à saisir les soldes de départ des comptes dans le Paramétrage du dossier."));
         }
     }
 
@@ -419,7 +419,8 @@ public partial class MainWindow : Window
                 "members" => new MembersView(y),
                 "reporting" => new ReportingView(),
                 "assets" => new AssetsView(y),
-                "settings" => new SettingsView(y),
+                "settings" => new SettingsView(y, SettingsScope.Application),
+                "dossier" => new SettingsView(y, SettingsScope.Dossier),
                 _ => new LivreView(y)
             };
         Host.Content = view;
@@ -447,7 +448,7 @@ public partial class MainWindow : Window
             enc.Save(fs);
         }
 
-        foreach (var page in new[] { "livre", "bilan", "reports", "members", "settings", "help" }.Concat(Editions.Current.IsBusiness ? new[] { "reporting" } : Array.Empty<string>()))
+        foreach (var page in new[] { "livre", "bilan", "reports", "members", "dossier", "settings", "help" }.Concat(Editions.Current.IsBusiness ? new[] { "reporting" } : Array.Empty<string>()))
         {
             ShowPage(page);
             await Shot(this, page);
@@ -455,7 +456,7 @@ public partial class MainWindow : Window
 
         foreach (var tab in new[] { "Utilisateurs", "Base de données" }.Concat(Editions.Current.IsBusiness ? new[] { "Entreprise" } : Array.Empty<string>()))
         {
-            ShowPage("settings");
+            ShowPage(tab == "Entreprise" ? "dossier" : "settings");
             if (Host.Content is Views.SettingsView sv) sv.SelectTab(tab);
             await Shot(this, "settings-" + (tab == "Utilisateurs" ? "users" : tab == "Entreprise" ? "business" : "db"));
         }

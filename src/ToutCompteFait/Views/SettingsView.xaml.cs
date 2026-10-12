@@ -44,6 +44,10 @@ public sealed class UserRow
     public string CreatedBy => User.CreatedBy ?? "";
 }
 
+/// <summary>Deux menus de paramétrage : le dossier (données de l'association ou de l'entreprise) et l'application
+/// (utilisateurs, base de données, mises à jour, licence).</summary>
+public enum SettingsScope { Dossier, Application }
+
 public partial class SettingsView : UserControl, IPage
 {
     private readonly FiscalYear _year;
@@ -52,18 +56,32 @@ public partial class SettingsView : UserControl, IPage
     private readonly bool _canAccounts;
     private bool _loading;
 
-    public SettingsView(FiscalYear year)
+    private readonly SettingsScope _scope;
+
+    /// <param name="scope">Dossier : produits et charges, opérations, comptes, exercice, immobilisations, entreprise.
+    /// Application : utilisateurs, base de données, mises à jour, licence.</param>
+    public SettingsView(FiscalYear year, SettingsScope scope = SettingsScope.Application)
     {
         InitializeComponent();
+        _scope = scope;
+        // Chaque menu n'affiche que ses onglets (les autres sont retirés, pas seulement masqués).
+        var dossierTabs = new TabItem[] { ListsTab, OperationsTab, AccountsTab, YearTab, AssetsTab };
+        var appTabs = new TabItem[] { UsersTab, DbTab, UpdateTab, LicenseTab };
+        foreach (var t in scope == SettingsScope.Dossier ? appTabs : dossierTabs) Tabs.Items.Remove(t);
+        Tabs.SelectedIndex = 0;
+
         InitUpdates();
         InitLicense();
         _year = year;
         _canEdit = App.Can(Permission.ManageStructure) && year.Open;
         _canAccounts = App.Can(Permission.ManageStructure);
-        TitleText.Text = $"Paramètres — exercice {year.Label}";
-        LockText.Text = year.Validated
+        TitleText.Text = scope == SettingsScope.Dossier
+            ? $"Paramétrage du dossier — exercice {year.Label}"
+            : "Paramétrage de l'application";
+        LockText.Text = scope == SettingsScope.Dossier && year.Validated
             ? "🔒 Exercice validé : les listes, opérations et reports sont verrouillés."
-            : !App.HasRole(Permission.ManageStructure) ? "Votre rôle (" + RoleInfo.DisplayName(App.Session.Role) + ") donne un accès en consultation seule à ces réglages."
+            : !App.HasRole(Permission.ManageStructure) && scope == SettingsScope.Dossier
+                ? "Votre rôle (" + RoleInfo.DisplayName(App.Session.Role) + ") donne un accès en consultation seule à ces réglages."
             : App.IsReadOnly ? "Poste en lecture seule : aucune modification possible." : "";
 
         foreach (var b in new Button[] { AddProduct, RenameProduct, UpProduct, DownProduct, DeleteProduct,
@@ -158,15 +176,18 @@ public partial class SettingsView : UserControl, IPage
         YearLabelBox.Text = _year.Label;
         YearInfo.Text = _year.Validated
             ? $"Exercice validé le {_year.ValidatedAt:dd/MM/yyyy HH:mm} par {_year.ValidatedBy}. Il ne peut plus être modifié."
-            : "Exercice ouvert. Il se valide depuis le menu « Bilan et opérations ».";
+            : "Exercice ouvert. Il se valide depuis le menu « Bilan & comptes annuels ».";
 
         AssetsEnabledBox.IsChecked = _c.AssetsEnabled();
         AssetThresholdBox.Text = Money.Format(_c.AssetThresholdCents());
         var canAssets = App.Can(Permission.ManageStructure) && !App.IsReadOnly;
         AssetsEnabledBox.IsEnabled = AssetThresholdBox.IsEnabled = SaveAssetsButton.IsEnabled = canAssets;
 
-        if (App.HasRole(Permission.ManageUsers)) LoadUsers();
-        if (App.HasRole(Permission.ManageDatabase)) LoadDatabasePanel();
+        if (_scope == SettingsScope.Application)
+        {
+            if (App.HasRole(Permission.ManageUsers)) LoadUsers();
+            if (App.HasRole(Permission.ManageDatabase)) LoadDatabasePanel();
+        }
         _loading = false;
     }
 

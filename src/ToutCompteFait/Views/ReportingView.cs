@@ -88,7 +88,7 @@ public sealed class ReportingView : UserControl, IPage
         var today = DateOnly.FromDateTime(DateTime.Today);
 
         _body.Children.Add(Muted(string.IsNullOrWhiteSpace(profile.Name)
-            ? "Entreprise non renseignée : complétez Paramètres › Entreprise (SIREN, codes APE, mode de déclaration)."
+            ? "Entreprise non renseignée : complétez Paramétrage du dossier › Entreprise (SIREN, codes APE, mode de déclaration)."
             : $"{profile.Name} · SIREN {profile.Siren} · déclaration {(_mode == DeclarationMode.Monthly ? "mensuelle" : "trimestrielle")}" +
               (profile.ApeCodes.Count > 0 ? $" · APE {string.Join(", ", profile.ApeCodes)}" : "")));
 
@@ -179,7 +179,7 @@ public sealed class ReportingView : UserControl, IPage
             _body.Children.Add(new TextBlock
             {
                 Text = $"⚠ {Eur(report.UnclassifiedCents)} de recettes sont ventilées sur des produits sans type de déclaration : ils ne sont pas comptés. " +
-                       "Choisissez leur type dans Paramètres › Produits et charges.",
+                       "Choisissez leur type dans Paramétrage du dossier › Produits et charges.",
                 Foreground = new SolidColorBrush(Color.FromRgb(0xB4, 0x53, 0x09)), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0)
             });
         if (report.PendingEntries > 0)
@@ -229,7 +229,7 @@ public sealed class ReportingView : UserControl, IPage
         AddGauge("Prestations de services / sous-plafond", ceil.ServicesCents, ceil.Params.CeilingServicesCents, ceil.Params.CeilingServicesCents);
         AddGauge("Ventes de marchandises / franchise de TVA", ceil.SalesCents, ceil.Params.VatSaleCents, ceil.Params.VatSaleMaxCents);
         AddGauge("Prestations de services / franchise de TVA", ceil.ServicesCents, ceil.Params.VatServiceCents, ceil.Params.VatServiceMaxCents);
-        _body.Children.Add(Muted("Plafonds et seuils modifiables dans Paramètres › Entreprise (ils sont révisés par l'État). " +
+        _body.Children.Add(Muted("Plafonds et seuils modifiables dans Paramétrage du dossier › Entreprise (ils sont révisés par l'État). " +
                                  "Dépasser le seuil de TVA rend la TVA exigible ; dépasser le plafond du régime micro fait sortir du régime."));
 
         // --- Historique

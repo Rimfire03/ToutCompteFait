@@ -10,7 +10,7 @@
 
         <TabControl x:Name="Tabs" Grid.Row="1" Margin="0,12,0,0" FontFamily="Segoe UI">
             <!-- Listes -->
-            <TabItem Header="Produits et charges">
+            <TabItem x:Name="ListsTab" Header="Produits et charges">
                 <Grid Margin="0,12,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/>
@@ -58,7 +58,7 @@
             </TabItem>
 
             <!-- Opérations -->
-            <TabItem Header="Opérations (liens produits ↔ charges)">
+            <TabItem x:Name="OperationsTab" Header="Opérations (liens produits ↔ charges)">
                 <Grid Margin="0,12,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -85,7 +85,7 @@
             </TabItem>
 
             <!-- Comptes -->
-            <TabItem Header="Comptes bancaires">
+            <TabItem x:Name="AccountsTab" Header="Comptes bancaires">
                 <StackPanel Margin="0,12,0,0">
                     <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,10"
                                Text="Les comptes de l'association (banque, livret, caisse…). Le solde d'ouverture se saisit uniquement pour le tout premier exercice ; ensuite il est repris automatiquement de la clôture précédente."/>
@@ -108,7 +108,7 @@
             </TabItem>
 
             <!-- Exercice -->
-            <TabItem Header="Exercice">
+            <TabItem x:Name="YearTab" Header="Exercice">
                 <StackPanel Margin="0,12,0,0" MaxWidth="560" HorizontalAlignment="Left">
                     <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,10"
                                Text="Période et nom de l'exercice affiché. Les dates servent à repérer les écritures mal datées avant la validation."/>

@@ -79,7 +79,7 @@ public partial class App
                 : $"Une nouvelle version {info.Version} est disponible (version actuelle : {AppVersionText}).\n\n") +
             "Voulez-vous la télécharger et l'installer maintenant ? Une copie de sauvegarde de la base de données sera faite avant toute chose. " +
             "Le logiciel va se fermer puis redémarrer automatiquement.\n\n" +
-            "Vous pouvez désactiver cette vérification automatique dans Paramètres → Mises à jour.",
+            "Vous pouvez désactiver cette vérification automatique dans Paramétrage appli → Mises à jour.",
             info.IsChannelSwitch ? "Retour sur le canal Main" : "Mise à jour disponible");
         if (!proceed) return;
         await InstallUpdateAsync(info);

@@ -47,6 +47,7 @@ public partial class SettingsView
             Header = "Type URSSAF", Binding = new System.Windows.Data.Binding("Type"), Width = 130,
             ElementStyle = (Style)Application.Current.FindResource("LeftCell")
         });
+        if (_scope != SettingsScope.Dossier) return;   // l'onglet Entreprise appartient au paramétrage du dossier
         Tabs.Items.Insert(0, new TabItem { Header = "Entreprise", Content = BuildBusinessPanel() });
         Tabs.SelectedIndex = 0;
         LoadBusiness();

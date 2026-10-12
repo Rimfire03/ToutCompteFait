@@ -119,6 +119,9 @@
                     <Border DockPanel.Dock="Top" Height="1" Background="{StaticResource BrushSidebarBorder}" Margin="16,8,16,10"/>
 
                     <StackPanel DockPanel.Dock="Bottom" Margin="0,0,0,10">
+                        <!-- Paramétrage du dossier : au-dessus de l'utilisateur connecté -->
+                        <RadioButton x:Name="NavDossier" Style="{StaticResource NavButton}" GroupName="nav" Content="🗂   Paramétrage du dossier" Checked="Nav_Checked" Tag="dossier"/>
+                        <Border Height="1" Background="{StaticResource BrushSidebarBorder}" Margin="16,4,16,8"/>
                         <!-- Utilisateur connecté -->
                         <Border Background="#152138" CornerRadius="6" Padding="10,8" Margin="12,0,12,8"
                                 BorderBrush="{StaticResource BrushSidebarBorder}" BorderThickness="1">
@@ -136,13 +139,13 @@
                             </StackPanel>
                         </Border>
                         <Border Height="1" Background="{StaticResource BrushSidebarBorder}" Margin="16,4,16,8"/>
-                        <RadioButton x:Name="NavSettings" Style="{StaticResource NavButton}" GroupName="nav" Content="⚙   Paramètres" Checked="Nav_Checked" Tag="settings"/>
+                        <RadioButton x:Name="NavSettings" Style="{StaticResource NavButton}" GroupName="nav" Content="⚙   Paramétrage appli" Checked="Nav_Checked" Tag="settings"/>
                         <RadioButton x:Name="NavHelp" Style="{StaticResource NavButton}" GroupName="nav" Content="❓   Aide" Checked="Nav_Checked" Tag="help"/>
                     </StackPanel>
 
                     <StackPanel>
                         <RadioButton x:Name="NavLivre" Style="{StaticResource NavButton}" GroupName="nav" Content="📒   Livre (saisie)" Checked="Nav_Checked" Tag="livre" IsChecked="True"/>
-                        <RadioButton x:Name="NavBilan" Style="{StaticResource NavButton}" GroupName="nav" Content="📊   Bilan et opérations" Checked="Nav_Checked" Tag="bilan"/>
+                        <RadioButton x:Name="NavBilan" Style="{StaticResource NavButton}" GroupName="nav" Content="📊   Bilan &amp; comptes annuels" Checked="Nav_Checked" Tag="bilan"/>
                         <RadioButton x:Name="NavReports" Style="{StaticResource NavButton}" GroupName="nav" Content="🔁   Reports entre exercices" Checked="Nav_Checked" Tag="reports"/>
                         <RadioButton x:Name="NavMembers" Style="{StaticResource NavButton}" GroupName="nav" Content="🧾   Remboursements membres" Checked="Nav_Checked" Tag="members"/>
                     </StackPanel>

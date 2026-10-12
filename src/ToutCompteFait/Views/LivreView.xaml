@@ -145,7 +145,7 @@
                     <StackPanel DockPanel.Dock="Top">
                         <TextBlock Text="Rentabilité des opérations" Style="{StaticResource SectionText}" Margin="0,0,0,2"/>
                         <TextBlock Style="{StaticResource MutedText}"
-                                   Text="Produits liés − charges liées, mis à jour à chaque saisie. Les liens se règlent dans Paramètres."/>
+                                   Text="Produits liés − charges liées, mis à jour à chaque saisie. Les liens se règlent dans le Paramétrage du dossier."/>
                     </StackPanel>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                         <ItemsControl x:Name="OperationsList">

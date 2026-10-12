@@ -14,13 +14,13 @@
             <TextBlock TextWrapping="Wrap" Text="Livre → « Nouvelle écriture ». Choisissez le type, la date, le libellé et le montant, puis indiquez la catégorie : le montant est repris automatiquement. Pour une opération sur plusieurs catégories, ajoutez des lignes de ventilation : le total doit égaler le montant (un bandeau vert ou rouge l'indique). Un remboursement reçu (avoir) se saisit en « Recette » sur la charge concernée."/>
 
             <TextBlock Text="Virement entre comptes" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Type « Virement entre comptes » : choisissez le compte de départ et le compte d'arrivée. Aucun effet sur le résultat, les deux soldes sont mis à jour. Utile aussi pour une avance : créez un compte « Avances en cours » dans Paramètres."/>
+            <TextBlock TextWrapping="Wrap" Text="Type « Virement entre comptes » : choisissez le compte de départ et le compte d'arrivée. Aucun effet sur le résultat, les deux soldes sont mis à jour. Utile aussi pour une avance : créez un compte « Avances en cours » dans le Paramétrage du dossier."/>
 
             <TextBlock x:Name="MemberHelpTitle" Text="Remboursement à un membre" Style="{StaticResource SectionText}"/>
             <TextBlock x:Name="MemberHelpText" TextWrapping="Wrap" Text="Type « Remboursement à un membre » : un membre a payé avec son compte personnel, l'association le rembourse. Indiquez son nom et la charge concernée. Le récapitulatif par membre est dans « Remboursements membres »."/>
 
             <TextBlock Text="Opérations (rentabilité)" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Paramètres → Opérations : regroupez les produits et charges d'un même événement (ex. Loto Octobre). Pendant la saisie, et dans le Bilan, vous voyez produits − charges = rentabilité de l'opération."/>
+            <TextBlock TextWrapping="Wrap" Text="Paramétrage du dossier → Opérations : regroupez les produits et charges d'un même événement (ex. Loto Octobre). Pendant la saisie, et dans le Bilan, vous voyez produits − charges = rentabilité de l'opération."/>
 
             <TextBlock Text="Reports entre exercices" Style="{StaticResource SectionText}"/>
             <TextBlock TextWrapping="Wrap" Text="Si vous payez en juin des lots pour le loto d'octobre, déclarez-le dans « Reports entre exercices » (réglé cet exercice, concerne l'exercice suivant). Il est retiré du résultat de cet exercice et ajouté automatiquement à l'exercice suivant. Les soldes des comptes se reportent aussi automatiquement."/>
@@ -29,7 +29,7 @@
             <TextBlock TextWrapping="Wrap" Text="Bilan → « Valider l'exercice ». Toutes les écritures doivent être complètes. Ensuite plus aucune ligne, catégorie ou report ne peut être ajouté, modifié ou retiré. Les exercices doivent être validés dans l'ordre."/>
 
             <TextBlock Text="Plusieurs postes" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Un seul poste à la fois peut écrire (le premier ouvert). Les autres sont en lecture seule et voient les modifications apparaître automatiquement. Le pied de page indique l'état : puce verte = base accessible, orange = lecture seule, rouge = connexion perdue. Placez le fichier de base sur un dossier partagé du réseau (Paramètres → Application)."/>
+            <TextBlock TextWrapping="Wrap" Text="Un seul poste à la fois peut écrire (le premier ouvert). Les autres sont en lecture seule et voient les modifications apparaître automatiquement. Le pied de page indique l'état : puce verte = base accessible, orange = lecture seule, rouge = connexion perdue. Placez le fichier de base sur un dossier partagé du réseau (Paramétrage appli → Base de données)."/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

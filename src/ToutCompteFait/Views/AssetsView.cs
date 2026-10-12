@@ -35,7 +35,7 @@ public sealed class AssetsView : UserControl, IPage
             Style = Sty("MutedText"), TextWrapping = TextWrapping.Wrap,
             Text = "Un matériel durable est amorti : sa valeur est étalée en charges sur sa durée d'utilisation (ex. 1 000 € sur 4 ans = 250 € par an) " +
                    "au lieu de peser en une seule fois sur l'exercice d'achat. La valeur nette figure à l'actif du bilan. " +
-                   "Le petit matériel sous le seuil réglé dans Paramètres reste une charge directe."
+                   "Le petit matériel sous le seuil réglé dans le Paramétrage du dossier reste une charge directe."
         });
         var bar = new WrapPanel { Margin = new Thickness(0, 12, 0, 8) };
         _add.Style = Sty("PrimaryButton");

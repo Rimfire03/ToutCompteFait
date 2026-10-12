@@ -39,7 +39,7 @@ public sealed class FirstRunWindow : Window
         {
             Text = "Aucune base de données n'a été trouvée à l'emplacement habituel :\n" + expectedPath + "\n\n" +
                    "Choisissez comment démarrer. Un serveur de base de données est conseillé dès que plusieurs personnes " +
-                   "utilisent le logiciel ; ce choix peut être modifié plus tard dans Paramètres → Base de données.",
+                   "utilisent le logiciel ; ce choix peut être modifié plus tard dans Paramétrage appli → Base de données.",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 6, 0, 16),
             Style = (Style)Application.Current.FindResource("MutedText")
