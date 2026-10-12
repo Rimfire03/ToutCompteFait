@@ -23,24 +23,28 @@ public sealed class ServerWriteLock : IDisposable
 
     private readonly DbTarget _target;
     private readonly string _token = Guid.NewGuid().ToString("N");
+    private readonly string _user;
     private string _current;
 
-    private ServerWriteLock(DbTarget target, string current)
+    private ServerWriteLock(DbTarget target, string current, string? userName)
     {
         _target = target;
         _current = current;
+        // Nom affiché aux autres postes : identifiant de l'utilisateur du logiciel, à défaut la session Windows.
+        var name = string.IsNullOrWhiteSpace(userName) ? Environment.UserName : userName.Trim();
+        _user = name.Replace('|', ' ').Replace('\r', ' ').Replace('\n', ' ');
     }
 
     private string NewValue() =>
-        $"{_token}|{Environment.UserName}|{Environment.MachineName}|{Environment.ProcessId}|{DateTime.UtcNow:O}";
+        $"{_token}|{_user}|{Environment.MachineName}|{Environment.ProcessId}|{DateTime.UtcNow:O}";
 
     private static string Table(AppDbContext ctx) => ServerSql.Q(ctx.Provider, "DbInfo");
     private static string Col(AppDbContext ctx, string name) => ServerSql.Q(ctx.Provider, name);
 
     /// <summary>Prend le verrou si personne ne le détient (ou si le détenteur ne donne plus signe de vie).</summary>
-    public static ServerLockResult TryAcquire(DbTarget target)
+    public static ServerLockResult TryAcquire(DbTarget target, string? userName = null)
     {
-        var self = new ServerWriteLock(target, "");
+        var self = new ServerWriteLock(target, "", userName);
         string? owner = null;
         var deadline = DateTime.UtcNow.AddSeconds(8);
 
@@ -144,7 +148,7 @@ public sealed class ServerWriteLock : IDisposable
         }
     }
 
-    /// <summary>Session Windows qui détient actuellement le verrou, ou null.</summary>
+    /// <summary>Utilisateur du logiciel qui détient actuellement le verrou, ou null.</summary>
     public static string? ReadOwner(DbTarget target)
     {
         try

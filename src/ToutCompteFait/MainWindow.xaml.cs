@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -12,7 +12,7 @@ namespace ToutCompteFait;
 
 public interface IPage
 {
-    /// <summary>Relit les donnÃ©es et reconstruit l'affichage.</summary>
+    /// <summary>Relit les données et reconstruit l'affichage.</summary>
     void Reload();
 }
 
@@ -35,21 +35,21 @@ public partial class MainWindow : Window
         if (!Editions.Current.HasMemberRefunds) NavMembers.Visibility = Visibility.Collapsed;
         if (Editions.Current.IsBusiness)
         {
-            // Onglet Reporting (dÃ©claration URSSAF) : propre Ã  la version Autoentreprise.
+            // Onglet Reporting (déclaration URSSAF) : propre à la version Autoentreprise.
             var nav = new RadioButton
             {
-                Content = "ðŸ“ˆ   Reporting URSSAF", GroupName = "nav", Tag = "reporting",
+                Content = "📈   Reporting URSSAF", GroupName = "nav", Tag = "reporting",
                 Style = (Style)FindResource("NavButton")
             };
             nav.Checked += Nav_Checked;
             if (NavMembers.Parent is Panel navPanel) navPanel.Children.Insert(navPanel.Children.IndexOf(NavMembers) + 1, nav);
         }
-        CoreVersionText.Text = $"v{App.DisplayVersion} Â· {Editions.Current.VersionMention}";
-        CopyrightText.Text = "Â© TomLine prod&co by Thomas Guidez  Â·  " + Editions.AppName;
+        CoreVersionText.Text = $"v{App.DisplayVersion} · {Editions.Current.VersionMention}";
+        CopyrightText.Text = "© TomLine prod&co by Thomas Guidez  ·  " + Editions.AppName;
 
         App.DatabaseReopened += OnDatabaseReopened;
         UserNameText.Text = App.Session.DisplayName;
-        UserRoleText.Text = RoleInfo.DisplayName(App.Session.Role) + " Â· " + App.Session.UserName;
+        UserRoleText.Text = RoleInfo.DisplayName(App.Session.Role) + " · " + App.Session.UserName;
         Loaded += (_, _) =>
         {
             UpdateFooter();
@@ -62,7 +62,7 @@ public partial class MainWindow : Window
         _watchTimer.Tick += (_, _) => WatchDatabase();
         _watchTimer.Start();
 
-        // DÃ©connexion automatique : toute action souris / clavier remet le compteur Ã  zÃ©ro.
+        // Déconnexion automatique : toute action souris / clavier remet le compteur à zéro.
         System.Windows.Input.InputManager.Current.PreProcessInput += OnPreProcessInput;
         _idleTimer.Tick += (_, _) => CheckIdle();
         _idleTimer.Start();
@@ -75,7 +75,7 @@ public partial class MainWindow : Window
         };
     }
 
-    // ------------------------------------------------------------------ dÃ©connexion automatique
+    // ------------------------------------------------------------------ déconnexion automatique
 
     private readonly DispatcherTimer _idleTimer = new() { Interval = TimeSpan.FromSeconds(10) };
     private int _idleMinutes;
@@ -90,31 +90,31 @@ public partial class MainWindow : Window
             _lastActivity = DateTime.UtcNow;
     }
 
-    /// <summary>Relit le dÃ©lai d'inactivitÃ© dÃ©fini par l'administrateur (rÃ©glage de la base, commun Ã  tous).</summary>
+    /// <summary>Relit le délai d'inactivité défini par l'administrateur (réglage de la base, commun à tous).</summary>
     public void RefreshIdleTimeout()
     {
         _lastIdleRead = DateTime.UtcNow;
         try { _idleMinutes = App.Compta.GetIdleTimeoutMinutes(); }
-        catch { /* base momentanÃ©ment indisponible : on garde la valeur connue */ }
+        catch { /* base momentanément indisponible : on garde la valeur connue */ }
     }
 
     private void CheckIdle()
     {
         if (_loggingOut) return;
-        // Un autre poste ou un administrateur peut avoir changÃ© le dÃ©lai : relecture chaque minute.
+        // Un autre poste ou un administrateur peut avoir changé le délai : relecture chaque minute.
         if (DateTime.UtcNow - _lastIdleRead > TimeSpan.FromMinutes(1)) RefreshIdleTimeout();
         if (_idleMinutes <= 0) return;
         if (DateTime.UtcNow - _lastActivity < TimeSpan.FromMinutes(_idleMinutes)) return;
         _loggingOut = true;
         _idleTimer.Stop();
-        // MÃªme effet que Â« Se dÃ©connecter Â» : mot de passe mÃ©morisÃ© oubliÃ©, retour Ã  l'Ã©cran de connexion.
+        // Même effet que « Se déconnecter » : mot de passe mémorisé oublié, retour à l'écran de connexion.
         App.Settings.SetRememberedPassword(null);
         App.Settings.Save();
         App.Restart();
     }
 
-    /// <summary>Signature du dernier changement de la base : date de la derniÃ¨re saisie enregistrÃ©e par le poste
-    /// rÃ©dacteur (table DbInfo, pour SQLite comme pour les serveurs), sinon date du fichier.</summary>
+    /// <summary>Signature du dernier changement de la base : date de la dernière saisie enregistrée par le poste
+    /// rédacteur (table DbInfo, pour SQLite comme pour les serveurs), sinon date du fichier.</summary>
     private static DateTime SafeWriteTime()
     {
         try
@@ -123,7 +123,7 @@ public partial class MainWindow : Window
             if (ToutCompteFait.Core.Services.DatabaseWriteTracking.ReadLastWrite(ctx) is { } at) return at;
             if (!App.Target.IsServer) return File.GetLastWriteTimeUtc(App.Target.FilePath!);
         }
-        catch { /* base momentanÃ©ment indisponible */ }
+        catch { /* base momentanément indisponible */ }
         return DateTime.MinValue;
     }
 
@@ -152,21 +152,21 @@ public partial class MainWindow : Window
     private void UpdateFooter()
     {
         DbVersionText.Text = $"DB: V{App.DatabaseVersion}";
-        DbModeText.Text = "Â· " + App.DatabaseModeLabel;
+        DbModeText.Text = "· " + App.DatabaseModeLabel;
         var who = $"{App.Session.DisplayName} ({RoleInfo.DisplayName(App.Session.Role)})";
         if (App.IsReadOnly)
         {
             var reader = App.Session.Role == Role.Reader && App.WriteLockOwner is null;
-            AccessFooter.Text = $"{who} Â· lecture seule" + (App.WriteLockOwner is null ? "" : $" Â· Ã©criture en cours : {App.WriteLockOwner}");
+            AccessFooter.Text = $"{who} · lecture seule" + (App.WriteLockOwner is null ? "" : $" · écriture en cours : {App.WriteLockOwner}");
             AccessFooter.Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B));
-            // Un lecteur n'a rien Ã  Â« reprendre Â» : le bandeau n'est affichÃ© que pour un poste qui devrait pouvoir Ã©crire.
+            // Un lecteur n'a rien à « reprendre » : le bandeau n'est affiché que pour un poste qui devrait pouvoir écrire.
             ReadOnlyBanner.Visibility = reader ? Visibility.Collapsed : Visibility.Visible;
             ReadOnlyText.Text = App.ReadOnlyMessage;
             TakeOverButton.Visibility = App.HasRole(Permission.WriteLedger) ? Visibility.Visible : Visibility.Collapsed;
         }
         else
         {
-            AccessFooter.Text = $"{who} Â· accÃ¨s en Ã©criture";
+            AccessFooter.Text = $"{who} · accès en écriture";
             AccessFooter.Foreground = new SolidColorBrush(Color.FromRgb(0x64, 0x74, 0x8B));
             ReadOnlyBanner.Visibility = Visibility.Collapsed;
         }
@@ -192,8 +192,8 @@ public partial class MainWindow : Window
 
     private void Logout_Click(object sender, RoutedEventArgs e)
     {
-        if (Ui.Confirm("Se dÃ©connecter ? Le logiciel va se relancer sur l'Ã©cran de connexion.\n" +
-                       "Le mot de passe mÃ©morisÃ© sur ce poste, s'il y en a un, sera oubliÃ©.", "DÃ©connexion"))
+        if (Ui.Confirm("Se déconnecter ? Le logiciel va se relancer sur l'écran de connexion.\n" +
+                       "Le mot de passe mémorisé sur ce poste, s'il y en a un, sera oublié.", "Déconnexion"))
         {
             App.Settings.SetRememberedPassword(null);
             App.Settings.Save();
@@ -204,10 +204,10 @@ public partial class MainWindow : Window
     private void TakeOver_Click(object sender, RoutedEventArgs e)
     {
         if (App.TryTakeOverWrite())
-            Ui.Info("Ce poste a maintenant l'accÃ¨s en Ã©criture.");
+            Ui.Info("Ce poste a maintenant l'accès en écriture.");
         else
-            Ui.Info("L'Ã©criture est toujours dÃ©tenue par " + (App.WriteLockOwner ?? "un autre poste") +
-                    ".\nCe poste reste en lecture seule ; rÃ©essayez quand l'autre poste aura fermÃ© le logiciel.");
+            Ui.Info("L'écriture est toujours détenue par " + (App.WriteLockOwner ?? "un autre poste") +
+                    ".\nCe poste reste en lecture seule ; réessayez quand l'autre poste aura fermé le logiciel.");
     }
 
     // ------------------------------------------------------------------ exercices
@@ -256,17 +256,17 @@ public partial class MainWindow : Window
         YearPeriod.Text = $"du {y.Start:dd/MM/yyyy} au {y.End:dd/MM/yyyy}";
         if (y.Validated)
         {
-            YearStatus.Text = $"ðŸ”’ ValidÃ© le {y.ValidatedAt:dd/MM/yyyy}" + (y.ValidatedBy is null ? "" : $" par {y.ValidatedBy}");
+            YearStatus.Text = $"🔒 Validé le {y.ValidatedAt:dd/MM/yyyy}" + (y.ValidatedBy is null ? "" : $" par {y.ValidatedBy}");
             YearStatus.Foreground = new SolidColorBrush(Color.FromRgb(0x34, 0xD3, 0x99));
         }
         else
         {
-            YearStatus.Text = "âœ Ouvert : saisie possible";
+            YearStatus.Text = "✏ Ouvert : saisie possible";
             YearStatus.Foreground = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24));
         }
     }
 
-    /// <summary>Recharge la liste des exercices, la barre latÃ©rale et la page affichÃ©e.</summary>
+    /// <summary>Recharge la liste des exercices, la barre latérale et la page affichée.</summary>
     public void Refresh()
     {
         var label = CurrentYear?.Label;
@@ -281,7 +281,7 @@ public partial class MainWindow : Window
         ShowPage(_page);
     }
 
-    /// <summary>SÃ©lectionne un exercice par son identifiant (aprÃ¨s crÃ©ation, par exemple).</summary>
+    /// <summary>Sélectionne un exercice par son identifiant (après création, par exemple).</summary>
     public void SelectYear(long yearId)
     {
         var y = App.Compta.Year(yearId);
@@ -292,15 +292,15 @@ public partial class MainWindow : Window
 
     private void PromptFirstYear()
     {
-        Ui.Info("Bienvenue ! CommenÃ§ons par crÃ©er le premier exercice (la pÃ©riode comptable).\n\n" +
-                "Vous pourrez ensuite saisir les soldes de dÃ©part des comptes dans Â« ParamÃ¨tres Â», puis importer vos relevÃ©s bancaires depuis le Livre.",
+        Ui.Info("Bienvenue ! Commençons par créer le premier exercice (la période comptable).\n\n" +
+                "Vous pourrez ensuite saisir les soldes de départ des comptes dans « Paramètres », puis importer vos relevés bancaires depuis le Livre.",
             Editions.AppName);
         CreateYearInteractive();
     }
 
     public void CreateYearInteractive()
     {
-        if (!App.Can(Permission.ManageStructure)) { Ui.Error("Vous n'avez pas le droit de crÃ©er un exercice sur ce poste (rÃ´le ou lecture seule)."); return; }
+        if (!App.Can(Permission.ManageStructure)) { Ui.Error("Vous n'avez pas le droit de créer un exercice sur ce poste (rôle ou lecture seule)."); return; }
         var years = App.Compta.Years();
         DateOnly start, end;
         if (years.Count > 0)
@@ -322,10 +322,10 @@ public partial class MainWindow : Window
         if (Ui.Try(() => created = App.Compta.CreateYear(dlg.Start, dlg.End, cloneStructure: true, label: dlg.YearLabel)) && created is not null)
         {
             LoadYears(created.Label);
-            Ui.Info($"L'exercice {created.Label} est crÃ©Ã©.\n\n" +
+            Ui.Info($"L'exercice {created.Label} est créé.\n\n" +
                     (years.Count > 0
-                        ? "Les listes de produits et de charges ont Ã©tÃ© recopiÃ©es depuis l'exercice prÃ©cÃ©dent, et les soldes d'ouverture ainsi que les reports sont repris automatiquement."
-                        : "Pensez Ã  saisir les soldes de dÃ©part des comptes dans Â« ParamÃ¨tres Â»."));
+                        ? "Les listes de produits et de charges ont été recopiées depuis l'exercice précédent, et les soldes d'ouverture ainsi que les reports sont repris automatiquement."
+                        : "Pensez à saisir les soldes de départ des comptes dans « Paramètres »."));
         }
     }
 
@@ -340,7 +340,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Le profil de l'entreprise a changÃ© : le reporting est recalculÃ© s'il est affichÃ©.</summary>
+    /// <summary>Le profil de l'entreprise a changé : le reporting est recalculé s'il est affiché.</summary>
     public void RefreshBusinessNav()
     {
         if (_page == "reporting") ShowPage("reporting");
@@ -367,7 +367,7 @@ public partial class MainWindow : Window
         Host.Content = view;
     }
 
-    /// <summary>Mode diagnostic (--shots dossier) : enregistre une capture de chaque Ã©cran puis quitte.</summary>
+    /// <summary>Mode diagnostic (--shots dossier) : enregistre une capture de chaque écran puis quitte.</summary>
     public async Task RunScreenshotsAsync(string dir)
     {
         Directory.CreateDirectory(dir);
@@ -395,7 +395,7 @@ public partial class MainWindow : Window
             await Shot(this, page);
         }
 
-        foreach (var tab in new[] { "Utilisateurs", "Base de donnÃ©es" }.Concat(Editions.Current.IsBusiness ? new[] { "Entreprise" } : Array.Empty<string>()))
+        foreach (var tab in new[] { "Utilisateurs", "Base de données" }.Concat(Editions.Current.IsBusiness ? new[] { "Entreprise" } : Array.Empty<string>()))
         {
             ShowPage("settings");
             if (Host.Content is Views.SettingsView sv) sv.SelectTab(tab);
@@ -404,10 +404,10 @@ public partial class MainWindow : Window
 
         if (CurrentYear is { } yy && App.Can(Permission.WriteLedger))
         {
-            // RelevÃ© de test : une opÃ©ration nouvelle, une opÃ©ration dÃ©jÃ  saisie (intitulÃ© Ã  mettre Ã  jour).
+            // Relevé de test : une opération nouvelle, une opération déjà saisie (intitulé à mettre à jour).
             var rows0 = App.Compta.Entries(yy.Id).Where(r => r.Entry.Kind == EntryKind.Normal && r.Entry.AccountId != null).ToList();
             var known = rows0.FirstOrDefault(r => r.Allocations.Count > 0);
-            var csv = new System.Text.StringBuilder("Date;LibellÃ©;DÃ©bit;CrÃ©dit\n");
+            var csv = new System.Text.StringBuilder("Date;Libellé;Débit;Crédit\n");
             if (known is not null)
             {
                 var k = known.Entry;
@@ -460,7 +460,7 @@ public partial class MainWindow : Window
         Application.Current.Shutdown();
     }
 
-    /// <summary>Test de fumÃ©e de la saisie : remplit le formulaire d'Ã©criture comme un utilisateur et enregistre.</summary>
+    /// <summary>Test de fumée de la saisie : remplit le formulaire d'écriture comme un utilisateur et enregistre.</summary>
     private async Task SelfTestAsync(string dir)
     {
         var log = new System.Text.StringBuilder();
@@ -477,23 +477,23 @@ public partial class MainWindow : Window
             var row = (Grid)dlg.AllocPanel.Children[0];
             var combo = (ComboBox)row.Children[0];
             var amount = (TextBox)row.Children[1];
-            log.AppendLine($"categories proposÃ©es : {combo.Items.Count}; montant ligne auto = Â« {amount.Text} Â»");
+            log.AppendLine($"categories proposées : {combo.Items.Count}; montant ligne auto = « {amount.Text} »");
             combo.SelectedIndex = 0;
             log.AppendLine("bandeau : " + dlg.BalanceText.Text);
             var save = typeof(Dialogs.EntryWindow).GetMethod("Save", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
             try { save.Invoke(dlg, new object[] { false }); }
             catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is InvalidOperationException)
-            { /* DialogResult : la fenÃªtre n'est pas modale en mode diagnostic */ }
-            log.AppendLine("erreur affichÃ©e : Â« " + dlg.ErrorText.Text + " Â»");
+            { /* DialogResult : la fenêtre n'est pas modale en mode diagnostic */ }
+            log.AppendLine("erreur affichée : « " + dlg.ErrorText.Text + " »");
             dlg.Close();
 
             var after = c.Entries(y.Id);
-            log.AppendLine($"Ã©critures avant {before}, aprÃ¨s {after.Count}");
+            log.AppendLine($"écritures avant {before}, après {after.Count}");
             var last = after.FirstOrDefault(r => r.Entry.Label == "TEST CB CARREFOUR");
-            log.AppendLine(last is null ? "ECHEC : Ã©criture non enregistrÃ©e"
-                : $"OK : {last.Entry.Kind} {last.Entry.Direction} {Money.Format(last.Entry.AmountCents)} â€” ventilation {string.Join(" + ", last.Allocations.Select(a => Money.Format(a.AmountCents)))}");
+            log.AppendLine(last is null ? "ECHEC : écriture non enregistrée"
+                : $"OK : {last.Entry.Kind} {last.Entry.Direction} {Money.Format(last.Entry.AmountCents)} — ventilation {string.Join(" + ", last.Allocations.Select(a => Money.Format(a.AmountCents)))}");
             var b = c.ComputeBilan(y.Id);
-            log.AppendLine($"bilan Ã©quilibrÃ© : {b.BalanceDifference == 0}, Ã©cart de ventilation : {Money.Format(b.UnallocatedGap)}");
+            log.AppendLine($"bilan équilibré : {b.BalanceDifference == 0}, écart de ventilation : {Money.Format(b.UnallocatedGap)}");
 
             // Virement banque -> livret
             var dlg2 = new Dialogs.EntryWindow(y) { Owner = this };
@@ -504,10 +504,10 @@ public partial class MainWindow : Window
             dlg2.AmountBox.Text = "50";
             try { save.Invoke(dlg2, new object[] { false }); }
             catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is InvalidOperationException) { }
-            log.AppendLine("virement, erreur : Â« " + dlg2.ErrorText.Text + " Â»");
+            log.AppendLine("virement, erreur : « " + dlg2.ErrorText.Text + " »");
             dlg2.Close();
             var tr = c.Entries(y.Id).FirstOrDefault(r => r.Entry.Label == "TEST VIREMENT");
-            log.AppendLine(tr is null ? "ECHEC : virement non enregistrÃ©" : $"OK : {tr.Entry.Kind} {tr.Entry.AccountId} -> {tr.Entry.ToAccountId} {Money.Format(tr.Entry.AmountCents)}");
+            log.AppendLine(tr is null ? "ECHEC : virement non enregistré" : $"OK : {tr.Entry.Kind} {tr.Entry.AccountId} -> {tr.Entry.ToAccountId} {Money.Format(tr.Entry.AmountCents)}");
         }
         catch (Exception ex)
         {
@@ -516,7 +516,7 @@ public partial class MainWindow : Window
         File.WriteAllText(Path.Combine(dir, "selftest.txt"), log.ToString());
     }
 
-    /// <summary>Recharge uniquement la page affichÃ©e.</summary>
+    /// <summary>Recharge uniquement la page affichée.</summary>
     public void ReloadPage()
     {
         if (Host.Content is IPage p) p.Reload();

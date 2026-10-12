@@ -14,7 +14,8 @@ public sealed class WriteLock : IDisposable
 
     public static string LockPath(string dbPath) => dbPath + ".lock";
 
-    public static WriteLock? TryAcquire(string dbPath)
+    /// <param name="userName">Identifiant de l'utilisateur du logiciel, affiché aux autres postes ; à défaut, la session Windows.</param>
+    public static WriteLock? TryAcquire(string dbPath, string? userName = null)
     {
         FileStream stream;
         try
@@ -24,7 +25,8 @@ public sealed class WriteLock : IDisposable
         catch (IOException) { return null; }
         catch (UnauthorizedAccessException) { return null; }
 
-        var info = Encoding.UTF8.GetBytes($"{Environment.UserName}\nPoste : {Environment.MachineName}\nDepuis le {DateTime.Now:dd/MM/yyyy HH:mm}");
+        var who = string.IsNullOrWhiteSpace(userName) ? Environment.UserName : userName.Trim().Replace('\r', ' ').Replace('\n', ' ');
+        var info = Encoding.UTF8.GetBytes($"{who}\nPoste : {Environment.MachineName}\nDepuis le {DateTime.Now:dd/MM/yyyy HH:mm}");
         stream.SetLength(0);
         stream.Write(info);
         stream.Flush(flushToDisk: true);

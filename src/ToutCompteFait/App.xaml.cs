@@ -443,7 +443,7 @@ public partial class App : Application
         if (_fileLock is not null || _serverLock is not null) return true;
         if (Target.IsServer)
         {
-            var result = ServerWriteLock.TryAcquire(Target);
+            var result = ServerWriteLock.TryAcquire(Target, User?.UserName);
             if (result.Lock is null && result.OwnerUser is not null)
             {
                 WriteLockOwner = result.OwnerUser;
@@ -454,7 +454,7 @@ public partial class App : Application
             return true;
         }
 
-        _fileLock = WriteLock.TryAcquire(Target.FilePath!);
+        _fileLock = WriteLock.TryAcquire(Target.FilePath!, User?.UserName);
         if (_fileLock is null)
         {
             WriteLockOwner = WriteLock.ReadOwner(Target.FilePath!);
