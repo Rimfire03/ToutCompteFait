@@ -9,7 +9,7 @@ namespace ToutCompteFait.Core.Licensing;
 public static class Eula
 {
     /// <summary>Révision lisible, affichée à l'utilisateur. À incrémenter à chaque modification du texte.</summary>
-    public const string Revision = "2.0 — 11 octobre 2026";
+    public const string Revision = "2.1 — 13 octobre 2026";
 
     /// <summary>Empreinte (SHA-256 hexadécimal) du texte : c'est elle qui est comparée à l'acceptation enregistrée.</summary>
     public static string Hash { get; } =
@@ -64,6 +64,9 @@ public static class Eula
 
         ARTICLE 11 — GARANTIE
         L'Éditeur s'engage à apporter ses meilleurs soins à la conception du Logiciel, mais ne garantit pas, dans les limites permises par la loi, qu'il sera exempt d'erreur, qu'il fonctionnera sans interruption ou qu'il répondra aux besoins particuliers de l'Utilisateur. L'Éditeur s'efforce de corriger dans un délai raisonnable les anomalies qui lui sont signalées. Le Logiciel aide à tenir une comptabilité de trésorerie et à produire des exports (livre-journal, FEC) : il ne dispense pas l'Utilisateur de vérifier l'exactitude des écritures, de ses déclarations et de recourir, si nécessaire, à un expert-comptable. Les garanties légales dont bénéficie le Consommateur (article 13) ne sont pas affectées.
+
+        ARTICLE 11 bis — NATURE DU LOGICIEL ET AVERTISSEMENT
+        Le Logiciel est uniquement un outil d'aide à la gestion financière. Il ne remplace en aucun cas un expert-comptable, un commissaire aux comptes ou tout autre professionnel du chiffre ou du droit, et ne fournit aucun conseil comptable, fiscal, juridique ou financier. Le Logiciel et ses exports (livre-journal, FEC, états, rapports) n'ont fait l'objet d'aucune validation, homologation, certification ou agrément par l'administration fiscale ou par toute autre autorité, et ne sont pas attestés conformes à la réglementation comptable ou fiscale. Des erreurs, inexactitudes ou omissions peuvent donc exister, dans les calculs, les écritures, les contrôles ou les exports. L'Utilisateur reste seul responsable de l'exactitude de ses écritures et de ses déclarations, de la vérification des résultats, de la conservation des justificatifs et du respect de ses obligations comptables, fiscales et sociales ; il lui appartient de faire contrôler ses documents par un professionnel qualifié avant tout dépôt, déclaration ou décision engageante. L'Éditeur n'est pas responsable des conséquences (redressement, pénalités, majorations, décisions de gestion) de l'usage de résultats non vérifiés, sauf faute lourde ou dolosive et dans les limites de l'article 12.
 
         ARTICLE 12 — RESPONSABILITÉ
         Dans les limites permises par la loi, l'Éditeur n'est responsable que des dommages directs et prévisibles résultant d'un manquement à ses obligations, à l'exclusion des dommages indirects (perte de données, d'exploitation, de chance, de clientèle ou préjudice commercial). Pour l'Utilisateur professionnel ou agissant pour une association, la responsabilité de l'Éditeur, toutes causes confondues, est plafonnée au prix effectivement payé pour la Licence au cours des douze mois précédant le fait générateur. Ces limitations ne s'appliquent ni en cas de faute lourde ou dolosive, ni aux dommages corporels, ni lorsque la loi l'interdit, notamment à l'égard du Consommateur.
