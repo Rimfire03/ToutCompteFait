@@ -151,7 +151,6 @@
                     <StackPanel>
                         <RadioButton x:Name="NavLivre" Style="{StaticResource NavButton}" GroupName="nav" Content="📒   Livre (saisie)" Checked="Nav_Checked" Tag="livre" IsChecked="True"/>
                         <RadioButton x:Name="NavBilan" Style="{StaticResource NavButton}" GroupName="nav" Content="📊   Bilan &amp; comptes annuels" Checked="Nav_Checked" Tag="bilan"/>
-                        <RadioButton x:Name="NavCompare" Style="{StaticResource NavButton}" GroupName="nav" Content="📉   Comparaison des exercices" Checked="Nav_Checked" Tag="compare"/>
                         <RadioButton x:Name="NavReports" Style="{StaticResource NavButton}" GroupName="nav" Content="🔁   Reports entre exercices" Checked="Nav_Checked" Tag="reports"/>
                         <RadioButton x:Name="NavMembers" Style="{StaticResource NavButton}" GroupName="nav" Content="🧾   Remboursements membres" Checked="Nav_Checked" Tag="members"/>
                     </StackPanel>

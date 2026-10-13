@@ -55,6 +55,15 @@ public partial class MainWindow : Window
         if (NavMembers.Parent is Panel assetsPanel)
             assetsPanel.Children.Insert(assetsPanel.Children.IndexOf(NavMembers) + 1, _navAssets);
         RefreshAssetsNav();
+        // Onglet Comparaison des exercices : juste après les remboursements des membres.
+        var navCompare = new RadioButton
+        {
+            Content = "📉   Comparaison des exercices", GroupName = "nav", Tag = "compare",
+            Style = (Style)FindResource("NavButton")
+        };
+        navCompare.Checked += Nav_Checked;
+        if (NavMembers.Parent is Panel comparePanel)
+            comparePanel.Children.Insert(comparePanel.Children.IndexOf(NavMembers) + 1, navCompare);
         FillConfigurations();
         CoreVersionText.Text = $"v{App.DisplayVersion} · {Editions.Current.VersionMention}";
         CopyrightText.Text = "© TomLine prod&co by Thomas Guidez  ·  " + Editions.AppName;
