@@ -1,4 +1,5 @@
 using ToutCompteFait.Core.Data;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
@@ -24,6 +25,44 @@ public static class DatabaseCopier
 
     public static CopyReport Copy(DbTarget source, DbTarget destination, string? appVersion, bool replaceDestination,
         IProgress<string>? progress = null)
+    {
+        var report = CopyCore(source, destination, appVersion, replaceDestination, progress);
+        // Destination SQLite : les connexions du pool gardent le fichier ouvert (journal WAL non fusionné) ; la copie
+        // resterait à 4 Ko avec ses données dans le fichier -wal. On referme et on fusionne pour obtenir un fichier autonome.
+        if (destination.Provider == DatabaseProvider.Sqlite && destination.FilePath is { Length: > 0 } path)
+            FinalizeSqliteFile(path);
+        return report;
+    }
+
+    /// <summary>Fusionne le journal d'un fichier SQLite dans le fichier principal et supprime les fichiers annexes.</summary>
+    internal static void FinalizeSqliteFile(string path)
+    {
+        try
+        {
+            SqliteConnection.ClearAllPools();
+            using (var cn = new SqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = path, Mode = SqliteOpenMode.ReadWrite, Pooling = false
+            }.ToString()))
+            {
+                cn.Open();
+                using var cmd = cn.CreateCommand();
+                cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
+                cmd.ExecuteNonQuery();
+                cmd.CommandText = "PRAGMA journal_mode = DELETE";
+                cmd.ExecuteNonQuery();
+            }
+            foreach (var extra in new[] { path + "-wal", path + "-shm" })
+                try { if (File.Exists(extra)) File.Delete(extra); } catch { /* verrouillé : sans conséquence */ }
+        }
+        catch
+        {
+            // Le fichier reste valide avec son journal ; on ne fait pas échouer la sauvegarde pour ce nettoyage.
+        }
+    }
+
+    private static CopyReport CopyCore(DbTarget source, DbTarget destination, string? appVersion, bool replaceDestination,
+        IProgress<string>? progress)
     {
         var sourceFactory = new DbContextFactory(source, readOnly: true);
         if (sourceFactory.IsNewDatabase())

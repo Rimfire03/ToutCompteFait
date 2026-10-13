@@ -1301,6 +1301,7 @@ Console.WriteLine("Copie avec exercice validé");
     var dstPath = Path.Combine(Path.GetTempPath(), "tcf-copy-" + Guid.NewGuid().ToString("N") + ".db");
     var rep = DatabaseCopier.Copy(DbTarget.ForFile(srcPath), DbTarget.ForFile(dstPath), "copie-test", replaceDestination: false);
     Check(rep.IsComplete, "copie complète malgré l'exercice validé");
+    Check(!File.Exists(dstPath + "-wal") && new FileInfo(dstPath).Length > 20000, "copie autonome : journal fusionné dans le fichier");
     var c2 = NewCompta(NewFactory(dstPath));
     Check(c2.Year(y.Id)!.Validated, "exercice toujours validé dans la copie");
     Eq(2, c2.Entries(y.Id).Count, "écritures copiées");
