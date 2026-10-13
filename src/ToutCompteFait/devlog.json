@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.10.6",
+      "date": "2026-10-14",
+      "show": false,
+      "title": "Nouveautés de la version 1.10.6",
+      "items": [
+        "Version Autoentreprise : un code APE peut donner droit à plusieurs types de déclaration (vente, prestation, BNC) ; tous les types possibles sont proposés et créés."
+      ]
+    },
+    {
       "version": "1.10.3",
       "date": "2026-10-14",
       "show": false,
