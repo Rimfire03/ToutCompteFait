@@ -66,6 +66,14 @@ public sealed class CategoryInvestmentEntity
     public string Name { get; set; } = "";
 }
 
+/// <summary>Charge « personnelle » (version Autoentreprise : dépense privée payée depuis le compte de l'activité), par nom,
+/// tous exercices confondus : hors des tables verrouillées, modifiable après clôture. Elle sort du résultat et se retrouve
+/// au passif en prélèvements de l'exploitant.</summary>
+public sealed class CategoryPersonalEntity
+{
+    public string Name { get; set; } = "";
+}
+
 /// <summary>Type de déclaration URSSAF d'une catégorie de produit (par nom, tous exercices confondus), comme
 /// <see cref="CategoryAccountEntity"/> : modifiable après clôture sans toucher aux exercices validés.</summary>
 public sealed class CategoryUrssafEntity

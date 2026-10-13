@@ -23,6 +23,8 @@ public sealed class CategoryRow
     public string Type { get; init; } = "";
     /// <summary>« Oui » si la charge est classée en investissement.</summary>
     public string InvestmentText { get; init; } = "";
+    /// <summary>« Oui » si la charge est une dépense personnelle de l'exploitant (hors résultat).</summary>
+    public string PersonalText { get; init; } = "";
 }
 
 public sealed class AccountRow
@@ -91,7 +93,7 @@ public partial class SettingsView : UserControl, IPage
                                          SavePeriodButton, DeleteYearButton })
             b.IsEnabled = _canEdit;
         NewYearButton.IsEnabled = App.Can(Permission.ManageStructure);
-        InvestCharge.IsEnabled = App.Can(Permission.ManageStructure);
+        InvestCharge.IsEnabled = PersonalCharge.IsEnabled = App.Can(Permission.ManageStructure);
         AddAccountButton.IsEnabled = _canAccounts;
         EditAccountButton.IsEnabled = _canAccounts;
         DeleteAccountButton.IsEnabled = _canAccounts;
@@ -148,9 +150,12 @@ public partial class SettingsView : UserControl, IPage
 
         var urssafKinds = Editions.Current.IsBusiness ? _c.CategoryUrssafKinds() : null;
         var investments = _c.InvestmentCategoryNames();
+        var personal = Editions.Current.IsBusiness ? _c.PersonalCategoryNames() : new HashSet<string>();
+        PersonalCharge.Visibility = PersonalColumn.Visibility = Editions.Current.IsBusiness ? Visibility.Visible : Visibility.Collapsed;
         CategoryRow Row(Category c) => new()
         {
             Cat = c,
+            PersonalText = c.Kind == CategoryKind.Charge && personal.Contains(c.Name) ? "Oui" : "",
             InvestmentText = c.Kind == CategoryKind.Charge && investments.Contains(c.Name) ? "Oui" : "",
             Type = urssafKinds is not null && c.Kind == CategoryKind.Product
                 ? (Compta.ResolveUrssafKind(urssafKinds, c.Name)?.Short() ?? "à classer") : "",
@@ -250,6 +255,18 @@ public partial class SettingsView : UserControl, IPage
         if (ChargesGrid.SelectedItem is not CategoryRow row) { Ui.Info("Sélectionnez d'abord une charge."); return; }
         var now = row.InvestmentText.Length > 0;
         if (Ui.Try(() => _c.SetCategoryInvestment(row.Cat.Name, !now)))
+        {
+            var id = row.Cat.Id;
+            Reload();
+            ChargesGrid.SelectedItem = ChargesGrid.Items.OfType<CategoryRow>().FirstOrDefault(r => r.Cat.Id == id);
+        }
+    }
+
+    private void TogglePersonal_Click(object sender, RoutedEventArgs e)
+    {
+        if (ChargesGrid.SelectedItem is not CategoryRow row) { Ui.Info("Sélectionnez d'abord une charge."); return; }
+        var now = row.PersonalText.Length > 0;
+        if (Ui.Try(() => _c.SetCategoryPersonal(row.Cat.Name, !now)))
         {
             var id = row.Cat.Id;
             Reload();

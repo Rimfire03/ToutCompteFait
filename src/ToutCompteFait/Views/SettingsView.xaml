@@ -46,12 +46,15 @@
                             <Button x:Name="DownCharge" Content="↓" Style="{StaticResource SecondaryButton}" Tag="C" Click="DownCategory_Click"/>
                             <Button x:Name="InvestCharge" Content="Investissement ↔ charge" Style="{StaticResource SecondaryButton}" Tag="C" Click="ToggleInvestment_Click"
                                     ToolTip="Classe la charge sélectionnée en investissement (ou la remet en charge courante). La charge reste dans le résultat ; le bilan précise la part d'investissement."/>
+                            <Button x:Name="PersonalCharge" Content="Personnelle ↔ activité" Style="{StaticResource SecondaryButton}" Click="TogglePersonal_Click"
+                                    ToolTip="Dépense privée payée depuis le compte de l'activité : elle reste dans le livre et le solde bancaire, mais sort du résultat (portée au passif en prélèvements de l'exploitant)."/>
                             <Button x:Name="DeleteCharge" Content="Supprimer" Style="{StaticResource DangerButton}" Tag="C" Click="DeleteCategory_Click"/>
                         </WrapPanel>
                         <DataGrid x:Name="ChargesGrid">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Charge" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource LeftCell}"/>
                                 <DataGridTextColumn Header="Investissement" Binding="{Binding InvestmentText}" Width="100" ElementStyle="{StaticResource LeftCell}"/>
+                                <DataGridTextColumn x:Name="PersonalColumn" Header="Personnelle" Binding="{Binding PersonalText}" Width="90" ElementStyle="{StaticResource LeftCell}"/>
                                 <DataGridTextColumn Header="Opération" Binding="{Binding Operation}" Width="150" ElementStyle="{StaticResource LeftCell}"/>
                                 <DataGridTextColumn Header="Lignes" Binding="{Binding Uses}" Width="60" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
                             </DataGrid.Columns>

@@ -514,6 +514,36 @@ Console.WriteLine("Charges classées en investissement");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ dépenses personnelles de l'exploitant
+Console.WriteLine("Dépenses personnelles (hors résultat)");
+{
+    var path = TempDb();
+    {
+        var c = NewCompta(NewFactory(path));
+        var y = c.CreateYear(Dt(2025, 9, 1), Dt(2026, 8, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var tomb = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Charge && k.Name == "Tombola");
+        c.SaveEntry(new Entry(0, y.Id, Dt(2026, 1, 5), "Courses perso", false, EntryKind.Normal, banque.Id, Direction.Out, null, 12000, null, null),
+            new[] { new Allocation(tomb.Id, 12000) });
+        var before = c.ComputeBilan(y.Id);
+        Eq(12000L, before.ChargesTotal, "charge normale : dans le résultat");
+        c.SetCategoryPersonal("Tombola", true);
+        var b = c.ComputeBilan(y.Id);
+        Eq(0L, b.ChargesTotal, "dépense personnelle : hors charges");
+        Eq(0L, b.Result, "dépense personnelle : hors résultat");
+        Eq(12000L, b.PersonalTotal, "prélèvements = dépense personnelle");
+        Eq(before.ClosingTotal, b.ClosingTotal, "le solde bancaire est inchangé");
+        Eq(0L, b.BalanceDifference, "bilan équilibré");
+        c.RenameCategory(tomb.Id, "Perso");
+        Eq(12000L, c.ComputeBilan(y.Id).PersonalTotal, "le repère suit le renommage");
+        c.ValidateYear(y.Id);
+        c.SetCategoryPersonal("Perso", false);   // paramétrage : possible après validation
+        Eq(12000L, c.ComputeBilan(y.Id).ChargesTotal, "déclassement sur un exercice validé");
+        Check(c.VerifyIntegrity(y.Id), "empreinte inchangée");
+    }
+    Cleanup(path);
+}
+
 // ------------------------------------------------------------------ devlog (nouveautés après mise à jour)
 Console.WriteLine("Devlog affiché après une mise à jour");
 {

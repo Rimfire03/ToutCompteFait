@@ -18,6 +18,9 @@ public sealed record CategoryResult(long? CategoryId, string Name, CategoryKind 
     public long Total => Cash + FromPrev + Due - ToNext - ForPast;
     public long Adjustments => Total - Cash;
     public bool Unassigned => CategoryId is null;
+
+    /// <summary>Charge personnelle de l'exploitant : hors résultat, portée au passif en prélèvements.</summary>
+    public bool Personal { get; init; }
 }
 
 public sealed record OperationResult(Operation Operation, IReadOnlyList<CategoryResult> Products,
@@ -59,8 +62,16 @@ public sealed class Bilan
 
     public long ProductsTotal => Products.Sum(p => p.Total);
 
-    /// <summary>Charges de l'exercice : catégories du livre − achats immobilisés + dotations + valeur nette des sorties.</summary>
-    public long ChargesTotal => Charges.Sum(c => c.Total) - AssetsReclass + AssetsDepreciation + AssetsDisposals;
+    /// <summary>Charges de l'activité (hors dépenses personnelles de l'exploitant).</summary>
+    public IEnumerable<CategoryResult> OperatingCharges => Charges.Where(c => !c.Personal);
+
+    /// <summary>Dépenses personnelles de l'exploitant payées depuis les comptes de l'activité : hors résultat, elles
+    /// réduisent les capitaux propres (prélèvements).</summary>
+    public long PersonalTotal => Charges.Where(c => c.Personal).Sum(c => c.Total);
+
+    /// <summary>Charges de l'exercice : catégories du livre (hors dépenses personnelles) − achats immobilisés + dotations
+    /// + valeur nette des sorties.</summary>
+    public long ChargesTotal => OperatingCharges.Sum(c => c.Total) - AssetsReclass + AssetsDepreciation + AssetsDisposals;
     public long Result => ProductsTotal - ChargesTotal;
 
     /// <summary>Précision sur la part d'investissement quand le résultat est négatif (vide sinon) : charges classées en
@@ -92,10 +103,10 @@ public sealed class Bilan
     /// <summary>Nombre d'écritures sans aucune ventilation (à classer en produit ou en charge).</summary>
     public int EntriesToFill { get; init; }
 
-    // PASSIF = solde d'ouverture + report (−régularisations nettes) + résultat + écart non ventilé.
+    // PASSIF = solde d'ouverture + report (−régularisations nettes) + résultat − prélèvements + écart non ventilé.
     public long Report => -NetAdjustments;
     // Les immobilisations (valeur nette) s'ajoutent à l'actif ; leur valeur d'ouverture est une ressource reportée.
-    public long LiabilitiesTotal => OpeningTotal + AssetsNetOpening + Report + Result + UnallocatedGap;
+    public long LiabilitiesTotal => OpeningTotal + AssetsNetOpening + Report + Result - PersonalTotal + UnallocatedGap;
 
     /// <summary>Total de l'actif : trésorerie + immobilisations nettes.</summary>
     public long AssetsTotal => ClosingTotal + AssetsNetClosing;
@@ -156,11 +167,15 @@ public sealed partial class Compta
             if (NeedsAllocation(r)) toFill++;
         }
 
+        var personalNames = PersonalCategoryNames();
         CategoryResult Build(Category c)
         {
             long Sum(AdjustmentType t) => adjs.Where(a => a.CategoryId == c.Id && a.Type == t).Sum(a => a.AmountCents);
             return new CategoryResult(c.Id, c.Name, c.Kind, c.OperationId, cash.GetValueOrDefault(c.Id),
-                Sum(AdjustmentType.FromPrev), Sum(AdjustmentType.Due), Sum(AdjustmentType.ToNext), Sum(AdjustmentType.ForPast));
+                Sum(AdjustmentType.FromPrev), Sum(AdjustmentType.Due), Sum(AdjustmentType.ToNext), Sum(AdjustmentType.ForPast))
+            {
+                Personal = c.Kind == CategoryKind.Charge && personalNames.Contains(c.Name)
+            };
         }
 
         List<CategoryResult> Lines(CategoryKind kind)
@@ -185,7 +200,7 @@ public sealed partial class Compta
         foreach (var op in Operations(yearId))
         {
             var p = products.Where(x => x.OperationId == op.Id).ToList();
-            var c = charges.Where(x => x.OperationId == op.Id).ToList();
+            var c = charges.Where(x => x.OperationId == op.Id && !x.Personal).ToList();
             operations.Add(new OperationResult(op, p, c, p.Sum(x => x.Total), c.Sum(x => x.Total)));
         }
 
@@ -201,7 +216,7 @@ public sealed partial class Compta
     private long InvestmentChargeTotal(IReadOnlyList<CategoryResult> charges)
     {
         var names = InvestmentCategoryNames();
-        return names.Count == 0 ? 0 : charges.Where(c => names.Contains(c.Name)).Sum(c => c.Total);
+        return names.Count == 0 ? 0 : charges.Where(c => !c.Personal && names.Contains(c.Name)).Sum(c => c.Total);
     }
 
     // ------------------------------------------------------------------ clôture
@@ -401,6 +416,7 @@ public sealed partial class Compta
             charges = b.ChargesTotal,
             result = b.Result,
             report = b.Report,
+            drawings = b.PersonalTotal == 0 ? (long?)null : b.PersonalTotal,
             assets = b.Assets.Count == 0 ? null : new
             {
                 opening = b.AssetsNetOpening, closing = b.AssetsNetClosing, depreciation = b.AssetsDepreciation,

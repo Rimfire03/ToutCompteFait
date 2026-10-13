@@ -27,6 +27,7 @@ internal static class DatabaseMigrations
         (10, "Immobilisations : registre des biens amortis", AddFixedAssets),
         (11, "Statut Développeur des comptes utilisateurs", AddDeveloperFlag),
         (12, "Charges classées investissement (repère par nom de catégorie)", AddCategoryInvestments),
+        (13, "Charges personnelles de l'exploitant (écartées du résultat, repère par nom de catégorie)", AddCategoryPersonal),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -49,6 +50,7 @@ internal static class DatabaseMigrations
         (10, "Immobilisations : registre des biens amortis", AddFixedAssets),
         (11, "Statut Développeur des comptes utilisateurs", AddDeveloperFlag),
         (12, "Charges classées investissement (repère par nom de catégorie)", AddCategoryInvestments),
+        (13, "Charges personnelles de l'exploitant (écartées du résultat, repère par nom de catégorie)", AddCategoryPersonal),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -373,6 +375,22 @@ internal static class DatabaseMigrations
             DatabaseProvider.PostgreSql => """CREATE TABLE "category_investments" ("name" varchar(200) NOT NULL CONSTRAINT "PK_category_investments" PRIMARY KEY);""",
             DatabaseProvider.MariaDb => "CREATE TABLE `category_investments` (`name` varchar(200) NOT NULL, CONSTRAINT `PK_category_investments` PRIMARY KEY (`name`));",
             DatabaseProvider.SqlServer => "CREATE TABLE [category_investments] ([name] nvarchar(200) NOT NULL CONSTRAINT [PK_category_investments] PRIMARY KEY);",
+            _ => throw new NotSupportedException()
+        });
+    }
+    // ------------------------------------------------------------------ v13 : charges personnelles
+
+    /// <summary>Table <c>category_personal</c> (nom de la charge) : dépenses privées de l'exploitant, hors des tables
+    /// verrouillées avec les exercices.</summary>
+    private static void AddCategoryPersonal(AppDbContext ctx)
+    {
+        if (ServerSql.TableExists(ctx, "category_personal")) return;
+        ctx.Database.ExecuteSqlRaw(ctx.Provider switch
+        {
+            DatabaseProvider.Sqlite => """CREATE TABLE "category_personal" ("name" TEXT NOT NULL CONSTRAINT "PK_category_personal" PRIMARY KEY);""",
+            DatabaseProvider.PostgreSql => """CREATE TABLE "category_personal" ("name" varchar(200) NOT NULL CONSTRAINT "PK_category_personal" PRIMARY KEY);""",
+            DatabaseProvider.MariaDb => "CREATE TABLE `category_personal` (`name` varchar(200) NOT NULL, CONSTRAINT `PK_category_personal` PRIMARY KEY (`name`));",
+            DatabaseProvider.SqlServer => "CREATE TABLE [category_personal] ([name] nvarchar(200) NOT NULL CONSTRAINT [PK_category_personal] PRIMARY KEY);",
             _ => throw new NotSupportedException()
         });
     }

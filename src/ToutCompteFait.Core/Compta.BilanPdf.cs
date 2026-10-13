@@ -209,7 +209,7 @@ public sealed partial class Compta
                 Money.Format(total - list.Sum(x => x.Cash)), Money.Format(total), total: true);
         }
         pos -= 4;
-        Table(N() + "Compte de fonctionnement — Charges", b.Charges, b.ChargesTotal, (0.73, 0.11, 0.11), true);
+        Table(N() + "Compte de fonctionnement — Charges", b.OperatingCharges.ToList(), b.ChargesTotal, (0.73, 0.11, 0.11), true);
         pos -= 6;
         Table(number + " (suite). Compte de fonctionnement — Produits", b.Products, b.ProductsTotal, (0.08, 0.5, 0.24), false);
         pdf.SetFill(0.3, 0.35, 0.42);
@@ -240,6 +240,7 @@ public sealed partial class Compta
         if (b.AssetsNetOpening != 0) Cols("Immobilisations à l'ouverture (valeur nette reportée)", "", "", Money.Format(b.AssetsNetOpening));
         Cols("Report (régularisations entre exercices)", "", "", Money.Format(b.Report));
         Cols("Résultat de l'exercice", "", "", Money.Format(b.Result));
+        if (b.PersonalTotal != 0) Cols("Prélèvements de l'exploitant (dépenses personnelles)", "", "", Money.Format(-b.PersonalTotal));
         if (b.UnallocatedGap != 0) Cols($"Écritures non ventilées ({b.UnbalancedEntries})", "", "", Money.Format(b.UnallocatedGap));
         Cols("TOTAL PASSIF", "", "", Eur(b.LiabilitiesTotal), total: true);
         Need(18);

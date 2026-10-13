@@ -674,6 +674,7 @@ public sealed partial class Compta
         c.Name = name;
         MoveCategoryUrssaf(ctx, oldName, name);   // le type de déclaration URSSAF suit le nom
         MoveCategoryInvestment(ctx, oldName, name);   // le repère « investissement » aussi
+        MoveCategoryPersonal(ctx, oldName, name);     // et le repère « personnelle »
         Save(ctx);
         if (AutoLinkSameName(ctx, c.YearId, c.Id) > 0) Save(ctx);
     }
