@@ -226,7 +226,7 @@ public partial class BilanView : UserControl, IPage
         }
         else if (b.BalanceDifference == 0)
         {
-            BalanceCheck.Text = $"⚠ {b.UnbalancedEntries} écriture(s) ont une ventilation incomplète ({Money.Format(b.UnallocatedGap)} €) : le résultat ci-dessus n'est pas fiable tant qu'elles ne sont pas corrigées (menu Livre, lignes rouges).";
+            BalanceCheck.Text = $"⚠ {b.UnbalancedEntries} écriture(s) ont une ventilation incomplète ({Money.Format(b.UnallocatedGap)} €) : le résultat ci-dessus n'est pas fiable tant qu'elles ne sont pas corrigées (menu Opérations bancaires, lignes rouges).";
             BalanceCheck.Foreground = new SolidColorBrush(Color.FromRgb(0xB9, 0x1C, 0x1C));
         }
         else

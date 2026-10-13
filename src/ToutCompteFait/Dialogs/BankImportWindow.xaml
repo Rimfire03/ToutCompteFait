@@ -17,7 +17,7 @@
         <StackPanel>
             <TextBlock Text="Importer les écritures de la banque" Style="{StaticResource TitleText}"/>
             <TextBlock Style="{StaticResource MutedText}"
-                       Text="Fichier CSV ou OFX téléchargé depuis le site de la banque, ou relevé imprimé en PDF / image (lu par OCR puis vérifié par les soldes). Les opérations déjà saisies (même compte, même date, même montant) voient leur intitulé remplacé par celui de la banque ; si la date diffère de quelques jours, vous validez le rapprochement (orange) ; les autres sont ajoutées SANS produit ni charge : elles apparaissent en jaune dans le Livre, à classer ensuite directement depuis la liste."/>
+                       Text="Fichier CSV ou OFX téléchargé depuis le site de la banque, ou relevé imprimé en PDF / image (lu par OCR puis vérifié par les soldes). Les opérations déjà saisies (même compte, même date, même montant) voient leur intitulé remplacé par celui de la banque ; si la date diffère de quelques jours, vous validez le rapprochement (orange) ; les autres sont ajoutées SANS produit ni charge : elles apparaissent en jaune dans les Opérations bancaires, à classer ensuite directement depuis la liste."/>
             <ctl:DropZone x:Name="ImportDrop" Height="84" Margin="0,12,0,0"/>
         </StackPanel>
 

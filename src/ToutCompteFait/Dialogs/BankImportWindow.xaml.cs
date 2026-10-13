@@ -490,7 +490,7 @@ public partial class BankImportWindow : Window
         Ui.Info($"Import terminé : {Result.Created} écriture(s) créée(s) à ventiler, {Result.LabelsUpdated} intitulé(s) mis à jour" +
                 (Result.TransfersLinked > 0 ? $", {Result.TransfersLinked} virement(s) entre comptes reconnu(s) (une seule écriture)" : "") +
                 (Result.Skipped > 0 ? $", {Result.Skipped} ignorée(s)" : "") + ".\n\n" +
-                (Result.Created > 0 ? "Les nouvelles lignes sont en jaune dans le Livre : choisissez leur produit ou leur charge directement dans la liste." : "") +
+                (Result.Created > 0 ? "Les nouvelles lignes sont en jaune dans les Opérations bancaires : choisissez leur produit ou leur charge directement dans la liste." : "") +
                 (_balanceReport is { Text.Length: > 0 } br ? "\n\n" + br.Text : ""),
             "Relevé importé");
         DialogResult = true;

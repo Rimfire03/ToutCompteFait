@@ -67,7 +67,7 @@ public sealed class CategoryDetailWindow : Window
         {
             Style = (Style)Application.Current.FindResource("MutedText"), TextWrapping = TextWrapping.Wrap,
             Text = $"Exercice {year.Label} — {ordered.Count} ligne(s) du livre et reports qui composent ce montant. " +
-                   "Pour corriger une ligne, ouvrez le Livre."
+                   "Pour corriger une ligne, ouvrez les Opérations bancaires."
         });
         DockPanel.SetDock(header, Dock.Top);
         root.Children.Add(header);

@@ -13,7 +13,7 @@
             <TextBlock x:Name="IntroText" TextWrapping="Wrap" Text="Le logiciel remplace le classeur Excel : une écriture par ligne du relevé (dépense, recette, virement entre comptes ou remboursement à un membre), ventilée sur les produits et charges. Le bilan, les soldes et la rentabilité des opérations se calculent tout seuls."/>
 
             <TextBlock Text="Saisir une écriture" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Livre → « Nouvelle écriture ». Choisissez le type, la date, le libellé et le montant, puis indiquez la catégorie : le montant est repris automatiquement. Pour une opération sur plusieurs catégories, ajoutez des lignes de ventilation : le total doit égaler le montant (un bandeau vert ou rouge l'indique). Un remboursement reçu (avoir) se saisit en « Recette » sur la charge concernée."/>
+            <TextBlock TextWrapping="Wrap" Text="Opérations bancaires → « Nouvelle écriture ». Choisissez le type, la date, le libellé et le montant, puis indiquez la catégorie : le montant est repris automatiquement. Pour une opération sur plusieurs catégories, ajoutez des lignes de ventilation : le total doit égaler le montant (un bandeau vert ou rouge l'indique). Un remboursement reçu (avoir) se saisit en « Recette » sur la charge concernée."/>
 
             <TextBlock Text="Virement entre comptes" Style="{StaticResource SectionText}"/>
             <TextBlock TextWrapping="Wrap" Text="Type « Virement entre comptes » : choisissez le compte de départ et le compte d'arrivée. Aucun effet sur le résultat, les deux soldes sont mis à jour. Utile aussi pour une avance : créez un compte « Avances en cours » dans le Paramétrage du dossier."/>

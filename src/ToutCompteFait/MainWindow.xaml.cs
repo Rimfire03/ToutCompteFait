@@ -380,7 +380,7 @@ public partial class MainWindow : Window
     private void PromptFirstYear()
     {
         Ui.Info("Bienvenue ! Commençons par créer le premier exercice (la période comptable).\n\n" +
-                "Vous pourrez ensuite saisir les soldes de départ des comptes dans le Paramétrage du dossier, puis importer vos relevés bancaires depuis le Livre.",
+                "Vous pourrez ensuite saisir les soldes de départ des comptes dans le Paramétrage du dossier, puis importer vos relevés bancaires depuis les Opérations bancaires.",
             Editions.AppName);
         CreateYearInteractive();
     }

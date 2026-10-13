@@ -128,7 +128,7 @@ public sealed class AssetsView : UserControl, IPage
         _grid.ItemsSource = rows;
         if (keep is { } id) _grid.SelectedItem = rows.FirstOrDefault(r => r.Asset.Id == id);
         _summary.Text = assets.Count == 0
-            ? "Aucune immobilisation. Ajoutez un bien ici, ou depuis le Livre (« Immobiliser… » sur une dépense)."
+            ? "Aucune immobilisation. Ajoutez un bien ici, ou depuis les Opérations bancaires (« Immobiliser… » sur une dépense)."
             : $"Exercice {_year.Label} : dotations aux amortissements {Money.Format(dep)} € · valeur nette des immobilisations à la clôture {Money.Format(net)} €" +
               (reclass > 0 ? $" · achats immobilisés retirés des charges {Money.Format(reclass)} €." : ".");
         UpdateButtons();
@@ -158,7 +158,7 @@ public sealed class AssetsView : UserControl, IPage
         var suggested = DateTime.Today.ToString("dd/MM/yyyy");
         var text = PromptWindow.Ask(Window.GetWindow(this), "Sortie du bien",
             $"« {a.Label} » : date de la vente, de la mise au rebut ou de la perte (jj/mm/aaaa).\n" +
-            "La valeur nette restante est passée en charge ; l'encaissement éventuel est un produit à saisir dans le Livre.",
+            "La valeur nette restante est passée en charge ; l'encaissement éventuel est un produit à saisir dans les Opérations bancaires.",
             suggested, "Enregistrer la sortie");
         if (text is null) return;
         if (!DateOnly.TryParseExact(text.Trim(), "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
