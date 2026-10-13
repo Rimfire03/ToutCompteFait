@@ -1,6 +1,16 @@
 {
   "entries": [
     {
+      "version": "1.9.0",
+      "date": "2026-10-14",
+      "show": false,
+      "title": "Nouveautés de la version 1.9.0",
+      "items": [
+        "Une charge peut être classée en investissement (Paramétrage du dossier, Produits et charges) : si le résultat est négatif, le bilan et le PDF précisent la part d'investissement.",
+        "Le bilan précise aussi les achats d'immobilisations quand le résultat est négatif."
+      ]
+    },
+    {
       "version": "1.8.0",
       "date": "2026-10-14",
       "show": true,
