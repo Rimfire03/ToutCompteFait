@@ -19,7 +19,12 @@ public partial class HelpView : UserControl
         }
         Loaded += (_, _) =>
         {
-            if (MainWindow.Current?.CurrentYear is null) NoYearText.Visibility = Visibility.Visible;
+            if (MainWindow.Current?.CurrentYear is null)
+            {
+                NoYearText.Visibility = Visibility.Visible;
+                NoYearButton.Visibility = Visibility.Visible;
+            }
         };
+        NoYearButton.Click += (_, _) => MainWindow.Current?.CreateYearInteractive();
     }
 }

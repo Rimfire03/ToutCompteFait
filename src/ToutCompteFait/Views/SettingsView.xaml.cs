@@ -88,6 +88,7 @@ public partial class SettingsView : UserControl, IPage
                                          AddCharge, RenameCharge, UpCharge, DownCharge, DeleteCharge,
                                          SavePeriodButton, DeleteYearButton })
             b.IsEnabled = _canEdit;
+        NewYearButton.IsEnabled = App.Can(Permission.ManageStructure);
         AddAccountButton.IsEnabled = _canAccounts;
         EditAccountButton.IsEnabled = _canAccounts;
         DeleteAccountButton.IsEnabled = _canAccounts;
@@ -537,6 +538,8 @@ public partial class SettingsView : UserControl, IPage
         App.Settings.Save();
         UpdateAutoBackupInfo();
     }
+
+    private void NewYear_Click(object sender, RoutedEventArgs e) => MainWindow.Current?.CreateYearInteractive();
 
     private void BackupTime_LostFocus(object sender, RoutedEventArgs e)
     {

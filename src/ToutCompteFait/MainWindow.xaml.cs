@@ -55,10 +55,10 @@ public partial class MainWindow : Window
         if (NavMembers.Parent is Panel assetsPanel)
             assetsPanel.Children.Insert(assetsPanel.Children.IndexOf(NavMembers) + 1, _navAssets);
         RefreshAssetsNav();
-        // Onglet Comparaison des exercices : juste après les remboursements des membres.
+        // Onglet Statistique opérations : juste après les remboursements des membres.
         var navCompare = new RadioButton
         {
-            Content = "📉   Comparaison des exercices", GroupName = "nav", Tag = "compare",
+            Content = "📉   Statistique opérations", GroupName = "nav", Tag = "compare",
             Style = (Style)FindResource("NavButton")
         };
         navCompare.Checked += Nav_Checked;
@@ -195,7 +195,6 @@ public partial class MainWindow : Window
             AccessFooter.Foreground = new SolidColorBrush(Color.FromRgb(0x64, 0x74, 0x8B));
             ReadOnlyBanner.Visibility = Visibility.Collapsed;
         }
-        NewYearButton.IsEnabled = App.Can(Permission.ManageStructure);
 
         // Base d'essai : bandeau rouge sur tous les écrans, et marque [TEST] dans le titre de la fenêtre.
         if (App.TestDatabaseName is { } testName)
@@ -377,8 +376,6 @@ public partial class MainWindow : Window
         var y = App.Compta.Year(yearId);
         LoadYears(y?.Label);
     }
-
-    private void NewYear_Click(object sender, RoutedEventArgs e) => CreateYearInteractive();
 
     private void PromptFirstYear()
     {

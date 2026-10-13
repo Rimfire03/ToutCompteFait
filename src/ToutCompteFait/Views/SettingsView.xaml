@@ -124,6 +124,12 @@
                         <Button x:Name="DeleteYearButton" Content="Supprimer cet exercice (vide)" Style="{StaticResource DangerButton}" Click="DeleteYear_Click"/>
                     </StackPanel>
                     <TextBlock x:Name="YearInfo" Style="{StaticResource MutedText}" Margin="0,14,0,0"/>
+                    <Border Height="1" Background="#E2E8F0" Margin="0,18,0,14"/>
+                    <TextBlock Text="Nouvel exercice" Style="{StaticResource SectionText}"/>
+                    <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,8" TextWrapping="Wrap"
+                               Text="Crée l'exercice suivant : listes de produits et de charges recopiées, soldes d'ouverture et reports repris de l'exercice précédent."/>
+                    <Button x:Name="NewYearButton" Content="＋  Nouvel exercice" Style="{StaticResource PrimaryButton}"
+                            HorizontalAlignment="Left" Click="NewYear_Click"/>
                 </StackPanel>
             </TabItem>
 

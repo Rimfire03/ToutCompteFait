@@ -4,7 +4,9 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel MaxWidth="900" HorizontalAlignment="Left" Margin="0,0,12,20">
             <TextBlock x:Name="NoYearText" Style="{StaticResource MutedText}" Visibility="Collapsed" Margin="0,0,0,12"
-                       Text="Aucun exercice n'existe encore : cliquez sur « Nouvel exercice » à gauche pour commencer."/>
+                       Text="Aucun exercice n'existe encore : créez le premier pour commencer."/>
+            <Button x:Name="NoYearButton" Content="＋  Créer le premier exercice" Style="{StaticResource PrimaryButton}"
+                    HorizontalAlignment="Left" Visibility="Collapsed" Margin="0,0,0,16"/>
             <TextBlock x:Name="HelpTitle" Text="Aide — Tout Compte Fait" Style="{StaticResource TitleText}"/>
 
             <TextBlock Text="Le principe" Style="{StaticResource SectionText}"/>

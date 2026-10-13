@@ -47,7 +47,7 @@ public sealed class ComparisonView : UserControl, IPage
         _year = year;
         var root = new DockPanel { Margin = new Thickness(0) };
         var head = new StackPanel();
-        head.Children.Add(new TextBlock { Text = $"Comparaison entre exercices — {year.Label}", Style = Sty("TitleText") });
+        head.Children.Add(new TextBlock { Text = $"Statistique opérations — {year.Label}", Style = Sty("TitleText") });
         head.Children.Add(new TextBlock
         {
             Style = Sty("MutedText"), TextWrapping = TextWrapping.Wrap,

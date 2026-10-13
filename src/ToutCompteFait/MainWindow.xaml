@@ -87,8 +87,13 @@
 
             <!-- Barre latérale -->
             <Border Grid.Column="0" Background="{StaticResource BrushSidebar}" BorderThickness="0,0,1,0" BorderBrush="{StaticResource BrushSidebarBorder}">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Top" Margin="16,18,16,8">
+                <!-- Défilement vertical : la barre n'apparaît que si un élément du menu ne tient pas dans la hauteur. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <Grid MinHeight="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Margin="16,18,16,8">
                         <ctl:AppLogo Width="60" Height="60" HorizontalAlignment="Left" Margin="0,0,0,10"/>
                         <TextBlock Text="{x:Static core:Editions.AppName}" FontSize="17" FontWeight="Bold" TextWrapping="Wrap" Foreground="{StaticResource BrushTextOnDark}"/>
                         <TextBlock Text="Livre de trésorerie" FontSize="11" Foreground="#94A3B8" Margin="0,1,0,0"/>
@@ -112,13 +117,11 @@
                                 <TextBlock x:Name="YearPeriod" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0"/>
                             </StackPanel>
                         </Border>
-                        <Button x:Name="NewYearButton" Content="＋  Nouvel exercice" Style="{StaticResource SecondaryButton}"
-                                Margin="0,10,0,0" Click="NewYear_Click"/>
                     </StackPanel>
 
-                    <Border DockPanel.Dock="Top" Height="1" Background="{StaticResource BrushSidebarBorder}" Margin="16,8,16,10"/>
+                    <Border Grid.Row="1" Height="1" Background="{StaticResource BrushSidebarBorder}" Margin="16,8,16,10"/>
 
-                    <StackPanel DockPanel.Dock="Bottom" Margin="0,0,0,10">
+                    <StackPanel Grid.Row="3" VerticalAlignment="Bottom" Margin="0,0,0,10">
                         <!-- Paramétrage du dossier : au-dessus de l'utilisateur connecté -->
                         <RadioButton x:Name="NavDossier" Style="{StaticResource NavButton}" GroupName="nav" Content="🗂   Paramétrage du dossier" Checked="Nav_Checked" Tag="dossier"/>
                         <Border Height="1" Background="{StaticResource BrushSidebarBorder}" Margin="16,4,16,8"/>
@@ -148,13 +151,14 @@
                         <RadioButton x:Name="NavHelp" Style="{StaticResource NavButton}" GroupName="nav" Content="❓   Aide" Checked="Nav_Checked" Tag="help"/>
                     </StackPanel>
 
-                    <StackPanel>
+                    <StackPanel Grid.Row="2">
                         <RadioButton x:Name="NavLivre" Style="{StaticResource NavButton}" GroupName="nav" Content="📒   Livre (saisie)" Checked="Nav_Checked" Tag="livre" IsChecked="True"/>
                         <RadioButton x:Name="NavBilan" Style="{StaticResource NavButton}" GroupName="nav" Content="📊   Bilan &amp; comptes annuels" Checked="Nav_Checked" Tag="bilan"/>
                         <RadioButton x:Name="NavReports" Style="{StaticResource NavButton}" GroupName="nav" Content="🔁   Reports entre exercices" Checked="Nav_Checked" Tag="reports"/>
                         <RadioButton x:Name="NavMembers" Style="{StaticResource NavButton}" GroupName="nav" Content="🧾   Remboursements membres" Checked="Nav_Checked" Tag="members"/>
                     </StackPanel>
-                </DockPanel>
+                </Grid>
+                </ScrollViewer>
             </Border>
 
             <!-- Contenu -->
