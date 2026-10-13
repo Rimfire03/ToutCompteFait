@@ -442,6 +442,48 @@ Console.WriteLine("Moteur : report automatique d'un exercice à l'autre");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ comparaison entre exercices
+Console.WriteLine("Comparaison entre exercices");
+{
+    var path = TempDb();
+    {
+        var f = NewFactory(path);
+        var c = NewCompta(f);
+        var y1 = c.CreateYear(Dt(2025, 9, 1), Dt(2026, 8, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var adh1 = c.Categories(y1.Id).First(k => k.Kind == CategoryKind.Product && k.Name == "Adhésions");
+        var lot1 = c.Categories(y1.Id).First(k => k.Kind == CategoryKind.Charge && k.Name == "Tombola");
+        c.SaveEntry(new Entry(0, y1.Id, Dt(2026, 1, 5), "Adhésion", false, EntryKind.Normal, banque.Id, Direction.In, null, 4000, null, null),
+            new[] { new Allocation(adh1.Id, 4000) });
+        c.SaveEntry(new Entry(0, y1.Id, Dt(2026, 2, 5), "Lots", false, EntryKind.Normal, banque.Id, Direction.Out, null, 1500, null, null),
+            new[] { new Allocation(lot1.Id, 1500) });
+        var y2 = c.CreateYear(Dt(2026, 9, 1), Dt(2027, 8, 31));
+        var adh2 = c.Categories(y2.Id).First(k => k.Kind == CategoryKind.Product && k.Name == "Adhésions");
+        c.SaveEntry(new Entry(0, y2.Id, Dt(2027, 1, 5), "Adhésion", false, EntryKind.Normal, banque.Id, Direction.In, null, 6000, null, null),
+            new[] { new Allocation(adh2.Id, 6000) });
+
+        var one = c.CompareYears(y2.Id, 1);
+        Eq(1, one.Years.Count, "comparaison sur 1 exercice");
+        var two = c.CompareYears(y2.Id, 2);
+        Eq(2, two.Years.Count, "comparaison sur 2 exercices");
+        Eq(y1.Label, two.Years[0].Label, "ordre chronologique : le plus ancien d'abord");
+        var cmp = c.CompareYears(y2.Id, 5);
+        Eq(2, cmp.Years.Count, "plus d'exercices demandés que disponibles : tous ceux qui existent");
+        var adhLine = cmp.Products.First(l => l.Name == "Adhésions");
+        Eq(4000L, adhLine.Values[0], "adhésions N-1");
+        Eq(6000L, adhLine.Values[1], "adhésions N");
+        Eq(2000L, adhLine.Delta, "écart N / N-1");
+        Eq(50.0m, adhLine.Percent ?? -1, "écart en %");
+        var res = cmp.Summary.First(l => l.Name == YearComparison.ResultName);
+        Eq(2500L, res.Values[0], "résultat N-1");
+        Eq(6000L, res.Values[1], "résultat N");
+        Check(cmp.Charges.Any(l => l.Name == "Tombola" && l.Values[0] == 1500 && l.Values[1] == 0), "charge présente seulement en N-1");
+        Check(cmp.Charges.All(l => !l.IsZero), "lignes entièrement nulles masquées");
+        Eq(c.ComputeBilan(y2.Id).Result, res.Values[1], "synthèse = résultat du bilan");
+    }
+    Cleanup(path);
+}
+
 // ------------------------------------------------------------------ comptes utilisateurs et rôles
 Console.WriteLine("Comptes utilisateurs, mots de passe et rôles");
 {

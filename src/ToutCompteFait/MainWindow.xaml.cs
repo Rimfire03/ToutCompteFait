@@ -451,6 +451,7 @@ public partial class MainWindow : Window
             view = tag switch
             {
                 "bilan" => new BilanView(y),
+                "compare" => new ComparisonView(y),
                 "reports" => new ReportsView(y),
                 "members" => new MembersView(y),
                 "reporting" => new ReportingView(),
@@ -484,7 +485,7 @@ public partial class MainWindow : Window
             enc.Save(fs);
         }
 
-        foreach (var page in new[] { "livre", "bilan", "reports", "members", "dossier", "settings", "help" }.Concat(Editions.Current.IsBusiness ? new[] { "reporting" } : Array.Empty<string>()))
+        foreach (var page in new[] { "livre", "bilan", "compare", "reports", "members", "dossier", "settings", "help" }.Concat(Editions.Current.IsBusiness ? new[] { "reporting" } : Array.Empty<string>()))
         {
             ShowPage(page);
             await Shot(this, page);

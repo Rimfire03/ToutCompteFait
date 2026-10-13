@@ -34,6 +34,9 @@ public sealed class AppSettings
     /// <summary>Libellé du dernier exercice affiché.</summary>
     public string? LastYear { get; set; }
 
+    /// <summary>Nombre d'exercices affichés dans l'onglet Comparaison (exercice courant compris), de 2 à 10.</summary>
+    public int ComparisonYears { get; set; } = 3;
+
     /// <summary>Dernier nom d'utilisateur saisi à la connexion (confort : jamais le mot de passe).</summary>
     public string? LastUserName { get; set; }
 
