@@ -22,6 +22,14 @@ public sealed class ComparisonView : UserControl, IPage
     private static readonly SolidColorBrush Green = new(Color.FromRgb(0x04, 0x78, 0x57));
     private static readonly SolidColorBrush Red = new(Color.FromRgb(0xB9, 0x1C, 0x1C));
     private static readonly SolidColorBrush Blue = new(Color.FromRgb(0x1D, 0x4E, 0xD8));
+    private static readonly Brush[] Palette =
+    {
+        new SolidColorBrush(Color.FromRgb(0x1D, 0x4E, 0xD8)), new SolidColorBrush(Color.FromRgb(0x0E, 0x9F, 0x6E)),
+        new SolidColorBrush(Color.FromRgb(0xD9, 0x77, 0x06)), new SolidColorBrush(Color.FromRgb(0x7C, 0x3A, 0xED)),
+        new SolidColorBrush(Color.FromRgb(0xDB, 0x27, 0x77)), new SolidColorBrush(Color.FromRgb(0x0E, 0x74, 0x90)),
+        new SolidColorBrush(Color.FromRgb(0x65, 0xA3, 0x0D)), new SolidColorBrush(Color.FromRgb(0x64, 0x74, 0x8B)),
+        new SolidColorBrush(Color.FromRgb(0xB4, 0x53, 0x09)), new SolidColorBrush(Color.FromRgb(0x4F, 0x46, 0xE5))
+    };
     private static readonly SolidColorBrush Grey = new(Color.FromRgb(0x47, 0x55, 0x69));
 
     private readonly FiscalYear _year;
@@ -43,8 +51,8 @@ public sealed class ComparisonView : UserControl, IPage
         head.Children.Add(new TextBlock
         {
             Style = Sty("MutedText"), TextWrapping = TextWrapping.Wrap,
-            Text = "Compare l'exercice affiché (N) aux exercices précédents (N-1, N-2…) : produits, charges et résultat, par catégorie et par opération. " +
-                   "Les montants sont ceux des comptes annuels (régularisations et reports comprises)."
+            Text = "Compare, opération par opération, l'exercice affiché (N) aux exercices précédents (N-1, N-2…) : produits, charges et résultat de chaque opération. " +
+                   "Les opérations sont regroupées par nom d'un exercice à l'autre ; montants des comptes annuels (régularisations et reports comprises)."
         });
         var bar = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
         bar.Children.Add(new TextBlock { Text = "Exercices comparés (N compris) :", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
@@ -64,7 +72,7 @@ public sealed class ComparisonView : UserControl, IPage
         var left = Card(_overview);
         var detail = new DockPanel();
         var pickBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
-        pickBar.Children.Add(new TextBlock { Text = "Détail de :", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+        pickBar.Children.Add(new TextBlock { Text = "Détail de l'opération :", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
         pickBar.Children.Add(_picker);
         DockPanel.SetDock(pickBar, Dock.Top);
         detail.Children.Add(pickBar);
@@ -115,22 +123,16 @@ public sealed class ComparisonView : UserControl, IPage
                 : $"Exercices comparés : {string.Join(" → ", years.Select(y => y.Label))}.";
             _info.Foreground = Grey;
 
-            // Graphique de synthèse
-            var sum = _cmp.Summary;
-            ComparisonLine L(string name) => sum.First(s => s.Name == name);
-            _overview.SetData("Produits, charges et résultat par exercice", Labels, new[]
-            {
-                new BarChart.Series("Produits", Green, L(YearComparison.ProductsName).Values),
-                new BarChart.Series("Charges", Red, L(YearComparison.ChargesName).Values),
-                new BarChart.Series("Résultat", Blue, L(YearComparison.ResultName).Values)
-            });
+            // Graphique d'ensemble : résultat de chaque opération, une couleur par exercice
+            var ops = _cmp.Operations;
+            var names = ops.Select(o => o.Name).ToArray();
+            var series = new List<BarChart.Series>();
+            for (var i = 0; i < years.Count; i++)
+                series.Add(new BarChart.Series(Labels[i], Palette[i % Palette.Length], ops.Select(o => o.Values[i]).ToArray()));
+            _overview.SetData("Résultat par opération (produits − charges)", names, series);
 
-            // Choix du détail
             var keep = (_picker.SelectedItem as Pick)?.Display;
-            var picks = new List<Pick>();
-            picks.AddRange(_cmp.Products.Select(l => new Pick("Produit · " + l.Name, "P", l)));
-            picks.AddRange(_cmp.Charges.Select(l => new Pick("Charge · " + l.Name, "C", l)));
-            picks.AddRange(_cmp.Operations.Select(l => new Pick("Opération · " + l.Name, "O", l)));
+            var picks = ops.Select(l => new Pick(l.Name, "O", l)).ToList();
             _picker.ItemsSource = picks;
             _picker.DisplayMemberPath = nameof(Pick.Display);
             _picker.SelectedItem = picks.FirstOrDefault(p => p.Display == keep) ?? picks.FirstOrDefault();
@@ -149,8 +151,13 @@ public sealed class ComparisonView : UserControl, IPage
             _detail.SetData("Aucune donnée à comparer", Labels, Array.Empty<BarChart.Series>());
             return;
         }
-        var brush = p.Kind == "P" ? Green : p.Kind == "C" ? Red : Blue;
-        _detail.SetData(p.Display, Labels, new[] { new BarChart.Series(p.Kind == "O" ? "Résultat" : "Montant", brush, p.Line.Values) });
+        var i = _cmp.Operations.ToList().FindIndex(o => o.Name == p.Line.Name);
+        _detail.SetData("Opération : " + p.Display, Labels, new[]
+        {
+            new BarChart.Series("Produits", Green, _cmp.OperationProducts[i].Values),
+            new BarChart.Series("Charges", Red, _cmp.OperationCharges[i].Values),
+            new BarChart.Series("Résultat", Blue, p.Line.Values)
+        });
     }
 
     // ------------------------------------------------------------------ tableaux
@@ -159,10 +166,9 @@ public sealed class ComparisonView : UserControl, IPage
     {
         _tables.Children.Clear();
         var c = _cmp!;
-        AddTable("Synthèse", "Rubrique", c.Summary, total: false);
-        AddTable("Produits par catégorie", "Catégorie", c.Products, total: true);
-        AddTable("Charges par catégorie", "Catégorie", c.Charges, total: true);
         AddTable("Résultat par opération (produits − charges)", "Opération", c.Operations, total: true);
+        AddTable("Produits par opération", "Opération", c.OperationProducts, total: true);
+        AddTable("Charges par opération", "Opération", c.OperationCharges, total: true);
     }
 
     private static string Signed(long cents) => (cents > 0 ? "+" : "") + Money.Format(cents) + " €";
@@ -227,9 +233,8 @@ public sealed class ComparisonView : UserControl, IPage
         grid.SelectionChanged += (_, _) =>
         {
             if (grid.SelectedItem is not Row r || _loading) return;
-            var kind = firstColumn == "Opération" ? "O" : firstColumn == "Catégorie" ? (title.StartsWith("Produits", StringComparison.Ordinal) ? "P" : "C") : "";
-            if (kind.Length == 0 || r.Cells[0] == "TOTAL") return;
-            var pick = (_picker.ItemsSource as IEnumerable<Pick>)?.FirstOrDefault(p => p.Kind == kind && p.Line.Name == r.Cells[0]);
+            if (r.Cells[0] == "TOTAL") return;
+            var pick = (_picker.ItemsSource as IEnumerable<Pick>)?.FirstOrDefault(p => p.Line.Name == r.Cells[0]);
             if (pick is not null) _picker.SelectedItem = pick;
         };
 

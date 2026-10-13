@@ -26,7 +26,12 @@ public sealed class YearComparison
     public required IReadOnlyList<ComparisonLine> Summary { get; init; }
     public required IReadOnlyList<ComparisonLine> Products { get; init; }
     public required IReadOnlyList<ComparisonLine> Charges { get; init; }
+    /// <summary>Résultat (produits − charges) par opération.</summary>
     public required IReadOnlyList<ComparisonLine> Operations { get; init; }
+
+    /// <summary>Produits et charges liés à chaque opération, par exercice.</summary>
+    public required IReadOnlyList<ComparisonLine> OperationProducts { get; init; }
+    public required IReadOnlyList<ComparisonLine> OperationCharges { get; init; }
 
     public const string ProductsName = "Produits";
     public const string ChargesName = "Charges";
@@ -70,6 +75,13 @@ public sealed class YearComparison
         if (fixedAssets.Any(v => v != 0)) charges.Add(new ComparisonLine(DepreciationName, fixedAssets));
 
         var operations = Group(b => b.Operations.Select(o => (o.Operation.Name, o.Result)));
+        var opProducts = Group(b => b.Operations.Select(o => (o.Operation.Name, o.ProductsTotal)));
+        var opCharges = Group(b => b.Operations.Select(o => (o.Operation.Name, o.ChargesTotal)));
+        // Mêmes opérations, même ordre dans les trois listes ; seules sont gardées celles qui ont un montant.
+        var names = operations.Where(l => !l.IsZero || opProducts.Any(p => p.Name == l.Name && !p.IsZero) || opCharges.Any(p => p.Name == l.Name && !p.IsZero))
+            .Select(l => l.Name).ToList();
+        List<ComparisonLine> ByName(List<ComparisonLine> src) =>
+            names.Select(nm => src.First(l => string.Equals(l.Name, nm, StringComparison.OrdinalIgnoreCase))).ToList();
 
         var summary = new List<ComparisonLine>
         {
@@ -87,7 +99,9 @@ public sealed class YearComparison
             Summary = summary,
             Products = products.Where(l => !l.IsZero).ToList(),
             Charges = charges.Where(l => !l.IsZero).ToList(),
-            Operations = operations.Where(l => !l.IsZero).ToList()
+            Operations = ByName(operations),
+            OperationProducts = ByName(opProducts),
+            OperationCharges = ByName(opCharges)
         };
     }
 }
