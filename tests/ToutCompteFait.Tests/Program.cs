@@ -484,6 +484,32 @@ Console.WriteLine("Comparaison entre exercices");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ délai de réouverture
+Console.WriteLine("Réouverture d'un exercice : délai de 7 jours");
+{
+    var path = TempDb();
+    try
+    {
+        var c = NewCompta(NewFactory(path));
+        var y = c.CreateYear(Dt(2025, 9, 1), Dt(2026, 8, 31));
+        c.ValidateYear(y.Id);
+        var v = c.Year(y.Id)!;
+        Check(v.ValidatedAt is not null, "date de validation enregistrée");
+        Eq(Compta.ReopenWindowDays, 7, "délai de 7 jours");
+        Compta.Clock = () => v.ValidatedAt!.Value.AddDays(7).AddMinutes(-1);
+        Check(Compta.CanReopenNow(v), "dans le délai : réouverture possible");
+        Compta.Clock = () => v.ValidatedAt!.Value.AddDays(7).AddMinutes(1);
+        Check(!Compta.CanReopenNow(v), "délai dépassé : réouverture impossible");
+        Throws(() => c.ReopenYear(y.Id, "trop tard"), "réouverture refusée après 7 jours", "Délai dépassé");
+        Check(c.Year(y.Id)!.Validated, "l'exercice reste validé");
+        Compta.Clock = () => v.ValidatedAt!.Value.AddDays(2);
+        c.ReopenYear(y.Id, "oubli d'une écriture");
+        Check(c.Year(y.Id)!.Open, "réouvert dans le délai");
+    }
+    finally { Compta.Clock = () => DateTime.Now; }
+    Cleanup(path);
+}
+
 // ------------------------------------------------------------------ charges classées investissement
 Console.WriteLine("Charges classées en investissement");
 {

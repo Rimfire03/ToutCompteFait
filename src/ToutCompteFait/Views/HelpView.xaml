@@ -45,7 +45,7 @@
             <TextBlock TextWrapping="Wrap" Text="Consultez votre compte de résultat par catégorie et la situation de votre actif et passif. Vous pouvez imprimer des bilans synthétiques ou détaillés en format PDF. Tant que l&apos;exercice n&apos;est pas validé, un filigrane provisoire apparaît sur les documents."/>
 
             <TextBlock Text="Valider un exercice" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Pour valider un exercice, assurez-vous que toutes les écritures sont complètes avant de cliquer sur Valider l&apos;exercice. Une fois validé, aucune modification ou ajout n&apos;est plus possible. Les exercices doivent être validés dans l&apos;ordre chronologique et une réouverture nécessite un motif."/>
+            <TextBlock TextWrapping="Wrap" Text="Pour valider un exercice, assurez-vous que toutes les écritures sont complètes avant de cliquer sur Valider l&apos;exercice. Une fois validé, aucune modification ou ajout n&apos;est plus possible. Les exercices doivent être validés dans l&apos;ordre chronologique et une réouverture nécessite un motif et n'est possible que dans les 7 jours suivant la validation."/>
 
             <TextBlock Text="Immobilisations" Style="{StaticResource SectionText}"/>
             <TextBlock TextWrapping="Wrap" Text="Cette fonction permet de gérer le matériel durable amorti sur sa durée de vie. La valeur nette de ces biens figure à l&apos;actif de votre bilan. Vous devez activer cette option dans le paramétrage pour l&apos;utiliser."/>

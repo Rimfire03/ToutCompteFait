@@ -509,14 +509,33 @@ public sealed partial class Compta
         foreach (var c in changes) c.Entry.Seq = c.Wanted;
         Save(ctx);
     }
-    /// <summary>Rouvre un exercice validé (correction exceptionnelle, réservée à l'administrateur). Refusé si
-    /// l'exercice suivant est validé. L'opération est tracée dans le journal.</summary>
+    /// <summary>Délai (en jours) après la validation pendant lequel un exercice peut être rouvert.</summary>
+    public const int ReopenWindowDays = 7;
+
+    /// <summary>Horloge utilisée pour le délai de réouverture (remplaçable dans les tests).</summary>
+    public static Func<DateTime> Clock { get; set; } = () => DateTime.Now;
+
+    /// <summary>Date limite de réouverture d'un exercice validé (validation + <see cref="ReopenWindowDays"/> jours) ;
+    /// null si l'exercice n'est pas validé ou sans date de validation.</summary>
+    public static DateTime? ReopenDeadline(FiscalYear y) =>
+        y.Validated && y.ValidatedAt is { } at ? at.AddDays(ReopenWindowDays) : null;
+
+    /// <summary>L'exercice est validé et le délai de réouverture n'est pas dépassé.</summary>
+    public static bool CanReopenNow(FiscalYear y) => ReopenDeadline(y) is { } d && Clock() <= d;
+
+    /// <summary>Rouvre un exercice validé (correction exceptionnelle, réservée à l'administrateur), dans les
+    /// <see cref="ReopenWindowDays"/> jours qui suivent sa validation. Refusé si l'exercice suivant est validé.
+    /// L'opération est tracée dans le journal.</summary>
     public void ReopenYear(long yearId, string reason)
     {
         Require(Permission.ReopenYear);
         RequireWritable();
         var y = Year(yearId) ?? throw new ComptaException("Exercice introuvable.");
         if (!y.Validated) throw new ComptaException("Cet exercice n'est pas validé.");
+        if (!CanReopenNow(y))
+            throw new ComptaException(ReopenDeadline(y) is { } limit
+                ? $"Délai dépassé : un exercice ne peut être rouvert que pendant {ReopenWindowDays} jours après sa validation (jusqu'au {limit:dd/MM/yyyy HH:mm})."
+                : $"Réouverture impossible : la date de validation est inconnue (délai de {ReopenWindowDays} jours).");
         var next = NextYear(y);
         if (next is { Validated: true })
             throw new ComptaException($"L'exercice suivant ({next.Label}) est validé : rouvrez-le d'abord.");

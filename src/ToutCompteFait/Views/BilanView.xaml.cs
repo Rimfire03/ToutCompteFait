@@ -143,12 +143,20 @@ public partial class BilanView : UserControl, IPage
         _bilan = b;
         TitleText.Text = $"Bilan & comptes annuels — exercice {_year.Label}";
         SubText.Text = $"Du {_year.Start:dd/MM/yyyy} au {_year.End:dd/MM/yyyy}" +
-                       (_year.Validated ? $" · validé le {_year.ValidatedAt:dd/MM/yyyy}" : " · exercice ouvert (chiffres provisoires)");
+                       (_year.Validated
+                           ? $" · validé le {_year.ValidatedAt:dd/MM/yyyy}" +
+                             (Compta.CanReopenNow(_year) ? $" · réouvrable jusqu'au {Compta.ReopenDeadline(_year):dd/MM/yyyy}" : "")
+                           : " · exercice ouvert (chiffres provisoires)");
 
         ValidateButton.Visibility = _year.Open && App.HasRole(Permission.ValidateYear) ? Visibility.Visible : Visibility.Collapsed;
         ValidateButton.IsEnabled = App.Can(Permission.ValidateYear);
         ReopenButton.Visibility = _year.Validated && App.HasRole(Permission.ReopenYear) ? Visibility.Visible : Visibility.Collapsed;
-        ReopenButton.IsEnabled = App.Can(Permission.ReopenYear);
+        var canReopenNow = Compta.CanReopenNow(_year);
+        ReopenButton.IsEnabled = App.Can(Permission.ReopenYear) && canReopenNow;
+        ReopenButton.ToolTip = !_year.Validated ? null
+            : canReopenNow
+                ? $"Réouverture possible jusqu'au {Compta.ReopenDeadline(_year):dd/MM/yyyy HH:mm} ({Compta.ReopenWindowDays} jours après la validation)."
+                : $"Délai dépassé : la réouverture n'est possible que {Compta.ReopenWindowDays} jours après la validation.";
 
         ProductsTotal.Text = Money.Format(b.ProductsTotal) + " €";
         ChargesTotal.Text = Money.Format(b.ChargesTotal) + " €";
