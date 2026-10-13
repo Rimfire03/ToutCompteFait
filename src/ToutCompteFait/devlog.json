@@ -8,7 +8,8 @@
       "items": [
         "Réouverture d'un exercice : elle n'est désormais possible que pendant les 7 jours qui suivent sa validation. Passé ce délai, corrigez par une écriture dans l'exercice suivant.",
         "Une charge peut être classée en investissement (Paramétrage du dossier, Produits et charges). Si le résultat est négatif, le bilan et le PDF précisent la part d'investissement.",
-        "Le bilan indique aussi les achats d'immobilisations quand le résultat est négatif."
+        "Le bilan indique aussi les achats d'immobilisations quand le résultat est négatif.",
+        "Version Autoentreprise : une charge peut être classée « personnelle » (dépense privée de l'exploitant) : elle sort du résultat et figure au passif en prélèvements de l'exploitant."
       ]
     },
     {
