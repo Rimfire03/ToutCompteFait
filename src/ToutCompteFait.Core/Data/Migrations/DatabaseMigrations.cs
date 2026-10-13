@@ -25,6 +25,7 @@ internal static class DatabaseMigrations
         (8, "Numéros de compte comptable pour l'export FEC", AddAccountNumbers),
         (9, "Entreprise (version Autoentreprise) : profil, types de déclaration URSSAF, déclarations", AddBusinessTables),
         (10, "Immobilisations : registre des biens amortis", AddFixedAssets),
+        (11, "Statut Développeur des comptes utilisateurs", AddDeveloperFlag),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -45,6 +46,7 @@ internal static class DatabaseMigrations
         (8, "Numéros de compte comptable pour l'export FEC", AddAccountNumbers),
         (9, "Entreprise (version Autoentreprise) : profil, types de déclaration URSSAF, déclarations", AddBusinessTables),
         (10, "Immobilisations : registre des biens amortis", AddFixedAssets),
+        (11, "Statut Développeur des comptes utilisateurs", AddDeveloperFlag),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -356,6 +358,22 @@ internal static class DatabaseMigrations
             );
             """);
     }
+    // ------------------------------------------------------------------ v11 : statut Développeur
+
+    /// <summary>Colonne <c>users.is_developer</c> : statut qui s'ajoute au rôle (aucun compte existant ne l'a).</summary>
+    private static void AddDeveloperFlag(AppDbContext ctx)
+    {
+        if (ServerSql.ColumnExists(ctx, "users", "is_developer")) return;
+        ctx.Database.ExecuteSqlRaw(ctx.Provider switch
+        {
+            DatabaseProvider.Sqlite => """ALTER TABLE "users" ADD COLUMN "is_developer" INTEGER NOT NULL DEFAULT 0;""",
+            DatabaseProvider.PostgreSql => """ALTER TABLE "users" ADD COLUMN "is_developer" boolean NOT NULL DEFAULT false;""",
+            DatabaseProvider.MariaDb => "ALTER TABLE `users` ADD COLUMN `is_developer` tinyint(1) NOT NULL DEFAULT 0;",
+            DatabaseProvider.SqlServer => "ALTER TABLE [users] ADD [is_developer] bit NOT NULL DEFAULT 0;",
+            _ => throw new NotSupportedException()
+        });
+    }
+
     // ------------------------------------------------------------------ v10 : immobilisations
 
     /// <summary>Registre des immobilisations (matériel amorti sur sa durée d'utilisation). Table indépendante, hors des

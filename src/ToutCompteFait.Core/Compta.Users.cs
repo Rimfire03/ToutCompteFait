@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using ToutCompteFait.Core.Data;
 using ToutCompteFait.Core.Security;
 using ToutCompteFait.Core.Services;
@@ -138,7 +138,7 @@ internal static class UserRules
     public static AppUser ToUser(UserEntity u) => new(u.Id, u.UserName, u.DisplayName, RoleInfo.FromDb(u.Role), u.Active,
         u.MustChangePassword,
         u.LastLoginAt is null ? null : DateTime.Parse(u.LastLoginAt, System.Globalization.CultureInfo.InvariantCulture),
-        DateTime.Parse(u.CreatedAt, System.Globalization.CultureInfo.InvariantCulture), u.CreatedBy);
+        DateTime.Parse(u.CreatedAt, System.Globalization.CultureInfo.InvariantCulture), u.CreatedBy, u.IsDeveloper);
 }
 
 public sealed partial class Compta
@@ -152,9 +152,18 @@ public sealed partial class Compta
         return l.Ctx.Users.AsNoTracking().OrderBy(u => u.UserName).AsEnumerable().Select(UserRules.ToUser).ToList();
     }
 
+    /// <summary>Règle du statut Développeur : seul un administrateur peut l'attribuer ou le retirer. Le statut
+    /// s'ajoute au rôle du compte (lecteur, trésorier ou administrateur).</summary>
+    private void CheckDeveloperRule(AppDbContext ctx, bool newIsDeveloper, UserEntity? target)
+    {
+        var changes = target is null ? newIsDeveloper : newIsDeveloper != target.IsDeveloper;
+        if (changes && Session.Role != Role.Admin)
+            throw new ComptaException("Seul un administrateur peut attribuer ou retirer le statut Développeur.");
+    }
+
     /// <summary>Crée un compte. Seul un administrateur le peut. Le mot de passe initial est provisoire : l'utilisateur
     /// devra le changer à sa première connexion.</summary>
-    public AppUser CreateUser(string userName, string displayName, Role role, string initialPassword)
+    public AppUser CreateUser(string userName, string displayName, Role role, string initialPassword, bool isDeveloper = false)
     {
         Require(Permission.ManageUsers);
         RequireWritable();
@@ -165,12 +174,14 @@ public sealed partial class Compta
         var ctx = Open().Ctx;
         if (ctx.Users.AsNoTracking().AsEnumerable().Any(u => string.Equals(u.UserName, userName, StringComparison.OrdinalIgnoreCase)))
             throw new ComptaException($"L'identifiant « {userName} » existe déjà.");
+        CheckDeveloperRule(ctx, isDeveloper, null);
         var e = new UserEntity
         {
             UserName = userName,
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? userName : displayName.Trim(),
             PasswordHash = PasswordHasher.Hash(initialPassword),
             Role = RoleInfo.ToDb(role),
+            IsDeveloper = isDeveloper,
             Active = true,
             MustChangePassword = true,
             CreatedAt = Now(),
@@ -178,20 +189,23 @@ public sealed partial class Compta
         };
         ctx.Users.Add(e);
         Save(ctx);
-        Log(ctx, "Compte utilisateur créé", $"{userName} ({RoleInfo.DisplayName(role)})");
+        Log(ctx, "Compte utilisateur créé", $"{userName} ({RoleInfo.DisplayName(role)}{(isDeveloper ? " + Développeur" : "")})");
         tx.Commit();
         return UserRules.ToUser(e);
     }
 
     /// <summary>Modifie le nom affiché, le rôle ou l'état (actif / désactivé). Le dernier administrateur actif ne peut
     /// être ni rétrogradé ni désactivé.</summary>
-    public void UpdateUser(long userId, string displayName, Role role, bool active)
+    /// <param name="isDeveloper">Statut Développeur ; <c>null</c> = inchangé.</param>
+    public void UpdateUser(long userId, string displayName, Role role, bool active, bool? isDeveloper = null)
     {
         Require(Permission.ManageUsers);
         RequireWritable();
         using var tx = Begin();
         var ctx = Open().Ctx;
         var u = ctx.Users.FirstOrDefault(x => x.Id == userId) ?? throw new ComptaException("Utilisateur introuvable.");
+        var newDeveloper = isDeveloper ?? u.IsDeveloper;
+        CheckDeveloperRule(ctx, newDeveloper, u);
         var wasAdmin = RoleInfo.FromDb(u.Role) == Role.Admin && u.Active;
         var willBeAdmin = role == Role.Admin && active;
         if (wasAdmin && !willBeAdmin)
@@ -203,6 +217,7 @@ public sealed partial class Compta
         var before = $"{RoleInfo.DisplayName(RoleInfo.FromDb(u.Role))}, {(u.Active ? "actif" : "désactivé")}";
         u.DisplayName = string.IsNullOrWhiteSpace(displayName) ? u.UserName : displayName.Trim();
         u.Role = RoleInfo.ToDb(role);
+        u.IsDeveloper = newDeveloper;
         u.Active = active;
         Save(ctx);
         Log(ctx, "Compte utilisateur modifié", $"{u.UserName} : {before} → {RoleInfo.DisplayName(role)}, {(active ? "actif" : "désactivé")}");

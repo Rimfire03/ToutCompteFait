@@ -82,6 +82,19 @@ public partial class App : Application
         }
     }
 
+    /// <summary>Statut Développeur : bascule vers une configuration enregistrée (autre base de données) puis redémarre le
+    /// logiciel sur l'écran de connexion. Retourne un message d'erreur, ou null.</summary>
+    public static string? SwitchConfiguration(ConfigProfile profile)
+    {
+        if (!Session.Can(Permission.ManageConfigurations)) return "Réservé au statut Développeur.";
+        ConfigProfiles.Apply(profile, Settings);
+        // Le mot de passe mémorisé appartient à la base précédente : on le oublie, la connexion est redemandée.
+        Settings.SetRememberedPassword(null);
+        Settings.Save();
+        Restart();
+        return null;
+    }
+
     /// <summary>Nom de l'association ou de l'entreprise : réglage de ce poste s'il existe, sinon celui de la fiche
     /// enregistrée dans la base (récupérée par SIREN / SIRET, partagée entre les postes).</summary>
     public static string? OrganizationName
@@ -323,7 +336,7 @@ public partial class App : Application
         }
 
         User = user;
-        Session = new Session(user.Id, user.UserName, user.DisplayName, user.Role);
+        Session = new Session(user.Id, user.UserName, user.DisplayName, user.Role, user.IsDeveloper);
         Settings.LastUserName = user.UserName;
         Settings.Save();
 

@@ -201,6 +201,8 @@ public sealed class UserEntity
     public string DisplayName { get; set; } = "";
     public string PasswordHash { get; set; } = "";
     public string Role { get; set; } = "READER";
+    /// <summary>Statut Développeur, en plus du rôle : configurations multiples de l'application.</summary>
+    public bool IsDeveloper { get; set; }
     public bool Active { get; set; } = true;
     public bool MustChangePassword { get; set; }
     public string CreatedAt { get; set; } = "";

@@ -1506,6 +1506,60 @@ Console.WriteLine("Immobilisations");
     Check(c.AssetsEnabled() && c.AssetThresholdCents() == 30000, "réglages : activation et seuil enregistrés");
 }
 
+// ---- Statut Développeur (s'ajoute au rôle) et configurations multiples
+Console.WriteLine("Statut Développeur et configurations");
+{
+    var f = NewFactory(TempDb());
+    var admin = NewCompta(f);
+    var dev = admin.CreateUser("dev", "Dev", Role.Treasurer, "Motdepasse2026", isDeveloper: true);
+    Check(dev.IsDeveloper && dev.Role == Role.Treasurer, "développeur : statut ajouté au rôle trésorier");
+    Eq("Trésorier + Développeur", dev.RoleText, "développeur : libellé du rôle");
+    var plain = admin.CreateUser("simple", "Simple", Role.Admin, "Motdepasse2026");
+    Check(!plain.IsDeveloper, "compte ordinaire : pas développeur");
+
+    var devSession = new Session(dev.Id, dev.UserName, dev.DisplayName, dev.Role, dev.IsDeveloper);
+    Check(devSession.Can(Permission.ManageConfigurations), "développeur : peut gérer les configurations");
+    Check(devSession.Can(Permission.WriteLedger) && !devSession.Can(Permission.ManageUsers), "développeur trésorier : droits du rôle inchangés");
+    var adminSession = new Session(plain.Id, plain.UserName, plain.DisplayName, plain.Role, plain.IsDeveloper);
+    Check(!adminSession.Can(Permission.ManageConfigurations), "administrateur non développeur : pas de configurations");
+    Check(!Session.System.Can(Permission.ManageConfigurations), "session système : pas de configurations");
+
+    // Seul un administrateur attribue ou retire le statut.
+    var treasurerCompta = NewCompta(f, new Session(dev.Id, dev.UserName, dev.DisplayName, Role.Treasurer, true));
+    Throws(() => treasurerCompta.UpdateUser(plain.Id, "Simple", Role.Admin, true, isDeveloper: true), "attribution refusée à un non-administrateur", "");
+    admin.UpdateUser(plain.Id, "Simple", Role.Admin, true, isDeveloper: true);
+    Check(admin.Users().First(u => u.Id == plain.Id).IsDeveloper, "administrateur : statut attribué");
+    admin.UpdateUser(plain.Id, "Simple", Role.Admin, true, isDeveloper: false);
+    Check(!admin.Users().First(u => u.Id == plain.Id).IsDeveloper, "administrateur : statut retiré");
+    admin.UpdateUser(plain.Id, "Simple 2", Role.Admin, true);
+    Check(!admin.Users().First(u => u.Id == plain.Id).IsDeveloper, "modification sans statut : inchangé");
+
+    // Configurations : un fichier par configuration, dossier temporaire.
+    var dir = Path.Combine(Path.GetTempPath(), "tcf-config-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        var settings = new AppSettings { UseDatabaseServer = false, DatabasePath = Path.Combine(dir, "prod.db") };
+        ConfigProfiles.Save(ConfigProfiles.FromSettings(settings, "Production"), dir);
+        var server = new DbConnectionInfo { Provider = DatabaseProvider.PostgreSql, Host = "srv", Port = 5432, Database = "essais", UserName = "u" };
+        ConfigProfiles.Save(new ConfigProfile { Name = "Essais", UseServer = true, Server = server }, dir);
+        var list = ConfigProfiles.List(dir);
+        Eq(2, list.Count, "configurations : deux enregistrées");
+        Eq("Essais", list[0].Name, "configurations : triées par nom");
+        Check(ConfigProfiles.IsCurrent(list.First(p => p.Name == "Production"), settings), "configuration active reconnue");
+        Check(!ConfigProfiles.IsCurrent(list.First(p => p.Name == "Essais"), settings), "autre configuration non active");
+        ConfigProfiles.Apply(list.First(p => p.Name == "Essais"), settings);
+        Check(settings.UseDatabaseServer && settings.DatabaseServer.Database == "essais", "bascule : réglages du poste mis à jour");
+        Check(ConfigProfiles.IsCurrent(list.First(p => p.Name == "Essais"), settings), "bascule : configuration devenue active");
+        Throws(() => ConfigProfiles.Save(new ConfigProfile { Name = " ", UseServer = false, FilePath = "x.db" }, dir), "nom vide refusé", "obligatoire");
+        ConfigProfiles.Delete("Essais", dir);
+        Eq(1, ConfigProfiles.List(dir).Count, "configuration supprimée");
+    }
+    finally
+    {
+        try { Directory.Delete(dir, true); } catch (IOException) { }
+    }
+}
+
 // ---- Déconnexion automatique : réglage de la base, administrateur seulement
 Console.WriteLine("Déconnexion automatique");
 {

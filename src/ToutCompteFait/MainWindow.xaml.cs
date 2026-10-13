@@ -5,6 +5,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using ToutCompteFait.Core;
 using ToutCompteFait.Core.Security;
+using ToutCompteFait.Core.Services;
 using ToutCompteFait.Dialogs;
 using ToutCompteFait.Views;
 
@@ -54,12 +55,13 @@ public partial class MainWindow : Window
         if (NavMembers.Parent is Panel assetsPanel)
             assetsPanel.Children.Insert(assetsPanel.Children.IndexOf(NavMembers) + 1, _navAssets);
         RefreshAssetsNav();
+        FillConfigurations();
         CoreVersionText.Text = $"v{App.DisplayVersion} · {Editions.Current.VersionMention}";
         CopyrightText.Text = "© TomLine prod&co by Thomas Guidez  ·  " + Editions.AppName;
 
         App.DatabaseReopened += OnDatabaseReopened;
         UserNameText.Text = App.Session.DisplayName;
-        UserRoleText.Text = RoleInfo.DisplayName(App.Session.Role) + " · " + App.Session.UserName;
+        UserRoleText.Text = RoleInfo.DisplayName(App.Session.Role) + (App.Session.IsDeveloper ? " + Développeur" : "") + " · " + App.Session.UserName;
         Loaded += (_, _) =>
         {
             UpdateFooter();
@@ -218,6 +220,40 @@ public partial class MainWindow : Window
         {
             Ui.Error(ex.Message);
         }
+    }
+
+    // ------------------------------------------------------------------ configurations (statut Développeur)
+
+    private bool _configLoading;
+
+    /// <summary>Liste déroulante des configurations enregistrées, visible seulement pour un développeur.</summary>
+    private void FillConfigurations()
+    {
+        var allowed = App.Session.Can(Permission.ManageConfigurations);
+        ConfigPanel.Visibility = allowed ? Visibility.Visible : Visibility.Collapsed;
+        if (!allowed) return;
+        _configLoading = true;
+        var profiles = ConfigProfiles.List();
+        ConfigCombo.ItemsSource = profiles;
+        ConfigCombo.DisplayMemberPath = nameof(ConfigProfile.Name);
+        ConfigCombo.SelectedItem = profiles.FirstOrDefault(p => ConfigProfiles.IsCurrent(p, App.Settings));
+        ConfigCombo.ToolTip = profiles.Count == 0
+            ? "Aucune configuration enregistrée : créez-en dans Paramétrage appli > Configurations."
+            : "Bascule vers une autre base de données (le logiciel redémarre sur l'écran de connexion).";
+        _configLoading = false;
+    }
+
+    private void ConfigCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_configLoading || ConfigCombo.SelectedItem is not ConfigProfile p) return;
+        if (ConfigProfiles.IsCurrent(p, App.Settings)) return;
+        if (!Ui.Confirm($"Basculer vers la configuration « {p.Name} » ?\n\n{p.Describe()}\n\nLe logiciel va redémarrer sur l'écran de connexion.", "Changer de configuration"))
+        {
+            FillConfigurations();
+            return;
+        }
+        var error = App.SwitchConfiguration(p);
+        if (error is not null) { Ui.Error(error); FillConfigurations(); }
     }
 
     private void Logout_Click(object sender, RoutedEventArgs e)

@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using ToutCompteFait.Core;
 using ToutCompteFait.Core.Security;
@@ -41,6 +41,7 @@ public partial class UserWindow : Window
                 UserNameBox.IsEnabled = false;
                 DisplayBox.Text = user.DisplayName;
                 RoleCombo.SelectedItem = RoleCombo.Items.OfType<RoleItem>().First(r => r.Role == user.Role);
+                DeveloperBox.IsChecked = user.IsDeveloper;
                 ActiveBox.IsChecked = user.Active;
                 PasswordPanel.Visibility = Visibility.Collapsed;
                 break;
@@ -71,10 +72,10 @@ public partial class UserWindow : Window
             switch (_mode)
             {
                 case UserMode.Create:
-                    _c.CreateUser(UserNameBox.Text, DisplayBox.Text, role, PasswordBox.Password);
+                    _c.CreateUser(UserNameBox.Text, DisplayBox.Text, role, PasswordBox.Password, DeveloperBox.IsChecked == true);
                     break;
                 case UserMode.Edit:
-                    _c.UpdateUser(_user!.Id, DisplayBox.Text, role, ActiveBox.IsChecked == true);
+                    _c.UpdateUser(_user!.Id, DisplayBox.Text, role, ActiveBox.IsChecked == true, DeveloperBox.IsChecked == true);
                     break;
                 default:
                     _c.ResetPassword(_user!.Id, PasswordBox.Password);

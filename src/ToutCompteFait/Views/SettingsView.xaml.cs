@@ -105,6 +105,7 @@ public partial class SettingsView : UserControl, IPage
         RestoreButton.IsEnabled = App.Can(Permission.ManageDatabase);
 
         InitBusiness();   // version Autoentreprise : onglet « Entreprise »
+        InitConfigs();    // statut Développeur : onglet « Configurations »
 
         _loading = true;
         FrequencyBox.ItemsSource = new[]

@@ -337,6 +337,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.DisplayName).HasColumnName("display_name").HasMaxLength(200).IsRequired();
             e.Property(x => x.PasswordHash).HasColumnName("password_hash").HasMaxLength(300).IsRequired();
             e.Property(x => x.Role).HasColumnName("role").HasMaxLength(20).IsRequired();
+            e.Property(x => x.IsDeveloper).HasColumnName("is_developer");
             e.Property(x => x.Active).HasColumnName("active");
             e.Property(x => x.MustChangePassword).HasColumnName("must_change_password");
             e.Property(x => x.CreatedAt).HasColumnName("created_at").HasMaxLength(30).IsRequired();

@@ -20,7 +20,10 @@ public enum Permission
     /// <summary>Créer et gérer les comptes utilisateurs.</summary>
     ManageUsers,
     /// <summary>Réglages de la base (serveur, fichier, sauvegardes, restauration), vidage de la base.</summary>
-    ManageDatabase
+    ManageDatabase,
+    /// <summary>Enregistrer plusieurs configurations de l'application et basculer d'une base à l'autre. Accordé par le
+    /// statut « Développeur », qui s'ajoute au rôle (lecteur, trésorier, administrateur) et n'en est pas un.</summary>
+    ManageConfigurations
 }
 
 public static class RoleInfo
@@ -46,7 +49,7 @@ public static class RoleInfo
     /// <summary>Matrice des droits : un seul endroit à lire (et à changer) pour savoir qui peut quoi.</summary>
     public static bool Has(Role role, Permission p) => role switch
     {
-        Role.Admin => true,
+        Role.Admin => p != Permission.ManageConfigurations,   // ce droit vient du statut Développeur, pas du rôle
         Role.Treasurer => p is Permission.WriteLedger or Permission.ManageStructure or Permission.ValidateYear,
         _ => false
     };
@@ -54,19 +57,20 @@ public static class RoleInfo
 
 /// <summary>Utilisateur authentifié, porté par le service comptable pour contrôler chaque opération et tracer
 /// le journal.</summary>
-public sealed record Session(long UserId, string UserName, string DisplayName, Role Role)
+public sealed record Session(long UserId, string UserName, string DisplayName, Role Role, bool IsDeveloper = false)
 {
     /// <summary>Session interne (import en ligne de commande, tests) : droits d'administrateur, nom « système ».</summary>
     public static Session System { get; } = new(0, "système", "Système", Role.Admin);
 
-    public bool Can(Permission p) => RoleInfo.Has(Role, p);
+    public bool Can(Permission p) => p == Permission.ManageConfigurations ? IsDeveloper : RoleInfo.Has(Role, p);
 }
 
 /// <summary>Compte utilisateur tel que présenté à l'application (jamais le hachage du mot de passe).</summary>
 public sealed record AppUser(long Id, string UserName, string DisplayName, Role Role, bool Active,
-    bool MustChangePassword, DateTime? LastLoginAt, DateTime CreatedAt, string? CreatedBy)
+    bool MustChangePassword, DateTime? LastLoginAt, DateTime CreatedAt, string? CreatedBy, bool IsDeveloper = false)
 {
-    public string RoleText => RoleInfo.DisplayName(Role);
+    /// <summary>Rôle, suivi de « + Développeur » pour un compte qui a aussi ce statut.</summary>
+    public string RoleText => RoleInfo.DisplayName(Role) + (IsDeveloper ? " + Développeur" : "");
 }
 
 /// <summary>Hachage des mots de passe : PBKDF2-HMAC-SHA256, sel aléatoire de 16 octets par compte, nombre
