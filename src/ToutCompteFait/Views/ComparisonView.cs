@@ -34,10 +34,10 @@ public sealed class ComparisonView : UserControl, IPage
 
     private readonly FiscalYear _year;
     private readonly ComboBox _count = new() { Width = 70, VerticalAlignment = VerticalAlignment.Center };
-    private readonly ComboBox _picker = new() { MinWidth = 280, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _info = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
-    private readonly BarChart _overview = new();
-    private readonly BarChart _detail = new();
+    private readonly BarChart _chartResult = new();
+    private readonly BarChart _chartProducts = new();
+    private readonly BarChart _chartCharges = new();
     private readonly StackPanel _tables = new();
     private YearComparison? _cmp;
     private bool _loading;
@@ -65,22 +65,18 @@ public sealed class ComparisonView : UserControl, IPage
         head.Margin = new Thickness(0, 0, 0, 10);
         root.Children.Add(head);
 
-        var charts = new Grid { Margin = new Thickness(0, 0, 0, 14) };
-        charts.ColumnDefinitions.Add(new ColumnDefinition());
-        charts.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
-        charts.ColumnDefinitions.Add(new ColumnDefinition());
-        var left = Card(_overview);
-        var detail = new DockPanel();
-        var pickBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
-        pickBar.Children.Add(new TextBlock { Text = "Détail de l'opération :", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
-        pickBar.Children.Add(_picker);
-        DockPanel.SetDock(pickBar, Dock.Top);
-        detail.Children.Add(pickBar);
-        detail.Children.Add(Card(_detail));
-        Grid.SetColumn(left, 0);
-        Grid.SetColumn(detail, 2);
-        charts.Children.Add(left);
-        charts.Children.Add(detail);
+        var charts = new StackPanel { Margin = new Thickness(0, 0, 0, 14) };
+        foreach (var ch in new[] { _chartResult, _chartProducts, _chartCharges })
+        {
+            ch.Height = 300;
+            var holder = new ScrollViewer
+            {
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = ch
+            };
+            var card = Card(holder);
+            card.Margin = new Thickness(0, 0, 0, 12);
+            charts.Children.Add(card);
+        }
 
         var content = new StackPanel();
         content.Children.Add(charts);
@@ -96,7 +92,6 @@ public sealed class ComparisonView : UserControl, IPage
             try { App.Settings.Save(); } catch { /* réglage de confort */ }
             Reload();
         };
-        _picker.SelectionChanged += (_, _) => { if (!_loading) DrawDetail(); };
         Reload();
     }
 
@@ -123,41 +118,22 @@ public sealed class ComparisonView : UserControl, IPage
                 : $"Exercices comparés : {string.Join(" → ", years.Select(y => y.Label))}.";
             _info.Foreground = Grey;
 
-            // Graphique d'ensemble : résultat de chaque opération, une couleur par exercice
+            // Une couleur par exercice, colonnes côte à côte pour chaque opération (du plus ancien au plus récent).
             var ops = _cmp.Operations;
             var names = ops.Select(o => o.Name).ToArray();
-            var series = new List<BarChart.Series>();
-            for (var i = 0; i < years.Count; i++)
-                series.Add(new BarChart.Series(Labels[i], Palette[i % Palette.Length], ops.Select(o => o.Values[i]).ToArray()));
-            _overview.SetData("Résultat par opération (produits − charges)", names, series);
-
-            var keep = (_picker.SelectedItem as Pick)?.Display;
-            var picks = ops.Select(l => new Pick(l.Name, "O", l)).ToList();
-            _picker.ItemsSource = picks;
-            _picker.DisplayMemberPath = nameof(Pick.Display);
-            _picker.SelectedItem = picks.FirstOrDefault(p => p.Display == keep) ?? picks.FirstOrDefault();
+            BarChart.Series[] ByYear(IReadOnlyList<ComparisonLine> lines) =>
+                Enumerable.Range(0, years.Count)
+                    .Select(i => new BarChart.Series(Labels[i], Palette[i % Palette.Length], lines.Select(o => o.Values[i]).ToArray()))
+                    .ToArray();
+            _chartResult.SetData("Résultat par opération (produits − charges)", names, ByYear(_cmp.Operations));
+            _chartProducts.SetData("Produits par opération", names, ByYear(_cmp.OperationProducts));
+            _chartCharges.SetData("Charges par opération", names, ByYear(_cmp.OperationCharges));
+            foreach (var ch in new[] { _chartResult, _chartProducts, _chartCharges })
+                ch.MinWidth = Math.Max(700, names.Length * years.Count * 34 + 120);
 
             BuildTables();
         }
         finally { _loading = false; }
-        DrawDetail();
-    }
-
-    private void DrawDetail()
-    {
-        if (_cmp is null) return;
-        if (_picker.SelectedItem is not Pick p)
-        {
-            _detail.SetData("Aucune donnée à comparer", Labels, Array.Empty<BarChart.Series>());
-            return;
-        }
-        var i = _cmp.Operations.ToList().FindIndex(o => o.Name == p.Line.Name);
-        _detail.SetData("Opération : " + p.Display, Labels, new[]
-        {
-            new BarChart.Series("Produits", Green, _cmp.OperationProducts[i].Values),
-            new BarChart.Series("Charges", Red, _cmp.OperationCharges[i].Values),
-            new BarChart.Series("Résultat", Blue, p.Line.Values)
-        });
     }
 
     // ------------------------------------------------------------------ tableaux
@@ -229,15 +205,6 @@ public sealed class ComparisonView : UserControl, IPage
                 RoutedEvent = UIElement.MouseWheelEvent, Source = grid
             });
         };
-        // Un clic sur une ligne de catégorie ou d'opération affiche son évolution dans le graphique de détail.
-        grid.SelectionChanged += (_, _) =>
-        {
-            if (grid.SelectedItem is not Row r || _loading) return;
-            if (r.Cells[0] == "TOTAL") return;
-            var pick = (_picker.ItemsSource as IEnumerable<Pick>)?.FirstOrDefault(p => p.Line.Name == r.Cells[0]);
-            if (pick is not null) _picker.SelectedItem = pick;
-        };
-
         _tables.Children.Add(new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) });
         _tables.Children.Add(grid);
         if (lines.Count == 0)

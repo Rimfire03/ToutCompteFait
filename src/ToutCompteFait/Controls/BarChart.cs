@@ -112,7 +112,10 @@ public sealed class BarChart : FrameworkElement
                 }
             }
             var cat = Text(_categories[c], 11, dark);
-            dc.DrawText(cat, new Point(plot.Left + c * groupW + groupW / 2 - Math.Min(cat.Width, groupW) / 2, plot.Bottom + 8));
+            cat.MaxTextWidth = Math.Max(10, groupW - 6);
+            cat.MaxLineCount = 1;
+            cat.Trimming = TextTrimming.CharacterEllipsis;
+            dc.DrawText(cat, new Point(plot.Left + c * groupW + groupW / 2 - cat.Width / 2, plot.Bottom + 8));
         }
     }
 }
