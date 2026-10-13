@@ -230,7 +230,11 @@ public sealed class ReportingView : UserControl, IPage
         AddGauge("Ventes de marchandises / franchise de TVA", ceil.SalesCents, ceil.Params.VatSaleCents, ceil.Params.VatSaleMaxCents);
         AddGauge("Prestations de services / franchise de TVA", ceil.ServicesCents, ceil.Params.VatServiceCents, ceil.Params.VatServiceMaxCents);
         _body.Children.Add(Muted("Plafonds et seuils modifiables dans Paramétrage du dossier › Entreprise (ils sont révisés par l'État). " +
-                                 "Dépasser le seuil de TVA rend la TVA exigible ; dépasser le plafond du régime micro fait sortir du régime."));
+                                 "Dépasser le seuil de TVA rend la TVA exigible ; dépasser le plafond du régime micro fait sortir du régime. " +
+                                 "Référence des valeurs par défaut : " + ToutCompteFait.Core.Business.UrssafParams.ReferenceLabel + "."));
+        if (ceil.Params.OutdatedFields().Count > 0)
+            _body.Children.Add(Muted("⚠ Certains seuils ou taux portent encore les valeurs de 2023-2025 : mettez-les à jour dans " +
+                                     "Paramétrage du dossier › Entreprise (bouton « Appliquer le barème 2026 »)."));
 
         // --- Historique
         _body.Children.Add(new TextBlock { Text = "Historique des déclarations", Style = Sty("SectionText"), Margin = new Thickness(0, 22, 0, 6) });

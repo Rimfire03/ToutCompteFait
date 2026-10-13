@@ -258,7 +258,7 @@ public sealed partial class Compta
         var byKind = TurnoverByKind(new DateOnly(calendarYear, 1, 1), new DateOnly(calendarYear, 12, 31), out _, out _);
         var total = byKind.Values.Sum();
         var services = byKind.Where(kv => kv.Key.IsService()).Sum(kv => kv.Value);
-        return new UrssafCeilings(calendarYear, total, services, byKind[UrssafKind.Sale], GetUrssafParams());
+        return new UrssafCeilings(calendarYear, total, services, byKind[UrssafKind.Sale], GetUrssafParams().ForYear(calendarYear));
     }
 
     // ------------------------------------------------------------------ déclarations faites

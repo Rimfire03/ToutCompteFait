@@ -1,6 +1,17 @@
 {
   "entries": [
     {
+      "version": "1.10.1",
+      "date": "2026-10-14",
+      "show": false,
+      "title": "Nouveautés de la version 1.10.1",
+      "items": [
+        "Version Autoentreprise : les valeurs par défaut sont mises à jour au barème 2026 (plafonds du régime micro 203 100 € et 83 600 €, franchise de TVA, taux BNC 25,6 %, ACRE 25 % pour une création depuis le 1er juillet 2026).",
+        "Si vos réglages portent encore les anciennes valeurs de 2023-2025, un avertissement et un bouton « Appliquer le barème 2026 » apparaissent dans Paramétrage du dossier, Entreprise.",
+        "Les années et périodes passées gardent les plafonds et le taux BNC de leur époque."
+      ]
+    },
+    {
       "version": "1.10.0",
       "date": "2026-10-14",
       "show": true,

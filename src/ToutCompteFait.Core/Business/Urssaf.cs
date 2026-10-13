@@ -135,33 +135,112 @@ public sealed record UrssafPeriod(string Key, DateOnly Start, DateOnly End, Date
 /// par défaut sont indicatives et à vérifier avant usage).</summary>
 public sealed record UrssafParams
 {
+    /// <summary>Millésime des valeurs par défaut ci-dessous (affiché dans les réglages). À mettre à jour, avec les valeurs
+    /// et <see cref="Legacy"/>, à chaque révision officielle (plafonds : tous les 3 ans ; taux : chaque 1er janvier).</summary>
+    public const string ReferenceLabel =
+        "barème 2026 : plafonds du régime micro 2026-2028, franchise de TVA en vigueur en 2026, taux de cotisations au 1er janvier 2026, " +
+        "ACRE à 25 % (micro-entrepreneurs, depuis le 1er juillet 2026)";
+
     /// <summary>Taux de cotisations par type, en centièmes de pour cent (1230 = 12,30 %).</summary>
     public IReadOnlyDictionary<UrssafKind, int> RatesBp { get; init; } = new Dictionary<UrssafKind, int>
     {
         [UrssafKind.Sale] = 1230,
         [UrssafKind.Service] = 2120,
-        [UrssafKind.LiberalSsi] = 2460,
+        [UrssafKind.LiberalSsi] = 2560,
         [UrssafKind.LiberalCipav] = 2320
     };
 
     /// <summary>Plafond de chiffre d'affaires du régime micro (activités de vente + prestations) et sous-plafond des
-    /// prestations de services, en centimes.</summary>
-    public long CeilingTotalCents { get; init; } = 18_870_000;
-    public long CeilingServicesCents { get; init; } = 7_770_000;
+    /// prestations de services, en centimes (2026-2028).</summary>
+    public long CeilingTotalCents { get; init; } = 20_310_000;
+    public long CeilingServicesCents { get; init; } = 8_360_000;
 
     /// <summary>Franchise en base de TVA : seuil et seuil majoré (ventes / prestations), en centimes.</summary>
-    public long VatSaleCents { get; init; } = 9_100_000;
-    public long VatSaleMaxCents { get; init; } = 10_100_000;
-    public long VatServiceCents { get; init; } = 3_680_000;
-    public long VatServiceMaxCents { get; init; } = 3_910_000;
+    public long VatSaleCents { get; init; } = 8_500_000;
+    public long VatSaleMaxCents { get; init; } = 9_350_000;
+    public long VatServiceCents { get; init; } = 3_750_000;
+    public long VatServiceMaxCents { get; init; } = 4_125_000;
 
-    /// <summary>ACRE : réduction des cotisations (en %) jusqu'à la date indiquée (inclus).</summary>
-    public int AcreDiscountPercent { get; init; } = 50;
+    /// <summary>ACRE : réduction des cotisations (en %) jusqu'à la date indiquée (inclus). 25 % pour une création depuis
+    /// le 1er juillet 2026 ; 50 % pour les créations antérieures (à saisir à la main).</summary>
+    public int AcreDiscountPercent { get; init; } = 25;
     public DateOnly? AcreUntil { get; init; }
+
+    /// <summary>Valeurs par défaut des versions précédentes (2023-2025), reconnues pour proposer la mise à jour.</summary>
+    public static UrssafParams Legacy { get; } = new()
+    {
+        RatesBp = new Dictionary<UrssafKind, int>
+        {
+            [UrssafKind.Sale] = 1230, [UrssafKind.Service] = 2120, [UrssafKind.LiberalSsi] = 2460, [UrssafKind.LiberalCipav] = 2320
+        },
+        CeilingTotalCents = 18_870_000, CeilingServicesCents = 7_770_000,
+        VatSaleCents = 9_100_000, VatSaleMaxCents = 10_100_000, VatServiceCents = 3_680_000, VatServiceMaxCents = 3_910_000,
+        AcreDiscountPercent = 50
+    };
+
+    /// <summary>Valeurs de référence actuelles (celles d'un <c>new UrssafParams()</c>).</summary>
+    public static UrssafParams Reference { get; } = new();
+
+    /// <summary>Réglages qui portent encore une ancienne valeur par défaut (2023-2025) : libellé et valeur proposée. Une
+    /// valeur saisie à la main, différente des anciennes valeurs par défaut, n'est jamais signalée.</summary>
+    public IReadOnlyList<string> OutdatedFields()
+    {
+        var list = new List<string>();
+        foreach (var k in UrssafKinds.All)
+            if (RatesBp.GetValueOrDefault(k) == Legacy.RatesBp[k] && Legacy.RatesBp[k] != Reference.RatesBp[k])
+                list.Add($"Taux {k.Short()} : {Legacy.RatesBp[k] / 100m:0.##} % → {Reference.RatesBp[k] / 100m:0.##} %");
+        void Check(string label, long value, long old, long current)
+        {
+            if (value == old && old != current)
+                list.Add($"{label} : {old / 100m:N0} € → {current / 100m:N0} €");
+        }
+        Check("Plafond de chiffre d'affaires", CeilingTotalCents, Legacy.CeilingTotalCents, Reference.CeilingTotalCents);
+        Check("Plafond des prestations de services", CeilingServicesCents, Legacy.CeilingServicesCents, Reference.CeilingServicesCents);
+        Check("Franchise de TVA (vente)", VatSaleCents, Legacy.VatSaleCents, Reference.VatSaleCents);
+        Check("Franchise de TVA majorée (vente)", VatSaleMaxCents, Legacy.VatSaleMaxCents, Reference.VatSaleMaxCents);
+        Check("Franchise de TVA (prestations)", VatServiceCents, Legacy.VatServiceCents, Reference.VatServiceCents);
+        Check("Franchise de TVA majorée (prestations)", VatServiceMaxCents, Legacy.VatServiceMaxCents, Reference.VatServiceMaxCents);
+        return list;
+    }
+
+    /// <summary>Remplace par la référence actuelle les seules valeurs qui portent une ancienne valeur par défaut
+    /// (les réglages personnalisés et l'ACRE sont conservés).</summary>
+    public UrssafParams WithCurrentReference()
+    {
+        var rates = RatesBp.ToDictionary(kv => kv.Key,
+            kv => kv.Value == Legacy.RatesBp[kv.Key] ? Reference.RatesBp[kv.Key] : kv.Value);
+        long Pick(long value, long old, long current) => value == old ? current : value;
+        return this with
+        {
+            RatesBp = rates,
+            CeilingTotalCents = Pick(CeilingTotalCents, Legacy.CeilingTotalCents, Reference.CeilingTotalCents),
+            CeilingServicesCents = Pick(CeilingServicesCents, Legacy.CeilingServicesCents, Reference.CeilingServicesCents),
+            VatSaleCents = Pick(VatSaleCents, Legacy.VatSaleCents, Reference.VatSaleCents),
+            VatSaleMaxCents = Pick(VatSaleMaxCents, Legacy.VatSaleMaxCents, Reference.VatSaleMaxCents),
+            VatServiceCents = Pick(VatServiceCents, Legacy.VatServiceCents, Reference.VatServiceCents),
+            VatServiceMaxCents = Pick(VatServiceMaxCents, Legacy.VatServiceMaxCents, Reference.VatServiceMaxCents)
+        };
+    }
+
+    /// <summary>Plafonds applicables à une année passée : tant que le réglage vaut la référence actuelle, une année
+    /// antérieure à 2026 est évaluée avec les plafonds en vigueur alors (2023-2025). Un réglage personnalisé est respecté.</summary>
+    public UrssafParams ForYear(int year) => year >= 2026 ? this : this with
+    {
+        CeilingTotalCents = CeilingTotalCents == Reference.CeilingTotalCents ? Legacy.CeilingTotalCents : CeilingTotalCents,
+        CeilingServicesCents = CeilingServicesCents == Reference.CeilingServicesCents ? Legacy.CeilingServicesCents : CeilingServicesCents
+    };
 
     public int RateFor(UrssafKind k, DateOnly periodEnd)
     {
         var rate = RatesBp.TryGetValue(k, out var r) ? r : 0;
+        // Historique du taux BNC (SSI) tant que le réglage vaut la référence : 21,1 % jusqu'au 30/06/2024, 23,1 % du
+        // 01/07 au 31/12/2024, 24,6 % en 2025 ; les périodes déjà déclarées gardent ainsi leur taux d'époque.
+        if (k == UrssafKind.LiberalSsi && rate == Reference.RatesBp[UrssafKind.LiberalSsi])
+        {
+            if (periodEnd < new DateOnly(2024, 7, 1)) rate = 2110;
+            else if (periodEnd < new DateOnly(2025, 1, 1)) rate = 2310;
+            else if (periodEnd < new DateOnly(2026, 1, 1)) rate = 2460;
+        }
         if (AcreUntil is { } until && periodEnd <= until)
             rate = (int)Math.Round(rate * (100 - AcreDiscountPercent) / 100.0, MidpointRounding.AwayFromZero);
         return rate;

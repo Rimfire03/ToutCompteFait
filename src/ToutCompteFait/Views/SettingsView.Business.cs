@@ -29,6 +29,18 @@ public partial class SettingsView
     private readonly DatePicker _bizCreated = new();
     private readonly ComboBox _bizMode = new();
     private readonly TextBlock _bizStatus = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
+
+    /// <summary>Avertissement : des réglages portent encore les valeurs par défaut de 2023-2025.</summary>
+    private readonly TextBlock _bizOutdated = new()
+    {
+        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0), Foreground = System.Windows.Media.Brushes.DarkOrange,
+        Visibility = Visibility.Collapsed
+    };
+    private readonly Button _bizApplyRef = new()
+    {
+        Content = "Appliquer le barème 2026 aux valeurs périmées", HorizontalAlignment = HorizontalAlignment.Left,
+        Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed
+    };
     private readonly Dictionary<UrssafKind, TextBox> _bizRates = new();
     private readonly TextBox _bizCeilTotal = new(), _bizCeilServices = new(), _bizVatSale = new(), _bizVatSaleMax = new(),
         _bizVatService = new(), _bizVatServiceMax = new(), _bizAcreDiscount = new();
@@ -165,9 +177,13 @@ public partial class SettingsView
         root.Children.Add(new TextBlock
         {
             Style = Sty("MutedText"), TextWrapping = TextWrapping.Wrap,
-            Text = "Estimation pour le suivi : le site de l'URSSAF calcule les montants officiels. Les taux et plafonds par défaut " +
-                   "sont indicatifs (ils sont révisés par l'État) : vérifiez-les et corrigez-les si besoin."
+            Text = "Estimation pour le suivi : le site de l'URSSAF calcule les montants officiels. Les valeurs par défaut suivent le " +
+                   UrssafParams.ReferenceLabel + ". Elles sont révisées par l'État : vérifiez-les sur autoentrepreneur.urssaf.fr " +
+                   "et corrigez-les si besoin (seuils majorés de TVA et taux BNC en particulier)."
         });
+        root.Children.Add(_bizOutdated);
+        _bizApplyRef.Click += BizApplyReference_Click;
+        root.Children.Add(_bizApplyRef);
         var rates = Form();
         foreach (var k in UrssafKinds.All)
         {
@@ -312,7 +328,14 @@ public partial class SettingsView
         var p = _c.GetBusinessProfile();
         _bizLoaded = p;
         ShowProfile(p);
-        var prm = _c.GetUrssafParams();
+        FillParams(_c.GetUrssafParams());
+        _bizStatus.Text = p.FetchedAt is { } f
+            ? $"Informations récupérées le {f:dd/MM/yyyy à HH:mm} (source : API Recherche d'entreprises, données Sirene/INSEE)."
+            : p.IsEmpty ? "Aucune entreprise renseignée : saisissez votre SIREN ou SIRET puis « Récupérer les informations »." : "";
+    }
+
+    private void FillParams(UrssafParams prm)
+    {
         foreach (var k in UrssafKinds.All) _bizRates[k].Text = Percent(prm.RatesBp.GetValueOrDefault(k));
         _bizAcreDiscount.Text = prm.AcreDiscountPercent.ToString(CultureInfo.InvariantCulture);
         _bizAcreUntil.SelectedDate = prm.AcreUntil?.ToDateTime(TimeOnly.MinValue);
@@ -322,9 +345,24 @@ public partial class SettingsView
         _bizVatSaleMax.Text = Euros(prm.VatSaleMaxCents);
         _bizVatService.Text = Euros(prm.VatServiceCents);
         _bizVatServiceMax.Text = Euros(prm.VatServiceMaxCents);
-        _bizStatus.Text = p.FetchedAt is { } f
-            ? $"Informations récupérées le {f:dd/MM/yyyy à HH:mm} (source : API Recherche d'entreprises, données Sirene/INSEE)."
-            : p.IsEmpty ? "Aucune entreprise renseignée : saisissez votre SIREN ou SIRET puis « Récupérer les informations »." : "";
+        ShowOutdated(prm);
+    }
+
+    private void ShowOutdated(UrssafParams prm)
+    {
+        var outdated = prm.OutdatedFields();
+        var show = outdated.Count > 0;
+        _bizOutdated.Visibility = _bizApplyRef.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        _bizApplyRef.IsEnabled = App.Can(Permission.ManageStructure);
+        if (show)
+            _bizOutdated.Text = "⚠ Valeurs de 2023-2025 détectées (le barème a changé) :\n• " + string.Join("\n• ", outdated);
+    }
+
+    private void BizApplyReference_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadParams(out var prm, out var error)) { Ui.Error(error); return; }
+        FillParams(prm.WithCurrentReference());
+        Ui.Info("Valeurs mises à jour dans le formulaire (barème 2026). Vérifiez-les, puis cliquez sur « Enregistrer ».");
     }
 
     private void ShowProfile(BusinessProfile p)

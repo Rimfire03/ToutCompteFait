@@ -1967,8 +1967,9 @@ Console.WriteLine("Autoentreprise");
     Eq(120_000L * 1230 / 10000 + 30_000L * 2120 / 10000, rep.TotalContributionCents, "cotisations estimées aux taux par défaut");
     Check(rep.DeclaredAt is null, "période non déclarée");
 
-    // ACRE : réduction de 50 % jusqu'à la date indiquée
-    c.SaveUrssafParams(c.GetUrssafParams() with { AcreUntil = Dt(2026, 12, 31) });
+    // ACRE : réduction de 50 % (création avant le 1er juillet 2026) jusqu'à la date indiquée
+    Eq(25, c.GetUrssafParams().AcreDiscountPercent, "ACRE : 25 % par défaut (depuis le 1er juillet 2026)");
+    c.SaveUrssafParams(c.GetUrssafParams() with { AcreUntil = Dt(2026, 12, 31), AcreDiscountPercent = 50 });
     var acre = c.ComputeUrssafReport(q3);
     Eq(120_000L * 615 / 10000 + 30_000L * 1060 / 10000, acre.TotalContributionCents, "cotisations avec ACRE (taux divisés par deux)");
     Eq(1060, c.GetUrssafParams().RateFor(UrssafKind.Service, Dt(2026, 9, 30)) , "taux ACRE d'une prestation");
@@ -1977,6 +1978,23 @@ Console.WriteLine("Autoentreprise");
     var ceil = c.ComputeUrssafCeilings(2026);
     Eq(220_000L, ceil.TotalCents, "CA cumulé de l'année");
     Eq(100_000L, ceil.ServicesCents, "dont prestations");
+    Eq(20_310_000L, ceil.Params.CeilingTotalCents, "plafond 2026 : 203 100 €");
+    Eq(8_360_000L, ceil.Params.CeilingServicesCents, "sous-plafond 2026 : 83 600 €");
+    Eq(18_870_000L, c.ComputeUrssafCeilings(2025).Params.CeilingTotalCents, "plafond 2025 (année passée) : 188 700 €");
+    Eq(7_770_000L, c.ComputeUrssafCeilings(2025).Params.CeilingServicesCents, "sous-plafond 2025 : 77 700 €");
+
+    // Barème : anciennes valeurs par défaut détectées et mises à jour, personnalisations respectées
+    var old = UrssafParams.Legacy with { AcreDiscountPercent = 50 };
+    Eq(6 + 1, old.OutdatedFields().Count, "ancien barème : plafonds, franchises et taux BNC détectés");
+    var upd = old.WithCurrentReference();
+    Eq(0, upd.OutdatedFields().Count, "barème 2026 appliqué : plus aucune valeur périmée");
+    Eq(2560, upd.RatesBp[UrssafKind.LiberalSsi], "taux BNC 2026 : 25,6 %");
+    Eq(1230, upd.RatesBp[UrssafKind.Sale], "taux vente inchangé");
+    var custom = (UrssafParams.Legacy with { CeilingTotalCents = 15_000_000 }).WithCurrentReference();
+    Eq(15_000_000L, custom.CeilingTotalCents, "valeur saisie à la main conservée");
+    Eq(2460, new UrssafParams().RateFor(UrssafKind.LiberalSsi, Dt(2025, 6, 30)), "BNC : taux 2025 (24,6 %) pour une période de 2025");
+    Eq(2310, new UrssafParams().RateFor(UrssafKind.LiberalSsi, Dt(2024, 9, 30)), "BNC : taux de la fin 2024 (23,1 %)");
+    Eq(2560, new UrssafParams().RateFor(UrssafKind.LiberalSsi, Dt(2026, 3, 31)), "BNC : taux 2026 (25,6 %)");
 
     // Déclaration marquée comme faite
     c.MarkUrssafDeclared(q3, "déclarée sur le site");
