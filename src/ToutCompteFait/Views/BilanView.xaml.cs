@@ -157,6 +157,16 @@ public partial class BilanView : UserControl, IPage
             ? new SolidColorBrush(Color.FromRgb(0x04, 0x78, 0x57))
             : new SolidColorBrush(Color.FromRgb(0xB9, 0x1C, 0x1C));
 
+        // Résultat négatif : précise la part d'investissement (achats d'immobilisations), qui explique souvent la baisse
+        // de trésorerie sans peser sur le résultat (porté à l'actif, seule la dotation aux amortissements est une charge).
+        if (b.Result < 0 && b.AssetsReclass > 0)
+        {
+            ResultNote.Text = $"Dont {Money.Format(b.AssetsReclass)} € en investissement : ces achats d'immobilisations sont portés à l'actif, " +
+                              $"hors résultat (seuls {Money.Format(b.AssetsDepreciation)} € d'amortissements sont en charges), mais ils ont fait baisser la trésorerie.";
+            ResultNote.Visibility = Visibility.Visible;
+        }
+        else ResultNote.Visibility = Visibility.Collapsed;
+
         List<BilanLine> Lines(IReadOnlyList<CategoryResult> src, long total)
         {
             var l = src.Select(c => new BilanLine

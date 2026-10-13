@@ -49,6 +49,7 @@
                     <StackPanel>
                         <TextBlock Text="Résultat net de l'exercice" Style="{StaticResource MutedText}"/>
                         <TextBlock x:Name="ResultTotal" FontSize="22" FontWeight="Bold"/>
+                        <TextBlock x:Name="ResultNote" Style="{StaticResource MutedText}" FontSize="11.5" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed"/>
                     </StackPanel>
                 </Border>
             </UniformGrid>
