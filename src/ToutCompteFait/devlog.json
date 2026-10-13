@@ -1,6 +1,16 @@
 {
   "entries": [
     {
+      "version": "1.10.3",
+      "date": "2026-10-14",
+      "show": false,
+      "title": "Nouveautés de la version 1.10.3",
+      "items": [
+        "Contrôle de licence renforcé : une licence ne vaut que pour sa version (Asso ou Autoentreprise).",
+        "L'installateur crée un raccourci sur le bureau."
+      ]
+    },
+    {
       "version": "1.10.1",
       "date": "2026-10-14",
       "show": false,
