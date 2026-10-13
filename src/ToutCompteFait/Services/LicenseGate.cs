@@ -4,6 +4,7 @@ using TomLine.Licensing;
 using ToutCompteFait.Core;
 using ToutCompteFait.Core.Licensing;
 using ToutCompteFait.Dialogs;
+using TomLine.UI.Wpf.Controls;
 
 namespace ToutCompteFait.Services;
 
@@ -61,7 +62,15 @@ public static class LicenseGate
         }
 
         if (state.Status != LicenseStatus.Bypass) StartTimer();
+        // Informations client demandées par le serveur : jamais bloquant, une seule fois par lancement, jamais en licence.ini.
+        TryShowProfilePrompt();
         return true;
+    }
+
+    private static void TryShowProfilePrompt()
+    {
+        try { LicenseProfilePrompt.ShowIfRequired(Service, Application.Current?.MainWindow, Editions.AppName); }
+        catch (Exception) { /* la saisie des informations ne doit jamais gêner le lancement */ }
     }
 
     private static bool AcceptEula()
@@ -83,7 +92,7 @@ public static class LicenseGate
         _timer.Tick += async (_, _) =>
         {
             var state = await Service.RevalidateAsync();
-            if (state.IsUsable) return;
+            if (state.IsUsable) { TryShowProfilePrompt(); return; }
             _timer?.Stop();
             MessageBox.Show(LicenseReasons.Describe(state.Reason) + "\n\nLe logiciel va se fermer.",
                 "Licence", MessageBoxButton.OK, MessageBoxImage.Warning);
