@@ -21,6 +21,8 @@ public sealed class CategoryRow
     public int Uses { get; init; }
     /// <summary>Type de déclaration URSSAF (version Autoentreprise).</summary>
     public string Type { get; init; } = "";
+    /// <summary>« Oui » si la charge est classée en investissement.</summary>
+    public string InvestmentText { get; init; } = "";
 }
 
 public sealed class AccountRow
@@ -89,6 +91,7 @@ public partial class SettingsView : UserControl, IPage
                                          SavePeriodButton, DeleteYearButton })
             b.IsEnabled = _canEdit;
         NewYearButton.IsEnabled = App.Can(Permission.ManageStructure);
+        InvestCharge.IsEnabled = App.Can(Permission.ManageStructure);
         AddAccountButton.IsEnabled = _canAccounts;
         EditAccountButton.IsEnabled = _canAccounts;
         DeleteAccountButton.IsEnabled = _canAccounts;
@@ -144,9 +147,11 @@ public partial class SettingsView : UserControl, IPage
             if (a.CategoryId is { } id) uses[id] = uses.GetValueOrDefault(id) + 1;
 
         var urssafKinds = Editions.Current.IsBusiness ? _c.CategoryUrssafKinds() : null;
+        var investments = _c.InvestmentCategoryNames();
         CategoryRow Row(Category c) => new()
         {
             Cat = c,
+            InvestmentText = c.Kind == CategoryKind.Charge && investments.Contains(c.Name) ? "Oui" : "",
             Type = urssafKinds is not null && c.Kind == CategoryKind.Product
                 ? (Compta.ResolveUrssafKind(urssafKinds, c.Name)?.Short() ?? "à classer") : "",
             Operation = c.OperationId is { } o && opName.TryGetValue(o, out var n) ? n : "",
@@ -238,6 +243,18 @@ public partial class SettingsView : UserControl, IPage
         var name = PromptWindow.Ask(Window.GetWindow(this), "Renommer", "Nouveau nom :", row.Cat.Name);
         if (name is null) return;
         if (Ui.Try(() => _c.RenameCategory(row.Cat.Id, name))) Reload();
+    }
+
+    private void ToggleInvestment_Click(object sender, RoutedEventArgs e)
+    {
+        if (ChargesGrid.SelectedItem is not CategoryRow row) { Ui.Info("Sélectionnez d'abord une charge."); return; }
+        var now = row.InvestmentText.Length > 0;
+        if (Ui.Try(() => _c.SetCategoryInvestment(row.Cat.Name, !now)))
+        {
+            var id = row.Cat.Id;
+            Reload();
+            ChargesGrid.SelectedItem = ChargesGrid.Items.OfType<CategoryRow>().FirstOrDefault(r => r.Cat.Id == id);
+        }
     }
 
     private void UpCategory_Click(object sender, RoutedEventArgs e) => Move(sender, -1);

@@ -27,6 +27,7 @@ public class AppDbContext : DbContext
     public DbSet<BusinessSettingEntity> BusinessSettings => Set<BusinessSettingEntity>();
     public DbSet<FixedAssetEntity> FixedAssets => Set<FixedAssetEntity>();
     public DbSet<CategoryUrssafEntity> CategoryUrssaf => Set<CategoryUrssafEntity>();
+    public DbSet<CategoryInvestmentEntity> CategoryInvestments => Set<CategoryInvestmentEntity>();
     public DbSet<UrssafDeclarationEntity> UrssafDeclarations => Set<UrssafDeclarationEntity>();
     public DbSet<YearEntity> Years => Set<YearEntity>();
     public DbSet<YearOpeningEntity> YearOpenings => Set<YearOpeningEntity>();
@@ -155,6 +156,13 @@ public class AppDbContext : DbContext
             e.Property(x => x.DisposedOn).HasColumnName("disposed_on").HasMaxLength(10);
             e.Property(x => x.Note).HasColumnName("note").HasMaxLength(1000);
             e.Property(x => x.CreatedAt).HasColumnName("created_at").HasMaxLength(30).IsRequired();
+        });
+
+        b.Entity<CategoryInvestmentEntity>(e =>
+        {
+            e.ToTable("category_investments");
+            e.HasKey(x => x.Name);
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
         });
 
         b.Entity<CategoryUrssafEntity>(e =>

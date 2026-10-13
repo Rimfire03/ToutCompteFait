@@ -484,6 +484,36 @@ Console.WriteLine("Comparaison entre exercices");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ charges classées investissement
+Console.WriteLine("Charges classées en investissement");
+{
+    var path = TempDb();
+    {
+        var c = NewCompta(NewFactory(path));
+        var y = c.CreateYear(Dt(2025, 9, 1), Dt(2026, 8, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var tomb = c.Categories(y.Id).First(k => k.Kind == CategoryKind.Charge && k.Name == "Tombola");
+        c.SaveEntry(new Entry(0, y.Id, Dt(2026, 1, 5), "Achat matériel", false, EntryKind.Normal, banque.Id, Direction.Out, null, 90000, null, null),
+            new[] { new Allocation(tomb.Id, 90000) });
+        Eq(0L, c.ComputeBilan(y.Id).InvestmentCharges, "aucune charge classée : 0");
+        Eq("", c.ComputeBilan(y.Id).InvestmentNote().Length > 0 ? "x" : "", "résultat négatif sans investissement : pas de note de charges classées");
+        c.SetCategoryInvestment("Tombola", true);
+        var b = c.ComputeBilan(y.Id);
+        Eq(90000L, b.InvestmentCharges, "charge classée en investissement : montant retenu");
+        Check(b.Result < 0 && b.InvestmentNote().Contains("investissement"), "résultat négatif : note d'investissement");
+        c.RenameCategory(tomb.Id, "Matériel");
+        Eq(90000L, c.ComputeBilan(y.Id).InvestmentCharges, "le repère suit le renommage");
+        c.SetCategoryInvestment("Matériel", false);
+        Eq(0L, c.ComputeBilan(y.Id).InvestmentCharges, "déclassement : 0");
+        Check(c.AuditLog().Any(l => l.Action.Contains("investissement")), "classement tracé dans le journal");
+        c.ValidateYear(y.Id);
+        c.SetCategoryInvestment("Matériel", true);   // paramétrage : possible après validation
+        Eq(90000L, c.ComputeBilan(y.Id).InvestmentCharges, "classement possible sur un exercice validé");
+        Check(c.VerifyIntegrity(y.Id), "empreinte inchangée par le classement");
+    }
+    Cleanup(path);
+}
+
 // ------------------------------------------------------------------ devlog (nouveautés après mise à jour)
 Console.WriteLine("Devlog affiché après une mise à jour");
 {

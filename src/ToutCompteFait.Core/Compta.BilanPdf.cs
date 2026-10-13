@@ -172,15 +172,23 @@ public sealed partial class Compta
         }
 
         // Résultat négatif : part d'investissement (achats d'immobilisations portés à l'actif, hors résultat).
-        if (b.Result < 0 && b.AssetsReclass > 0)
+        if (b.InvestmentNote() is { Length: > 0 } investmentNote)
         {
-            Need(40);
+            // Texte réparti sur des lignes de la largeur de la page.
+            var lines = new List<string>();
+            var current = "";
+            foreach (var word in investmentNote.Split(' '))
+            {
+                var test = current.Length == 0 ? word : current + " " + word;
+                if (SimplePdf.Width(test, 8.5) > right - left - 12 && current.Length > 0) { lines.Add(current); current = word; }
+                else current = test;
+            }
+            if (current.Length > 0) lines.Add(current);
+            Need(lines.Count * 12 + 10);
             pdf.SetFill(0.28, 0.33, 0.41);
-            pdf.Text(left + 4, pos, $"Dont {Money.Format(b.AssetsReclass)} € en investissement : achats d'immobilisations portés à l'actif, hors résultat", 8.5, false);
-            pos -= 12;
-            pdf.Text(left + 4, pos, $"(seuls {Money.Format(b.AssetsDepreciation)} € d'amortissements sont en charges) ; ils ont fait baisser la trésorerie.", 8.5, false);
+            foreach (var line in lines) { pdf.Text(left + 4, pos, line, 8.5, false); pos -= 12; }
             pdf.SetFill(0, 0, 0);
-            pos -= 15;
+            pos -= 3;
         }
 
         // ------------------------------------------------------------ compte de fonctionnement

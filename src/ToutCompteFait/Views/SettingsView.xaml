@@ -44,11 +44,14 @@
                             <Button x:Name="RenameCharge" Content="Renommer" Style="{StaticResource SecondaryButton}" Tag="C" Click="RenameCategory_Click"/>
                             <Button x:Name="UpCharge" Content="↑" Style="{StaticResource SecondaryButton}" Tag="C" Click="UpCategory_Click"/>
                             <Button x:Name="DownCharge" Content="↓" Style="{StaticResource SecondaryButton}" Tag="C" Click="DownCategory_Click"/>
+                            <Button x:Name="InvestCharge" Content="Investissement ↔ charge" Style="{StaticResource SecondaryButton}" Tag="C" Click="ToggleInvestment_Click"
+                                    ToolTip="Classe la charge sélectionnée en investissement (ou la remet en charge courante). La charge reste dans le résultat ; le bilan précise la part d'investissement."/>
                             <Button x:Name="DeleteCharge" Content="Supprimer" Style="{StaticResource DangerButton}" Tag="C" Click="DeleteCategory_Click"/>
                         </WrapPanel>
                         <DataGrid x:Name="ChargesGrid">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Charge" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource LeftCell}"/>
+                                <DataGridTextColumn Header="Investissement" Binding="{Binding InvestmentText}" Width="100" ElementStyle="{StaticResource LeftCell}"/>
                                 <DataGridTextColumn Header="Opération" Binding="{Binding Operation}" Width="150" ElementStyle="{StaticResource LeftCell}"/>
                                 <DataGridTextColumn Header="Lignes" Binding="{Binding Uses}" Width="60" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
                             </DataGrid.Columns>

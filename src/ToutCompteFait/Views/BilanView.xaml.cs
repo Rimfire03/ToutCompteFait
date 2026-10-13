@@ -159,13 +159,9 @@ public partial class BilanView : UserControl, IPage
 
         // Résultat négatif : précise la part d'investissement (achats d'immobilisations), qui explique souvent la baisse
         // de trésorerie sans peser sur le résultat (porté à l'actif, seule la dotation aux amortissements est une charge).
-        if (b.Result < 0 && b.AssetsReclass > 0)
-        {
-            ResultNote.Text = $"Dont {Money.Format(b.AssetsReclass)} € en investissement : ces achats d'immobilisations sont portés à l'actif, " +
-                              $"hors résultat (seuls {Money.Format(b.AssetsDepreciation)} € d'amortissements sont en charges), mais ils ont fait baisser la trésorerie.";
-            ResultNote.Visibility = Visibility.Visible;
-        }
-        else ResultNote.Visibility = Visibility.Collapsed;
+        var investmentNote = b.InvestmentNote();
+        ResultNote.Text = investmentNote;
+        ResultNote.Visibility = investmentNote.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
         List<BilanLine> Lines(IReadOnlyList<CategoryResult> src, long total)
         {

@@ -59,6 +59,13 @@ public sealed class FixedAssetEntity
     public string CreatedAt { get; set; } = "";
 }
 
+/// <summary>Charge classée « investissement » (par nom, tous exercices confondus) : simple repère, hors des tables
+/// verrouillées avec les exercices, modifiable après clôture. La charge reste dans le résultat.</summary>
+public sealed class CategoryInvestmentEntity
+{
+    public string Name { get; set; } = "";
+}
+
 /// <summary>Type de déclaration URSSAF d'une catégorie de produit (par nom, tous exercices confondus), comme
 /// <see cref="CategoryAccountEntity"/> : modifiable après clôture sans toucher aux exercices validés.</summary>
 public sealed class CategoryUrssafEntity

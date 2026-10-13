@@ -24,6 +24,7 @@ public sealed record OperationResult(Operation Operation, IReadOnlyList<Category
     IReadOnlyList<CategoryResult> Charges, long ProductsTotal, long ChargesTotal)
 {
     public long Result => ProductsTotal - ChargesTotal;
+
 }
 
 public sealed record Issue(bool Blocking, string Message, long? EntryId = null, bool Forceable = false);
@@ -39,6 +40,9 @@ public sealed class Bilan
 
     /// <summary>Immobilisations amorties sur l'exercice (vide si aucune) : dotations, achats neutralisés, sorties.</summary>
     public IReadOnlyList<AssetYearLine> Assets { get; init; } = Array.Empty<AssetYearLine>();
+
+    /// <summary>Part des charges classées « investissement » (repère par catégorie) : elle reste dans le résultat.</summary>
+    public long InvestmentCharges { get; init; }
 
     /// <summary>Achats d'immobilisations passés en charge dans le livre, retirés du résultat (portés à l'actif).</summary>
     public long AssetsReclass => Assets.Sum(a => a.Reclass);
@@ -58,6 +62,22 @@ public sealed class Bilan
     /// <summary>Charges de l'exercice : catégories du livre − achats immobilisés + dotations + valeur nette des sorties.</summary>
     public long ChargesTotal => Charges.Sum(c => c.Total) - AssetsReclass + AssetsDepreciation + AssetsDisposals;
     public long Result => ProductsTotal - ChargesTotal;
+
+    /// <summary>Précision sur la part d'investissement quand le résultat est négatif (vide sinon) : charges classées en
+    /// investissement (elles pèsent sur le résultat) et achats d'immobilisations (portés à l'actif, hors résultat).</summary>
+    public string InvestmentNote()
+    {
+        if (Result >= 0) return "";
+        var parts = new List<string>();
+        if (InvestmentCharges > 0)
+            parts.Add($"Dont {Money.Format(InvestmentCharges)} € en investissement : charges classées « investissement », comptées dans le résultat.");
+        if (AssetsReclass > 0)
+            parts.Add($"{(InvestmentCharges > 0 ? "Par ailleurs, " + Money.Format(AssetsReclass) + " €" : "Dont " + Money.Format(AssetsReclass) + " € en investissement :")} " +
+                      $"d'achats d'immobilisations portés à l'actif, hors résultat (seuls {Money.Format(AssetsDepreciation)} € d'amortissements sont en charges), " +
+                      "mais qui ont fait baisser la trésorerie.");
+        return string.Join(" ", parts);
+    }
+
 
     /// <summary>Total des régularisations côté produits − côté charges (signées).</summary>
     public long NetAdjustments => Products.Sum(p => p.Adjustments) - Charges.Sum(c => c.Adjustments);
@@ -173,8 +193,15 @@ public sealed partial class Compta
         {
             Year = year, Accounts = balances, Products = products, Charges = charges, Operations = operations,
             UnallocatedGap = gap, UnbalancedEntries = unbalanced, EntriesToFill = toFill,
-            Assets = AssetLines(yearId)
+            Assets = AssetLines(yearId),
+            InvestmentCharges = InvestmentChargeTotal(charges)
         };
+    }
+
+    private long InvestmentChargeTotal(IReadOnlyList<CategoryResult> charges)
+    {
+        var names = InvestmentCategoryNames();
+        return names.Count == 0 ? 0 : charges.Where(c => names.Contains(c.Name)).Sum(c => c.Total);
     }
 
     // ------------------------------------------------------------------ clôture

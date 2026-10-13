@@ -26,6 +26,7 @@ internal static class DatabaseMigrations
         (9, "Entreprise (version Autoentreprise) : profil, types de déclaration URSSAF, déclarations", AddBusinessTables),
         (10, "Immobilisations : registre des biens amortis", AddFixedAssets),
         (11, "Statut Développeur des comptes utilisateurs", AddDeveloperFlag),
+        (12, "Charges classées investissement (repère par nom de catégorie)", AddCategoryInvestments),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -47,6 +48,7 @@ internal static class DatabaseMigrations
         (9, "Entreprise (version Autoentreprise) : profil, types de déclaration URSSAF, déclarations", AddBusinessTables),
         (10, "Immobilisations : registre des biens amortis", AddFixedAssets),
         (11, "Statut Développeur des comptes utilisateurs", AddDeveloperFlag),
+        (12, "Charges classées investissement (repère par nom de catégorie)", AddCategoryInvestments),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -357,6 +359,22 @@ internal static class DatabaseMigrations
                 [declared_by] nvarchar(200) NULL, [turnover_cents] bigint NOT NULL, [note] nvarchar(500) NULL
             );
             """);
+    }
+    // ------------------------------------------------------------------ v12 : charges classées investissement
+
+    /// <summary>Table <c>category_investments</c> (nom de la charge) : repère « investissement », hors des tables
+    /// verrouillées avec les exercices.</summary>
+    private static void AddCategoryInvestments(AppDbContext ctx)
+    {
+        if (ServerSql.TableExists(ctx, "category_investments")) return;
+        ctx.Database.ExecuteSqlRaw(ctx.Provider switch
+        {
+            DatabaseProvider.Sqlite => """CREATE TABLE "category_investments" ("name" TEXT NOT NULL CONSTRAINT "PK_category_investments" PRIMARY KEY);""",
+            DatabaseProvider.PostgreSql => """CREATE TABLE "category_investments" ("name" varchar(200) NOT NULL CONSTRAINT "PK_category_investments" PRIMARY KEY);""",
+            DatabaseProvider.MariaDb => "CREATE TABLE `category_investments` (`name` varchar(200) NOT NULL, CONSTRAINT `PK_category_investments` PRIMARY KEY (`name`));",
+            DatabaseProvider.SqlServer => "CREATE TABLE [category_investments] ([name] nvarchar(200) NOT NULL CONSTRAINT [PK_category_investments] PRIMARY KEY);",
+            _ => throw new NotSupportedException()
+        });
     }
     // ------------------------------------------------------------------ v11 : statut Développeur
 
