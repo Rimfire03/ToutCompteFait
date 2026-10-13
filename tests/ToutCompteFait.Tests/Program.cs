@@ -1899,6 +1899,18 @@ Console.WriteLine("Autoentreprise");
     Eq(UrssafKind.Service, ApeMapper.Suggest("45.20A")!.Kind, "réparation automobile : prestation (pas vente)");
     Eq("62.02A", ApeMapper.Normalize("6202a"), "normalisation d'un code APE");
     Check(ApeMapper.Suggest("00.00Z") is null && ApeMapper.Normalize("abc") is null, "code APE inconnu ou invalide");
+    var moto = ApeMapper.Suggest("45.40Z")!;
+    Eq(UrssafKind.Sale, moto.Kind, "motos : vente en principal");
+    Check(moto.Alternatives.Contains(UrssafKind.Service), "motos : prestation aussi possible");
+    Check(ApeMapper.Suggest("47.91B")!.Alternatives.Count == 0, "commerce de détail : un seul type");
+    var coiff = ApeMapper.Suggest("96.02A")!;
+    Eq(UrssafKind.Service, coiff.Kind, "coiffure : prestation en principal");
+    Check(coiff.AllKinds.Contains(UrssafKind.Sale), "coiffure : vente de produits possible");
+    Check(ApeMapper.Suggest("62.02A")!.AllKinds.Contains(UrssafKind.Service), "informatique : BNC ou prestation");
+    Check(ApeMapper.Suggest("56.21Z")!.AllKinds.Count() == 2, "traiteur : vente ou prestation");
+    var all = ApeMapper.AllKinds(new string?[] { "45.40Z", "62.02A", "zz" });
+    Check(all.Contains(UrssafKind.Sale) && all.Contains(UrssafKind.Service) && all.Contains(UrssafKind.LiberalSsi) && all.Distinct().Count() == all.Count,
+        "types de plusieurs codes : réunis sans doublon");
 
     // Noms de catégories
     Eq("BIC vente", UrssafKinds.CategoryName(UrssafKind.Sale, null), "nom sans personnalisation");

@@ -229,8 +229,8 @@ public partial class SettingsView : UserControl, IPage
         if (kind == CategoryKind.Product && Editions.Current.IsBusiness)
         {
             // Entreprise : une recette est d'un type de déclaration URSSAF (BIC vente, BIC prestation, BNC…), nom libre après.
-            var suggested = _c.GetBusinessProfile().ApeCodes.Select(ToutCompteFait.Core.Business.ApeMapper.Suggest)
-                .Where(s => s is not null).Select(s => s!.Kind).Distinct().ToList();
+            // Types principaux puis alternatifs : un même code APE peut donner droit à plusieurs types de déclaration.
+            var suggested = ToutCompteFait.Core.Business.ApeMapper.AllKinds(_c.GetBusinessProfile().ApeCodes);
             var choice = ActivityCategoryWindow.Ask(Window.GetWindow(this), suggested);
             if (choice is null) return;
             if (Ui.Try(() => _c.AddActivityCategory(_year.Id, choice.Value.Kind, choice.Value.Name))) Reload();

@@ -401,7 +401,10 @@ public partial class SettingsView
             var s = ApeMapper.Suggest(code);
             return s is null
                 ? new ApeRow(code, "Non reconnu", "Choisissez le type à la création de la catégorie.")
-                : new ApeRow(code, s.Kind.Label(), s.Reason + (s.Certain ? "" : " — à vérifier : ce code peut relever d'un autre type."));
+                : new ApeRow(code, string.Join("  ou  ", s.AllKinds.Select(k => k.Label())),
+                    s.Reason + (s.Alternatives.Count > 0
+                        ? " — plusieurs types possibles : choisissez selon votre activité réelle (vous pouvez créer une catégorie par type)."
+                        : s.Certain ? "" : " — à vérifier : ce code peut relever d'un autre type."));
         }).ToList();
     }
 
@@ -513,6 +516,7 @@ public partial class SettingsView
 
     private void BizCreateCategories_Click(object sender, RoutedEventArgs e)
     {
+        // Types principaux seulement : les types alternatifs se créent à la demande (« Ajouter » dans Produits et charges).
         var wanted = ApeCodesFromBox().Select(ApeMapper.Suggest).Where(s => s is not null).Select(s => s!.Kind).Distinct().ToList();
         if (wanted.Count == 0) { Ui.Info("Aucun type de déclaration n'a pu être déduit des codes APE : créez les catégories depuis « Produits et charges »."); return; }
         var existing = _c.CategoryUrssafKinds();
