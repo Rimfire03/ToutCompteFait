@@ -8,6 +8,8 @@
             <Button x:Name="NoYearButton" Content="＋  Créer le premier exercice" Style="{StaticResource PrimaryButton}"
                     HorizontalAlignment="Left" Visibility="Collapsed" Margin="0,0,0,16"/>
             <TextBlock x:Name="HelpTitle" Text="Aide — Tout Compte Fait" Style="{StaticResource TitleText}"/>
+            <Button x:Name="DevLogButton" Content="Nouveautés de cette version" Style="{StaticResource SecondaryButton}"
+                    HorizontalAlignment="Left" Margin="0,0,0,10"/>
 
             <TextBlock Text="Le principe" Style="{StaticResource SectionText}"/>
             <TextBlock x:Name="IntroText" TextWrapping="Wrap" Text="Ce logiciel remplace votre classeur Excel pour gérer votre trésorerie. Vous saisissez une écriture par ligne de votre relevé bancaire en la ventilant sur des produits et des charges. Le logiciel calcule automatiquement le bilan, les soldes et la rentabilité de vos opérations."/>

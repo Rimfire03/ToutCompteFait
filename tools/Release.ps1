@@ -48,6 +48,16 @@ $version = $m.Groups[1].Value
 $dev = ($Channel -eq "dev")
 $tag = if ($dev) { "v$version-dev" } else { "v$version" }
 Step "version $version"
+# Devlog (nouveautes affichees apres la mise a jour) : rappel si la version n'a pas d'entree ou si show vaut false.
+$devlogPath = Join-Path $root "src\ToutCompteFait\devlog.json"
+if (Test-Path $devlogPath) {
+    try {
+        $entry = (Get-Content $devlogPath -Raw -Encoding UTF8 | ConvertFrom-Json).entries | Where-Object { $_.version -eq $version } | Select-Object -First 1
+        if (-not $entry) { Write-Warning "devlog.json : aucune entree pour $version (rien ne s'affichera au lancement)." }
+        elseif (-not $entry.show) { Write-Host "[release] devlog : entree $version presente mais show=false (non affichee au lancement)." }
+        else { Write-Host "[release] devlog : entree $version affichee au lancement apres mise a jour." }
+    } catch { Write-Warning "devlog.json illisible : $($_.Exception.Message)" }
+}
 
 # --- Versions (editions) a construire : la version historique d'abord (ordre des fichiers de la release)
 $all = @((Get-Content (Join-Path $root "editions.json") -Raw -Encoding UTF8 | ConvertFrom-Json).editions | Where-Object { $_.build })

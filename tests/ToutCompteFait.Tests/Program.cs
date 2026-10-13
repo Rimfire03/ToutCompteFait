@@ -484,6 +484,29 @@ Console.WriteLine("Comparaison entre exercices");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ devlog (nouveautés après mise à jour)
+Console.WriteLine("Devlog affiché après une mise à jour");
+{
+    var all = DevLog.Parse("""
+        {"entries":[
+          {"version":"1.8.0","show":true,"title":"Huit","items":["a"]},
+          {"version":"1.7.0","show":false,"title":"Sept","items":["b"]},
+          {"version":"1.6.5","show":true,"title":"Six","items":["c"]},
+          {"version":"abc","show":true,"title":"Ignorée","items":[]}
+        ]}
+        """);
+    Eq(3, all.Count, "entrées valides lues, version invalide ignorée");
+    Eq(0, DevLog.Parse("pas du json").Count, "json invalide : devlog vide, sans erreur");
+    var first = DevLog.Pending(all, "1.8.0", null);
+    Eq(1, first.Count, "sans version déjà vue : seulement la version courante");
+    var upg = DevLog.Pending(all, "1.8.0", "1.6.0");
+    Eq(2, upg.Count, "plusieurs versions sautées : toutes celles à afficher");
+    Eq("1.8.0", upg[0].Version, "la plus récente d'abord");
+    Eq(0, DevLog.Pending(all, "1.8.0", "1.8.0").Count, "déjà vu : rien à afficher");
+    Eq(0, DevLog.Pending(all, "1.7.0", null).Count, "version courante marquée show=false : rien à afficher");
+    Eq("Sept", DevLog.For(all, "1.7.0")?.Title ?? "", "entrée d'une version précise");
+}
+
 // ------------------------------------------------------------------ comptes utilisateurs et rôles
 Console.WriteLine("Comptes utilisateurs, mots de passe et rôles");
 {

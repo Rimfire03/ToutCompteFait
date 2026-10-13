@@ -43,6 +43,9 @@ public partial class App : Application
     /// <summary>Diagnostic (--selftest, avec --shots) : saisit deux écritures de test. À n'utiliser que sur une base de démonstration.</summary>
     public static bool RunSelfTest { get; private set; }
 
+    /// <summary>Mode captures d'écran (--shots) : aucune fenêtre modale d'information ne doit s'ouvrir.</summary>
+    public static bool ShotsMode { get; private set; }
+
     private static WriteLock? _fileLock;
     private static ServerWriteLock? _serverLock;
     private static System.Windows.Threading.DispatcherTimer? _serverLockTimer;
@@ -159,7 +162,7 @@ public partial class App : Application
         for (var i = 0; i < e.Args.Length - 1; i++)
         {
             if (e.Args[i] == "--db") CliDatabase = e.Args[i + 1];
-            if (e.Args[i] == "--shots") shotsDir = e.Args[i + 1];
+            if (e.Args[i] == "--shots") { shotsDir = e.Args[i + 1]; ShotsMode = true; }
             if (e.Args[i] == "--year") cliYear = e.Args[i + 1];
             if (e.Args[i] == "--user") cliUser = e.Args[i + 1];
             if (e.Args[i] == "--password") cliPassword = e.Args[i + 1];

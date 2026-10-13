@@ -29,6 +29,13 @@ public partial class HelpView : UserControl
                 NoYearButton.Visibility = Visibility.Visible;
             }
         };
+        DevLogButton.Click += (_, _) =>
+        {
+            var all = ToutCompteFait.Dialogs.DevLogWindow.LoadEmbedded();
+            var shown = all.Where(e => e.Items.Count > 0).Take(3).ToList();
+            if (shown.Count == 0) { Ui.Info("Aucune nouveauté enregistrée pour cette version."); return; }
+            new ToutCompteFait.Dialogs.DevLogWindow(shown) { Owner = Window.GetWindow(this) }.ShowDialog();
+        };
         NoYearButton.Click += (_, _) => MainWindow.Current?.CreateYearInteractive();
     }
 }

@@ -43,6 +43,11 @@
     <PackageReference Include="PdfPig" Version="0.1.9" />
   </ItemGroup>
 
+  <!-- Devlog (nouveautés) affiché après une mise à jour : voir DevLog.cs. -->
+  <ItemGroup>
+    <EmbeddedResource Include="devlog.json" LogicalName="devlog.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\ToutCompteFait.Core\ToutCompteFait.Core.csproj" />
   </ItemGroup>

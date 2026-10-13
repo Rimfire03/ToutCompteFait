@@ -34,6 +34,9 @@ public sealed class AppSettings
     /// <summary>Libellé du dernier exercice affiché.</summary>
     public string? LastYear { get; set; }
 
+    /// <summary>Dernière version dont le devlog (nouveautés) a été présenté à l'utilisateur de ce poste.</summary>
+    public string? LastDevLogVersion { get; set; }
+
     /// <summary>Nombre d'exercices affichés dans l'onglet Comparaison (exercice courant compris), de 2 à 10.</summary>
     public int ComparisonYears { get; set; } = 3;
 

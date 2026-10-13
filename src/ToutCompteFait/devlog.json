@@ -1,0 +1,17 @@
+{
+  "entries": [
+    {
+      "version": "1.8.0",
+      "date": "2026-10-14",
+      "show": false,
+      "title": "Nouveautés de la version 1.8.0",
+      "items": [
+        "Nouvel écran « Statistique opérations » : comparez chaque opération entre l'exercice affiché et les exercices précédents, avec des graphiques et des tableaux chiffrés.",
+        "Le menu de gauche défile si la fenêtre est trop petite ; « Nouvel exercice » se trouve maintenant dans Paramétrage du dossier, onglet Exercice.",
+        "« Livre » devient « Opérations bancaires ».",
+        "L'aide a été réécrite et complétée.",
+        "Les sauvegardes faites depuis un serveur sont maintenant des fichiers complets et autonomes."
+      ]
+    }
+  ]
+}

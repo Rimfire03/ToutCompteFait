@@ -76,6 +76,7 @@ public partial class MainWindow : Window
             UpdateFooter();
             LoadYears(App.Settings.LastYear);
             if (CurrentYear is null && App.Can(Permission.ManageStructure)) PromptFirstYear();
+            Dispatcher.BeginInvoke(new Action(ShowDevLogIfNeeded), DispatcherPriority.ApplicationIdle);
         };
 
         // Poste en lecture seule : on surveille le fichier pour afficher les modifications de l'autre poste.
@@ -375,6 +376,19 @@ public partial class MainWindow : Window
     {
         var y = App.Compta.Year(yearId);
         LoadYears(y?.Label);
+    }
+
+    /// <summary>Devlog (nouveautés) : présenté une seule fois par poste après une mise à jour, si la version le demande
+    /// (champ « show » de devlog.json, décidé à chaque release).</summary>
+    private void ShowDevLogIfNeeded()
+    {
+        if (App.ShotsMode || App.RunSelfTest) return;
+        var current = App.DisplayVersion;
+        if (App.Settings.LastDevLogVersion == current) return;
+        var pending = DevLog.Pending(DevLogWindow.LoadEmbedded(), current, App.Settings.LastDevLogVersion);
+        App.Settings.LastDevLogVersion = current;
+        try { App.Settings.Save(); } catch { /* confort : sera représenté au prochain lancement */ }
+        if (pending.Count > 0) new DevLogWindow(pending) { Owner = this }.ShowDialog();
     }
 
     private void PromptFirstYear()
