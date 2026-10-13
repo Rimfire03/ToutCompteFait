@@ -38,7 +38,7 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
-    <PackageReference Include="TomLine.UI.Wpf" Version="1.0.0" />
+    <PackageReference Include="TomLine.UI.Wpf" Version="1.1.0" />
     <!-- Texte des PDF numÃƒÂ©riques (sans OCR) ; l'OCR et le rendu des pages utilisent Windows (Windows.Media.Ocr / Windows.Data.Pdf). -->
     <PackageReference Include="PdfPig" Version="0.1.9" />
   </ItemGroup>
