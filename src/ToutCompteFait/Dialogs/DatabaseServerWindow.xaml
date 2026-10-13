@@ -1,4 +1,4 @@
-﻿<Window x:Class="ToutCompteFait.Dialogs.DatabaseServerWindow"
+<Window x:Class="ToutCompteFait.Dialogs.DatabaseServerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Serveur de base de données" Width="620" SizeToContent="Height" ResizeMode="NoResize"
@@ -17,7 +17,7 @@
             <TextBlock Text="Moteur" Margin="0,0,0,4"/>
             <ComboBox x:Name="ProviderCombo" SelectionChanged="Provider_Changed"/>
             <Grid Margin="0,10,0,0">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="110"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="140"/></Grid.ColumnDefinitions>
                 <StackPanel><TextBlock Text="Serveur (nom ou adresse)" Margin="0,0,0,4"/><TextBox x:Name="HostBox"/></StackPanel>
                 <StackPanel Grid.Column="2"><TextBlock Text="Port" Margin="0,0,0,4"/><TextBox x:Name="PortBox"/></StackPanel>
             </Grid>
