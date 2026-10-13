@@ -72,7 +72,7 @@
                 <ColumnDefinition x:Name="OpsCol" Width="0"/>
             </Grid.ColumnDefinitions>
 
-            <DataGrid x:Name="EntriesGrid" HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="Grid_DoubleClick" SelectionChanged="Grid_SelectionChanged">
+            <DataGrid x:Name="EntriesGrid" CanUserSortColumns="False" HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="Grid_DoubleClick" SelectionChanged="Grid_SelectionChanged">
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow">
                         <Setter Property="Background" Value="White"/>

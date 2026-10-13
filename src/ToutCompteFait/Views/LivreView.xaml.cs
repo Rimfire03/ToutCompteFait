@@ -291,7 +291,9 @@ public partial class LivreView : UserControl, IPage
                              || (r.Source.Entry.MemberName?.Contains(text, StringComparison.CurrentCultureIgnoreCase) ?? false));
         if (OnlyIssues.IsChecked == true) q = q.Where(r => r.Problem);
         if (OnlyToFill.IsChecked == true) q = q.Where(r => r.ToFill);
-        var shown = q.ToList();
+        // Ordre fixe : du plus ancien (en haut) au plus récent (en bas), à date égale selon l'ordre de saisie.
+        // C'est aussi l'ordre du solde cumulé.
+        var shown = q.OrderBy(r => r.Source.Entry.Date).ThenBy(r => r.Id).ToList();
         EntriesGrid.ItemsSource = shown;
         if (keepId is { } id)
         {
