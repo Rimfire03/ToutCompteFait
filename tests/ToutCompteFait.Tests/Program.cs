@@ -484,6 +484,30 @@ Console.WriteLine("Comparaison entre exercices");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ licence : une licence gratuite par version
+Console.WriteLine("Licence gratuite propre à chaque version");
+{
+    var dir = Path.Combine(Path.GetTempPath(), "tcf-lic-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(dir);
+    try
+    {
+        var asso = new ToutCompteFait.Core.Licensing.EditionBypassFile(new AppEdition("asso"), dir);
+        var auto = new ToutCompteFait.Core.Licensing.EditionBypassFile(new AppEdition("autoentreprise"), dir);
+        Eq("licence.ini", asso.FileName, "Asso : fichier historique licence.ini");
+        Eq("licence-autoentreprise.ini", auto.FileName, "Autoentreprise : fichier propre à la version");
+        Check(!asso.Exists && !auto.Exists, "aucune licence gratuite au départ");
+        Check(asso.TryCreate("Association Test"), "licence gratuite Asso créée");
+        Check(asso.Exists, "Asso : licence gratuite active");
+        Check(!auto.Exists, "Autoentreprise : non concernée par le fichier de l'Asso (même dossier)");
+        Eq("Association Test", asso.ReadCustomerName() ?? "", "nom du client lu");
+        Check(auto.TryCreate(null), "licence gratuite Autoentreprise créée séparément");
+        Check(asso.TryDelete() && !asso.Exists && auto.Exists, "supprimer l'une ne touche pas l'autre");
+        Check(new AppEdition("autoentreprise").LicenseEdition == "autoentreprise" && new AppEdition("asso").LicenseEdition == "asso",
+            "chaque version envoie sa propre édition au serveur");
+    }
+    finally { try { Directory.Delete(dir, true); } catch { } }
+}
+
 // ------------------------------------------------------------------ délai de réouverture
 Console.WriteLine("Réouverture d'un exercice : délai de 7 jours");
 {

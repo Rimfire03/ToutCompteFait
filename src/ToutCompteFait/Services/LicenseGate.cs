@@ -40,7 +40,9 @@ public static class LicenseGate
 
         try
         {
-            Service = new LicenseService(new LicenseClient(Options), LicensePlatform.CreateIdentity(), LicensePlatform.CreateStore(Options));
+            // Licence gratuite (fichier licence*.ini) propre à la version : le fichier d'une version ne vaut jamais pour une autre.
+            Service = new LicenseService(new LicenseClient(Options), LicensePlatform.CreateIdentity(), LicensePlatform.CreateStore(Options),
+                new EditionBypassFile(Editions.Current));
         }
         catch (Exception ex) when (ex is InvalidOperationException or PlatformNotSupportedException)
         {

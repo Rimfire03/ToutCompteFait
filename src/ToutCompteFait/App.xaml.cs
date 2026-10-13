@@ -230,8 +230,13 @@ public partial class App : Application
             }
             if (cliYear is not null) Settings.LastYear = cliYear;
             // CLUF puis licence, avant tout accès aux données. Les modes de diagnostic (captures d'écran, auto-test) ne
-            // passent pas par là : ils ne font que photographier l'interface d'une base de démonstration.
-            if (shotsDir is null && !RunSelfTest && !LicenseGate.Run()) { Shutdown(); return; }
+            // passent pas par là, mais SEULEMENT dans une build de développement : dans la version publiée, un argument de
+            // ligne de commande ne doit jamais contourner la licence.
+            var skipLicense = false;
+#if DEBUG
+            skipLicense = shotsDir is not null || RunSelfTest;
+#endif
+            if (!skipLicense && !LicenseGate.Run()) { Shutdown(); return; }
             if (!StartSession(cliUser, cliPassword)) { Shutdown(); return; }
         }
         catch (Exception ex)
