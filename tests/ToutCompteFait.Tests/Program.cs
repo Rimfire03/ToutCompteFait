@@ -493,15 +493,22 @@ Console.WriteLine("Licence gratuite propre à chaque version");
     {
         var asso = new ToutCompteFait.Core.Licensing.EditionBypassFile(new AppEdition("asso"), dir);
         var auto = new ToutCompteFait.Core.Licensing.EditionBypassFile(new AppEdition("autoentreprise"), dir);
-        Eq("licence.ini", asso.FileName, "Asso : fichier historique licence.ini");
-        Eq("licence-autoentreprise.ini", auto.FileName, "Autoentreprise : fichier propre à la version");
         Check(!asso.Exists && !auto.Exists, "aucune licence gratuite au départ");
-        Check(asso.TryCreate("Association Test"), "licence gratuite Asso créée");
+        // Fichier remis à la main (sans marque) : toujours licence.ini, valable pour l'exécutable à côté duquel il est.
+        File.WriteAllText(Path.Combine(dir, "licence.ini"), "Client Test\n");
+        Check(auto.Exists && asso.Exists, "fichier sans marque : valable pour la version à côté de laquelle il est");
+        Eq("Client Test", auto.ReadCustomerName() ?? "", "nom du client lu (sans marque)");
+        File.Delete(Path.Combine(dir, "licence.ini"));
+        // Fichier posé par l'application : marqué pour sa version.
+        Check(asso.TryCreate("Association Test"), "licence gratuite Asso créée (licence.ini)");
+        Check(File.Exists(Path.Combine(dir, "licence.ini")), "le fichier s'appelle toujours licence.ini");
         Check(asso.Exists, "Asso : licence gratuite active");
-        Check(!auto.Exists, "Autoentreprise : non concernée par le fichier de l'Asso (même dossier)");
-        Eq("Association Test", asso.ReadCustomerName() ?? "", "nom du client lu");
-        Check(auto.TryCreate(null), "licence gratuite Autoentreprise créée séparément");
-        Check(asso.TryDelete() && !asso.Exists && auto.Exists, "supprimer l'une ne touche pas l'autre");
+        Check(!auto.Exists, "Autoentreprise : fichier marqué Asso refusé (même dossier)");
+        Eq("Association Test", asso.ReadCustomerName() ?? "", "nom du client lu, sans la ligne de marque");
+        Check(auto.ReadCustomerName() is null, "Autoentreprise ne lit pas le fichier d'une autre version");
+        Check(auto.TryDelete() && asso.Exists, "Autoentreprise ne supprime pas le fichier d'une autre version");
+        Check(asso.TryDelete() && !asso.Exists, "Asso supprime son propre fichier");
+        Check(auto.TryCreate("Entreprise Test") && auto.Exists && !asso.Exists, "licence gratuite Autoentreprise : valable pour elle seule");
         Check(new AppEdition("autoentreprise").LicenseEdition == "autoentreprise" && new AppEdition("asso").LicenseEdition == "asso",
             "chaque version envoie sa propre édition au serveur");
     }
