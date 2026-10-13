@@ -171,6 +171,18 @@ public sealed partial class Compta
             pos -= 15;
         }
 
+        // Résultat négatif : part d'investissement (achats d'immobilisations portés à l'actif, hors résultat).
+        if (b.Result < 0 && b.AssetsReclass > 0)
+        {
+            Need(40);
+            pdf.SetFill(0.28, 0.33, 0.41);
+            pdf.Text(left + 4, pos, $"Dont {Money.Format(b.AssetsReclass)} € en investissement : achats d'immobilisations portés à l'actif, hors résultat", 8.5, false);
+            pos -= 12;
+            pdf.Text(left + 4, pos, $"(seuls {Money.Format(b.AssetsDepreciation)} € d'amortissements sont en charges) ; ils ont fait baisser la trésorerie.", 8.5, false);
+            pdf.SetFill(0, 0, 0);
+            pos -= 15;
+        }
+
         // ------------------------------------------------------------ compte de fonctionnement
         void Table(string name, IReadOnlyList<CategoryResult> list, long total, (double r, double g, double bl) color, bool charges)
         {
