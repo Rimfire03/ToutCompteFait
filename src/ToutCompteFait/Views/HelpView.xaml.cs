@@ -14,8 +14,12 @@ public partial class HelpView : UserControl
         {
             MemberHelpTitle.Visibility = Visibility.Collapsed;
             MemberHelpText.Visibility = Visibility.Collapsed;
-            IntroText.Text = IntroText.Text.Replace(", virement entre comptes ou remboursement à un membre)", " ou virement entre comptes)")
-                .Replace("(dépense, recette, virement entre comptes ou remboursement à un membre)", "(dépense, recette ou virement entre comptes)");
+            IntroText.Text = IntroText.Text.Replace("virement entre comptes, remboursement à un membre", "virement entre comptes");
+        }
+        if (Editions.Current.IsBusiness)
+        {
+            ReportingHelpTitle.Visibility = Visibility.Visible;
+            ReportingHelpText.Visibility = Visibility.Visible;
         }
         Loaded += (_, _) =>
         {

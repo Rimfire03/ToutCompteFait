@@ -10,28 +10,56 @@
             <TextBlock x:Name="HelpTitle" Text="Aide — Tout Compte Fait" Style="{StaticResource TitleText}"/>
 
             <TextBlock Text="Le principe" Style="{StaticResource SectionText}"/>
-            <TextBlock x:Name="IntroText" TextWrapping="Wrap" Text="Le logiciel remplace le classeur Excel : une écriture par ligne du relevé (dépense, recette, virement entre comptes ou remboursement à un membre), ventilée sur les produits et charges. Le bilan, les soldes et la rentabilité des opérations se calculent tout seuls."/>
+            <TextBlock x:Name="IntroText" TextWrapping="Wrap" Text="Ce logiciel remplace votre classeur Excel pour gérer votre trésorerie. Vous saisissez une écriture par ligne de votre relevé bancaire en la ventilant sur des produits et des charges. Le logiciel calcule automatiquement le bilan, les soldes et la rentabilité de vos opérations."/>
+
+            <TextBlock Text="Les écrans du menu" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Le menu de gauche donne accès aux écrans suivants. « Opérations bancaires » : saisie et import des écritures. « Statistique opérations » : comparaison des exercices. « Bilan &amp; comptes annuels » : résultat, situation et impression. « Reports entre exercices » : dépenses et recettes à rattacher à un autre exercice. « Remboursements membres », « Immobilisations » et « Reporting URSSAF » apparaissent selon la version et les réglages. « Paramétrage du dossier » concerne l&apos;exercice et la comptabilité (listes, opérations, comptes, nouvel exercice) ; « Paramétrage appli » concerne le poste (base de données, sauvegardes, mises à jour). L&apos;exercice affiché se choisit en haut du menu."/>
 
             <TextBlock Text="Saisir une écriture" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Opérations bancaires → « Nouvelle écriture ». Choisissez le type, la date, le libellé et le montant, puis indiquez la catégorie : le montant est repris automatiquement. Pour une opération sur plusieurs catégories, ajoutez des lignes de ventilation : le total doit égaler le montant (un bandeau vert ou rouge l'indique). Un remboursement reçu (avoir) se saisit en « Recette » sur la charge concernée."/>
+            <TextBlock TextWrapping="Wrap" Text="Allez dans Opérations bancaires puis cliquez sur Nouvelle écriture pour renseigner le type, la date, le libellé, le montant et la catégorie. Vous pouvez ventiler une écriture sur plusieurs catégories, à condition que le total corresponde au montant saisi. Un remboursement reçu se saisit comme une recette sur la charge concernée et vous pouvez joindre des justificatifs."/>
+
+            <TextBlock Text="Importer un relevé bancaire" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Importez votre relevé bancaire téléchargé directement depuis le menu Opérations bancaires. Les nouvelles lignes apparaissent en jaune et vous permettent de choisir le produit ou la charge immédiatement. Le logiciel contrôle le solde du relevé et ne recrée pas les lignes déjà importées lors d&apos;un nouvel import."/>
 
             <TextBlock Text="Virement entre comptes" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Type « Virement entre comptes » : choisissez le compte de départ et le compte d'arrivée. Aucun effet sur le résultat, les deux soldes sont mis à jour. Utile aussi pour une avance : créez un compte « Avances en cours » dans le Paramétrage du dossier."/>
+            <TextBlock TextWrapping="Wrap" Text="Choisissez le type « Virement entre comptes », puis le compte de départ et le compte d&apos;arrivée. Les deux soldes sont mis à jour et le résultat ne change pas. Pour suivre une avance, créez un compte « Avances en cours » dans le Paramétrage du dossier."/>
 
             <TextBlock x:Name="MemberHelpTitle" Text="Remboursement à un membre" Style="{StaticResource SectionText}"/>
-            <TextBlock x:Name="MemberHelpText" TextWrapping="Wrap" Text="Type « Remboursement à un membre » : un membre a payé avec son compte personnel, l'association le rembourse. Indiquez son nom et la charge concernée. Le récapitulatif par membre est dans « Remboursements membres »."/>
+            <TextBlock x:Name="MemberHelpText" TextWrapping="Wrap" Text="Cette fonction est disponible dans la version Association. Indiquez le nom du membre et la charge concernée lorsqu&apos;un membre a payé avec son compte personnel. Un récapitulatif est ensuite disponible dans la section Remboursements membres."/>
 
-            <TextBlock Text="Opérations (rentabilité)" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Paramétrage du dossier → Opérations : regroupez les produits et charges d'un même événement (ex. Loto Octobre). Pendant la saisie, et dans le Bilan, vous voyez produits − charges = rentabilité de l'opération."/>
+            <TextBlock Text="Opérations et rentabilité" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Le paramétrage du dossier permet de regrouper les produits et charges d&apos;un même événement, comme un loto. Le logiciel calcule automatiquement la rentabilité en soustrayant les charges des produits. Ce résultat est directement visible dans votre bilan."/>
+
+            <TextBlock Text="Statistique opérations" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Cet écran compare chaque opération entre l&apos;exercice affiché (N) et les exercices précédents (N-1, N-2…), jusqu&apos;à 10 exercices au choix. Pour le résultat, les produits et les charges, un graphique place côte à côte les colonnes de chaque exercice (une couleur par exercice). Les tableaux dessous donnent les montants, l&apos;écart en euros et l&apos;écart en pourcentage par rapport à l&apos;exercice précédent."/>
 
             <TextBlock Text="Reports entre exercices" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Si vous payez en juin des lots pour le loto d'octobre, déclarez-le dans « Reports entre exercices » (réglé cet exercice, concerne l'exercice suivant). Il est retiré du résultat de cet exercice et ajouté automatiquement à l'exercice suivant. Les soldes des comptes se reportent aussi automatiquement."/>
+            <TextBlock TextWrapping="Wrap" Text="Déclarez dans cette section une dépense payée cette année mais concernant l&apos;exercice suivant. Le montant est alors retiré du résultat actuel et ajouté automatiquement au suivant. Les soldes des comptes sont également reportés automatiquement d&apos;une année à l&apos;autre."/>
+
+            <TextBlock x:Name="ReportingHelpTitle" Text="Reporting URSSAF" Style="{StaticResource SectionText}" Visibility="Collapsed"/>
+            <TextBlock x:Name="ReportingHelpText" TextWrapping="Wrap" Visibility="Collapsed" Text="Cet écran de la version Autoentreprise suit le chiffre d'affaires par période de déclaration à l'URSSAF. Une fois la déclaration faite, marquez-la comme faite : la date, le montant et l'auteur sont conservés."/>
+
+            <TextBlock Text="Bilan et impression" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Consultez votre compte de résultat par catégorie et la situation de votre actif et passif. Vous pouvez imprimer des bilans synthétiques ou détaillés en format PDF. Tant que l&apos;exercice n&apos;est pas validé, un filigrane provisoire apparaît sur les documents."/>
 
             <TextBlock Text="Valider un exercice" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Bilan → « Valider l'exercice ». Toutes les écritures doivent être complètes. Ensuite plus aucune ligne, catégorie ou report ne peut être ajouté, modifié ou retiré. Les exercices doivent être validés dans l'ordre."/>
+            <TextBlock TextWrapping="Wrap" Text="Pour valider un exercice, assurez-vous que toutes les écritures sont complètes avant de cliquer sur Valider l&apos;exercice. Une fois validé, aucune modification ou ajout n&apos;est plus possible. Les exercices doivent être validés dans l&apos;ordre chronologique et une réouverture nécessite un motif."/>
+
+            <TextBlock Text="Immobilisations" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Cette fonction permet de gérer le matériel durable amorti sur sa durée de vie. La valeur nette de ces biens figure à l&apos;actif de votre bilan. Vous devez activer cette option dans le paramétrage pour l&apos;utiliser."/>
+
+            <TextBlock Text="Export pour l&apos;expert-comptable" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Le logiciel permet d&apos;exporter un fichier FEC pour votre expert-comptable. Vous pouvez régler les numéros de comptes directement dans le paramétrage du dossier."/>
+
+            <TextBlock Text="Utilisateurs et sécurité" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Chaque personne a son compte et un rôle (administrateur, comptable, lecteur…) qui définit ce qu&apos;elle peut faire. Une déconnexion automatique survient après un temps d&apos;inactivité réglable. Toutes les modifications sont consignées dans le journal d&apos;audit, et une écriture n&apos;est jamais supprimée : elle s&apos;annule par une contre-passation."/>
 
             <TextBlock Text="Plusieurs postes" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Un seul poste à la fois peut écrire (le premier ouvert). Les autres sont en lecture seule et voient les modifications apparaître automatiquement. Le pied de page indique l'état : puce verte = base accessible, orange = lecture seule, rouge = connexion perdue. Placez le fichier de base sur un dossier partagé du réseau (Paramétrage appli → Base de données)."/>
+            <TextBlock TextWrapping="Wrap" Text="Plusieurs postes peuvent ouvrir la même base, mais un seul écrit à la fois (le premier ouvert) ; les autres sont en lecture seule et voient les modifications apparaître automatiquement. Le pied de page indique l&apos;état : puce verte = base accessible, orange = lecture seule, rouge = connexion perdue. La base peut se trouver sur un dossier partagé du réseau ou sur un serveur (Paramétrage appli → Base de données) ; l&apos;administrateur fournit alors un fichier de configuration à charger."/>
+
+            <TextBlock Text="Sauvegardes et mises à jour" Style="{StaticResource SectionText}"/>
+            <TextBlock TextWrapping="Wrap" Text="Vous pouvez planifier des sauvegardes automatiques ou les lancer manuellement via le paramétrage de l&apos;application. Le logiciel effectue également une sauvegarde automatique avant toute mise à jour ou restauration. Le logiciel vérifie la disponibilité d&apos;une nouvelle version à chaque démarrage."/>
+
         </StackPanel>
     </ScrollViewer>
 </UserControl>
