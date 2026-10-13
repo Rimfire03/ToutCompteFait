@@ -516,8 +516,9 @@ public partial class SettingsView
 
     private void BizCreateCategories_Click(object sender, RoutedEventArgs e)
     {
-        // Types principaux seulement : les types alternatifs se créent à la demande (« Ajouter » dans Produits et charges).
-        var wanted = ApeCodesFromBox().Select(ApeMapper.Suggest).Where(s => s is not null).Select(s => s!.Kind).Distinct().ToList();
+        // Tous les types auxquels les codes APE donnent droit (principal puis alternatifs) : une catégorie inutilisée
+        // se supprime ensuite depuis « Produits et charges ».
+        var wanted = ApeMapper.AllKinds(ApeCodesFromBox());
         if (wanted.Count == 0) { Ui.Info("Aucun type de déclaration n'a pu être déduit des codes APE : créez les catégories depuis « Produits et charges »."); return; }
         var existing = _c.CategoryUrssafKinds();
         var cats = _c.Categories(_year.Id).Where(c => c.Kind == CategoryKind.Product)
