@@ -31,6 +31,8 @@ public partial class EntryWindow : Window
     private readonly List<AttachItem> _atts = new();
     private readonly List<RefundItem> _refundItems = new();
 
+    private sealed record PayItem(string? Code, string Label);
+
     private sealed record RefundItem(RefundCandidate? Candidate, string Display)
     {
         public override string ToString() => Display;
@@ -69,6 +71,9 @@ public partial class EntryWindow : Window
                 (rc.Refunded > 0 ? $" (déjà remboursé {Money.Format(rc.Refunded)} €)" : "") + $" · {rc.YearLabel}"));
         RefundCombo.ItemsSource = _refundItems;
         RefundCombo.SelectedIndex = 0;
+        PaymentModeBox.ItemsSource = new[] { new PayItem(null, "—") }
+            .Concat(PaymentModes.All.Select(c => new PayItem(c, PaymentModes.Label(c)))).ToList();
+        PaymentModeBox.SelectedIndex = 0;
         AccountCombo.ItemsSource = _accounts;
         ToAccountCombo.ItemsSource = _accounts;
         AccountCombo.SelectedIndex = _accounts.Count > 0 ? 0 : -1;
@@ -507,7 +512,9 @@ public partial class EntryWindow : Window
         entry = new Entry(_existing?.Entry.Id ?? 0, _year.Id, date, LabelBox.Text.Trim(), PointedBox.IsChecked == true, kind,
             acc, dir, to, cents, m == Mode.Refund ? MemberBox.Text.Trim() : null,
             string.IsNullOrWhiteSpace(NoteBox.Text) ? null : NoteBox.Text.Trim(),
-            m == Mode.Reimbursed ? SelectedRefund?.Entry.Id : null);
+            m == Mode.Reimbursed ? SelectedRefund?.Entry.Id : null,
+            PaymentMode: (PaymentModeBox.SelectedItem as PayItem)?.Code,
+            PieceRef: string.IsNullOrWhiteSpace(PieceRefBox.Text) ? null : PieceRefBox.Text.Trim());
         return true;
     }
 
@@ -591,6 +598,9 @@ public partial class EntryWindow : Window
             AmountBox.ToolTip = "Écriture importée de la banque : le montant est celui du relevé et ne peut pas être modifié.";
         }
         NoteBox.Text = e.Note ?? "";
+        var payItems = (IEnumerable<PayItem>)PaymentModeBox.ItemsSource;
+        PaymentModeBox.SelectedItem = payItems.FirstOrDefault(p => p.Code == e.PaymentMode) ?? payItems.First();
+        PieceRefBox.Text = e.PieceRef ?? "";
         PointedBox.IsChecked = e.Pointed;
         MemberBox.Text = e.MemberName ?? "";
 

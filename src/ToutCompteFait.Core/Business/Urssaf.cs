@@ -275,8 +275,17 @@ public sealed record UrssafReport(UrssafPeriod Period, IReadOnlyList<UrssafLine>
     long TotalContributionCents, long UnclassifiedCents, int PendingEntries, DateTime? DeclaredAt, string? DeclaredBy);
 
 /// <summary>Cumul de l'année civile face aux plafonds et au seuil de TVA.</summary>
-public sealed record UrssafCeilings(int Year, long TotalCents, long ServicesCents, long SalesCents, UrssafParams Params)
+public sealed record UrssafCeilings(int Year, long TotalCents, long ServicesCents, long SalesCents, UrssafParams Params,
+    int? ProrataDays = null, int DaysInYear = 365)
 {
+    /// <summary>Plafonds dépassés (CA de l'année civile, plafonds proratisés l'année de création).</summary>
+    public bool TotalExceeded => TotalCents > Params.CeilingTotalCents;
+    public bool ServicesExceeded => ServicesCents > Params.CeilingServicesCents;
+    public bool Exceeded => TotalExceeded || ServicesExceeded;
+
+    /// <summary>Année de création de l'entreprise : plafonds ajustés au prorata du temps d'activité.</summary>
+    public bool Prorated => ProrataDays is not null;
+
     public double TotalRatio => Params.CeilingTotalCents == 0 ? 0 : (double)TotalCents / Params.CeilingTotalCents;
     public double ServicesRatio => Params.CeilingServicesCents == 0 ? 0 : (double)ServicesCents / Params.CeilingServicesCents;
     public bool VatSaleExceeded => SalesCents > Params.VatSaleCents;

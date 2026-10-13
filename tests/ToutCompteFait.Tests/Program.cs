@@ -2264,7 +2264,7 @@ Console.WriteLine("Conformité : empreintes versionnées et évolution de la bas
         c.AddAttachment(id, "recu.txt", System.Text.Encoding.UTF8.GetBytes("reçu"));
         c.ValidateYear(y.Id);
         Eq(IntegritySeal.Current, c.IntegritySealVersion(y.Id), "empreinte à la formule courante");
-        Check(c.ComputeChecksum(y.Id).StartsWith("v2:"), "empreinte préfixée par sa version");
+        Check(c.ComputeChecksum(y.Id).StartsWith("v3:"), "empreinte préfixée par sa version");
 
         // L'empreinte v2 couvre la note, la référence d'import et le CONTENU des justificatifs.
         Sql(f, "DROP TRIGGER lock_entries_upd");
@@ -2661,6 +2661,185 @@ Console.WriteLine("Licences");
     Eq("", File.ReadAllText(ini), "install_bypass : licence.ini vide non écrasé (licence avec nom de client)");
 
     try { Directory.Delete(dir, true); } catch { }
+}
+
+// ------------------------------------------------------------------ micro-entreprise : registres, plafonds, TVA, conservation
+Console.WriteLine("Modes de règlement, registres, plafonds, TVA, conservation");
+{
+    Eq(PaymentModes.Card, PaymentModes.Guess("CB MONOPRIX 12/10"), "mode déduit : carte");
+    Eq(PaymentModes.Transfer, PaymentModes.Guess("VIR SEPA CLIENT DUPONT"), "mode déduit : virement");
+    Eq(PaymentModes.DirectDebit, PaymentModes.Guess("PRLV EDF FACTURE"), "mode déduit : prélèvement");
+    Eq(PaymentModes.Cheque, PaymentModes.Guess("REMISE CHEQUE 0001234"), "mode déduit : chèque");
+    Eq(PaymentModes.Cash, PaymentModes.Guess("RETRAIT DAB PARIS"), "mode déduit : espèces");
+    Check(PaymentModes.Guess("DIVERS") is null, "mode non reconnu : aucun");
+
+    var f = NewFactory(TempDb());
+    var c = NewCompta(f);
+    var y = c.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
+    c.SaveBusinessProfile(new BusinessProfile { Siren = "123456782", Name = "Entreprise Test", CreationDate = Dt(2020, 1, 1) });
+    var banque = c.Accounts().First(a => a.Name == "Banque");
+    var ventes = c.AddCategory(y.Id, CategoryKind.Product, "Ventes test");
+    var fournit = c.AddCategory(y.Id, CategoryKind.Charge, "Fournitures test");
+    var perso = c.AddCategory(y.Id, CategoryKind.Charge, "Perso test");
+    c.SetCategoryPersonal("Perso test", true);
+
+    long In(DateOnly d, string label, long cents, string? mode, string? piece, long? cat = null) =>
+        c.SaveEntry(new Entry(0, y.Id, d, label, false, EntryKind.Normal, banque.Id, Direction.In, null, cents, null, null,
+                PaymentMode: mode, PieceRef: piece),
+            cat is null ? Array.Empty<Allocation>() : new[] { new Allocation(cat.Value, cents) }, strict: cat is not null);
+    long Out(DateOnly d, string label, long cents, string? mode, string? piece, long cat) =>
+        c.SaveEntry(new Entry(0, y.Id, d, label, false, EntryKind.Normal, banque.Id, Direction.Out, null, cents, null, null,
+                PaymentMode: mode, PieceRef: piece),
+            new[] { new Allocation(cat, cents) });
+
+    var r1 = In(Dt(2026, 2, 3), "Client Durand", 120_000, PaymentModes.Transfer, "F-2026-001", ventes.Id);
+    var r2 = In(Dt(2026, 3, 9), "Client Martin", 45_000, PaymentModes.Cheque, "F-2026-002", ventes.Id);
+    In(Dt(2026, 3, 20), "Encaissement à classer", 10_000, null, null);
+    var rBad = In(Dt(2026, 4, 1), "Saisie en double", 99_000, PaymentModes.Card, "X", ventes.Id);
+    Out(Dt(2026, 2, 10), "Fournisseur Alpha", 30_000, PaymentModes.Card, "A-77", fournit.Id);
+    Out(Dt(2026, 2, 12), "Courses privées", 5_000, PaymentModes.Card, null, perso.Id);
+    c.CancelEntry(rBad, "doublon");
+
+    Eq(PaymentModes.Transfer, c.EntryById(r1)!.Entry.PaymentMode, "mode de règlement enregistré");
+    Eq("F-2026-001", c.EntryById(r1)!.Entry.PieceRef, "référence de pièce enregistrée");
+    var revId = c.CancelEntry(r2, "erreur");
+    Eq(PaymentModes.Cheque, c.EntryById(revId)!.Entry.PaymentMode, "contre-passation : mode conservé");
+    var r2b = In(Dt(2026, 3, 9), "Client Martin", 45_000, PaymentModes.Cheque, "F-2026-002", ventes.Id);
+
+    var recipes = c.BuildRegister(y.Id, RegisterKind.Recipes);
+    Eq(3, recipes.Lines.Count, "livre des recettes : 3 recettes (annulées exclues, non classée comprise)");
+    Eq(120_000L + 45_000 + 10_000, recipes.Total, "livre des recettes : total");
+    Eq(1, recipes.MissingMentions, "livre des recettes : une ligne sans mention obligatoire");
+    Check(recipes.Lines.Select(l => l.Date).SequenceEqual(recipes.Lines.Select(l => l.Date).OrderBy(d => d)), "livre des recettes : chronologique");
+    var purchases = c.BuildRegister(y.Id, RegisterKind.Purchases);
+    Eq(1, purchases.Lines.Count, "registre des achats : dépense personnelle exclue");
+    Eq("A-77", purchases.Lines[0].PieceRef, "registre des achats : référence de pièce");
+    var csv = c.ExportRegisterCsv(y.Id, RegisterKind.Recipes);
+    Check(csv.StartsWith("N°;Date;Origine (client);Nature;Montant;Mode de règlement;Référence de la pièce"), "CSV recettes : en-tête");
+    Check(csv.Contains("Virement") && csv.Contains("F-2026-001") && csv.Contains(";Total;1750,00;"), "CSV recettes : mentions et total");
+    var pdf = c.ExportRegisterPdf(y.Id, RegisterKind.Recipes, "Assoc");
+    Check(System.Text.Encoding.Latin1.GetString(pdf, 0, 8).StartsWith("%PDF-1.4"), "PDF recettes : structure");
+    _ = r2b;
+
+    // Empreinte v3 : mode de règlement et référence de pièce protégés ; v2 toujours vérifiable puis mise à niveau
+    c.ValidateYear(y.Id, null, force: true);
+    Eq(3, IntegritySeal.Current, "formule d'empreinte courante : v3");
+    Eq(3, c.IntegritySealVersion(y.Id), "exercice validé en v3");
+    Check(c.VerifyIntegrity(y.Id), "v3 : empreinte conforme");
+    var v2 = (string)typeof(Compta).GetMethod("ComputeChecksumV2", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+        .Invoke(c, new object[] { y.Id })!;
+    Sql(f, "UPDATE fiscal_years SET checksum = {0} WHERE id = {1}", "v2:" + v2, y.Id);
+    Eq(2, c.IntegritySealVersion(y.Id), "empreinte v2 reconnue");
+    Check(c.VerifyIntegrity(y.Id), "v2 toujours vérifiable");
+    Eq(1, c.UpgradeIntegritySeals(), "v2 mise à niveau en v3");
+    Check(c.VerifyIntegrity(y.Id), "v3 après mise à niveau");
+    Sql(f, "DROP TRIGGER lock_entries_upd");
+    Sql(f, "UPDATE entries SET piece_ref = 'FALSIFIE' WHERE id = {0}", r1);
+    Check(!c.VerifyIntegrity(y.Id), "v3 : référence de pièce modifiée détectée");
+    f.EnsureDatabaseUpToDate("test");
+}
+
+Console.WriteLine("Plafonds : deux dépassements consécutifs, prorata, TVA");
+{
+    (Compta c, FiscalYear y25, FiscalYear y26, Func<FiscalYear, long, DateOnly, long> income) Setup(DateOnly creation)
+    {
+        var f = NewFactory(TempDb());
+        var c = NewCompta(f);
+        var y25 = c.CreateYear(Dt(2025, 1, 1), Dt(2025, 12, 31));
+        var y26 = c.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
+        c.SaveBusinessProfile(new BusinessProfile { Siren = "123456782", Name = "Entreprise Test", CreationDate = creation });
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        long Income(FiscalYear y, long cents, DateOnly d)
+        {
+            var cat = c.Categories(y.Id).FirstOrDefault(k => k.Kind == CategoryKind.Product && k.Name.StartsWith("BIC vente"))
+                      ?? c.AddActivityCategory(y.Id, UrssafKind.Sale, null);
+            return c.SaveEntry(new Entry(0, y.Id, d, "vente", false, EntryKind.Normal, banque.Id, Direction.In, null, cents, null, null),
+                new[] { new Allocation(cat.Id, cents) });
+        }
+        return (c, y25, y26, Income);
+    }
+
+    // Dépassement en 2025 (plafond 188 700 €) puis en 2026 (203 100 €) : sortie du régime au 1er janvier 2027.
+    var (c1, a25, a26, inc1) = Setup(Dt(2020, 1, 1));
+    inc1(a25, 19_000_000, Dt(2025, 6, 1));
+    inc1(a26, 21_000_000, Dt(2026, 6, 1));
+    var s1 = c1.ComputeMicroRegimeStatus(2026);
+    Check(s1.Level == NoticeLevel.Alert && s1.PreviousExceeded && s1.CurrentExceeded, "deux dépassements consécutifs : alerte");
+    Check(s1.Message.Contains("1er janvier 2027"), "sortie du régime au 1er janvier suivant");
+    Eq(18_870_000L, c1.ComputeUrssafCeilings(2025).Params.CeilingTotalCents, "plafond 2025 d'époque");
+
+    // Dépassement en 2025 seulement : avertissement.
+    var (c2, b25, b26, inc2) = Setup(Dt(2020, 1, 1));
+    inc2(b25, 19_000_000, Dt(2025, 6, 1));
+    inc2(b26, 5_000_000, Dt(2026, 6, 1));
+    var s2 = c2.ComputeMicroRegimeStatus(2026);
+    Check(s2.Level == NoticeLevel.Warning && s2.PreviousExceeded && !s2.CurrentExceeded, "un seul dépassement (année précédente) : avertissement");
+
+    // Premier dépassement cette année : sans conséquence immédiate.
+    var (c3, _, d26, inc3) = Setup(Dt(2020, 1, 1));
+    inc3(d26, 21_000_000, Dt(2026, 6, 1));
+    var s3 = c3.ComputeMicroRegimeStatus(2026);
+    Check(s3.Level == NoticeLevel.Warning && !s3.PreviousExceeded && s3.CurrentExceeded, "premier dépassement : avertissement sans sortie");
+    Check(s3.Message.Contains("1er janvier 2028"), "premier dépassement : sortie seulement après un second");
+
+    // Année de création : plafond proratisé (1er juillet 2026 : 184 jours sur 365).
+    var (c4, _, e26, inc4) = Setup(Dt(2026, 7, 1));
+    inc4(e26, 5_000_000, Dt(2026, 8, 1));
+    var ce = c4.ComputeUrssafCeilings(2026);
+    Eq(184, ce.ProrataDays, "prorata : 184 jours d'activité");
+    Eq((long)Math.Round(20_310_000m * 184 / 365, 0, MidpointRounding.AwayFromZero), ce.Params.CeilingTotalCents, "plafond proratisé");
+    Check(!ce.Exceeded, "50 000 € : sous le plafond proratisé (≈ 102 380 €)");
+    inc4(e26, 6_000_000_0 / 10 * 2, Dt(2026, 9, 1));   // + 120 000 € : 170 000 € > 102 380 €
+    Check(c4.ComputeUrssafCeilings(2026).Exceeded, "170 000 € dépasse le plafond proratisé");
+}
+
+Console.WriteLine("Franchise de TVA : dates d'exigibilité");
+{
+    (Compta c, Action<DateOnly, long> income) Setup()
+    {
+        var f = NewFactory(TempDb());
+        var c = NewCompta(f);
+        var y = c.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
+        c.SaveBusinessProfile(new BusinessProfile { Siren = "123456782", Name = "Entreprise Test", CreationDate = Dt(2020, 1, 1) });
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var cat = c.AddActivityCategory(y.Id, UrssafKind.Sale, null);
+        return (c, (d, cents) => c.SaveEntry(new Entry(0, y.Id, d, "vente", false, EntryKind.Normal, banque.Id, Direction.In, null, cents, null, null),
+            new[] { new Allocation(cat.Id, cents) }));
+    }
+
+    var (c1, in1) = Setup();   // seuil majoré (93 500 €) dépassé en mars
+    in1(Dt(2026, 1, 15), 5_000_000);
+    in1(Dt(2026, 3, 10), 4_500_000);
+    var n1 = c1.ComputeVatNotices(2026).Single(n => n.Activity.StartsWith("Ventes"));
+    Check(n1.Level == NoticeLevel.Alert && n1.LiableFrom == Dt(2026, 3, 1), "seuil majoré dépassé : TVA dès le 1er du mois");
+    Check(n1.Message.Contains("293 B"), "mention 293 B à retirer signalée");
+
+    var (c2, in2) = Setup();   // seuil de base (85 000 €) dépassé en mai, majoré non atteint
+    in2(Dt(2026, 2, 1), 4_000_000);
+    in2(Dt(2026, 5, 20), 4_700_000);
+    var n2 = c2.ComputeVatNotices(2026).Single(n => n.Activity.StartsWith("Ventes"));
+    Check(n2.Level == NoticeLevel.Warning && n2.LiableFrom == Dt(2027, 1, 1), "seuil de base dépassé : TVA au 1er janvier suivant");
+
+    var (c3, in3) = Setup();
+    in3(Dt(2026, 2, 1), 1_000_000);
+    Check(c3.ComputeVatNotices(2026).All(n => n.Level != NoticeLevel.Alert), "sous les seuils : aucune alerte");
+}
+
+Console.WriteLine("Conservation 10 ans des sauvegardes");
+{
+    var now = new DateTime(2026, 10, 12, 12, 0, 0);
+    BackupEntry B(string name, DateTime d, string source = "SQLite (fichier)") => new(name, d, 1000, "Automatique (planifiée)", source, 14, "1.10.1");
+    var list = new List<BackupEntry>
+    {
+        B("a.bak", new DateTime(2026, 10, 1)), B("b.bak", new DateTime(2026, 3, 1)), B("c.bak", new DateTime(2025, 12, 31)),
+        B("d.bak", new DateTime(2025, 6, 1)), B("e.bak", new DateTime(2015, 1, 1)), B("s.bak", new DateTime(2026, 9, 1), "Serveur BDD")
+    };
+    typeof(BackupService).GetMethod("MarkRetentionKeepers", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+        .Invoke(null, new object[] { list, now });
+    var keepers = list.Where(b => b.IsRetentionKeeper).Select(b => b.FileName).OrderBy(n => n).ToList();
+    Check(keepers.SequenceEqual(new[] { "a.bak", "c.bak", "s.bak" }), "conservation : la dernière sauvegarde de chaque année et source",
+        string.Join(",", keepers));
+    Check(!list.Single(b => b.FileName == "e.bak").IsRetentionKeeper, "sauvegarde de plus de 10 ans : plus conservée d'office");
 }
 
 Console.WriteLine(failures == 0 ? $"TOUT EST OK ({checks} vérifications)" : $"{failures} ECHEC(S) sur {checks} vérifications");

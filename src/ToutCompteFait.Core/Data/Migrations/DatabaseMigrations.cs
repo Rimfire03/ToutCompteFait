@@ -28,6 +28,7 @@ internal static class DatabaseMigrations
         (11, "Statut Développeur des comptes utilisateurs", AddDeveloperFlag),
         (12, "Charges classées investissement (repère par nom de catégorie)", AddCategoryInvestments),
         (13, "Charges personnelles de l'exploitant (écartées du résultat, repère par nom de catégorie)", AddCategoryPersonal),
+        (14, "Mode de règlement et référence de pièce des écritures (livre des recettes, registre des achats)", AddPaymentInfo),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -51,6 +52,7 @@ internal static class DatabaseMigrations
         (11, "Statut Développeur des comptes utilisateurs", AddDeveloperFlag),
         (12, "Charges classées investissement (repère par nom de catégorie)", AddCategoryInvestments),
         (13, "Charges personnelles de l'exploitant (écartées du résultat, repère par nom de catégorie)", AddCategoryPersonal),
+        (14, "Mode de règlement et référence de pièce des écritures (livre des recettes, registre des achats)", AddPaymentInfo),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -380,6 +382,26 @@ internal static class DatabaseMigrations
     }
     // ------------------------------------------------------------------ v13 : charges personnelles
 
+    // ------------------------------------------------------------------ v14 : mode de règlement et référence de pièce
+
+    /// <summary>Colonnes <c>entries.payment_mode</c> et <c>entries.piece_ref</c> (nullables). Ajout de colonnes seulement :
+    /// sans effet sur les empreintes v1 et v2 des exercices validés (leurs formules ne les contiennent pas).</summary>
+    private static void AddPaymentInfo(AppDbContext ctx)
+    {
+        foreach (var (column, size) in new[] { ("payment_mode", 20), ("piece_ref", 100) })
+        {
+            if (ServerSql.ColumnExists(ctx, "entries", column)) continue;
+            var sql = ctx.Provider switch
+            {
+                DatabaseProvider.Sqlite => $"ALTER TABLE \"entries\" ADD COLUMN \"{column}\" TEXT NULL;",
+                DatabaseProvider.PostgreSql => $"ALTER TABLE \"entries\" ADD COLUMN \"{column}\" varchar({size}) NULL;",
+                DatabaseProvider.MariaDb => $"ALTER TABLE `entries` ADD COLUMN `{column}` varchar({size}) NULL;",
+                DatabaseProvider.SqlServer => $"ALTER TABLE [entries] ADD [{column}] nvarchar({size}) NULL;",
+                _ => throw new NotSupportedException()
+            };
+            ctx.Database.ExecuteSqlRaw(sql);
+        }
+    }
     /// <summary>Table <c>category_personal</c> (nom de la charge) : dépenses privées de l'exploitant, hors des tables
     /// verrouillées avec les exercices.</summary>
     private static void AddCategoryPersonal(AppDbContext ctx)

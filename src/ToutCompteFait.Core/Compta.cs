@@ -190,7 +190,7 @@ public sealed partial class Compta
     private static Entry ToEntry(EntryEntity e, bool cancelled = false) => new(e.Id, e.YearId, ParseDate(e.EntryDate), e.Label, e.Pointed,
         EntryKindFromDb(e.Kind), e.AccountId, e.Direction == "IN" ? Direction.In : Direction.Out, e.ToAccountId,
         e.AmountCents, e.MemberName, e.Note, e.RefundOfId, e.ImportRef is { } r && r.StartsWith("banque", StringComparison.Ordinal),
-        e.Seq, e.ReversalOfId, cancelled);
+        e.Seq, e.ReversalOfId, cancelled, e.PaymentMode, e.PieceRef);
 
     private static Adjustment ToAdjustment(AdjustmentEntity a) => new(a.Id, a.YearId, AdjFromDb(a.Type), CatKindFromDb(a.Kind),
         a.CategoryId, a.Label, a.AmountCents, a.TargetName, a.SourceId, a.Note);

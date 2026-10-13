@@ -477,6 +477,15 @@ public partial class LivreView : UserControl, IPage
         Item("Livre-journal (PDF)…", () => ExportFile("pdf"));
         Item("Livre-journal (CSV pour tableur)…", () => ExportFile("csv"));
         Item("FEC — Fichier des Écritures Comptables (contrôle fiscal)…", () => ExportFile("fec"));
+        if (Editions.Current.IsBusiness)
+        {
+            // Registres légaux d'une micro-entreprise (mode de règlement et référence de pièce à renseigner à la saisie).
+            menu.Items.Add(new Separator());
+            Item("Livre des recettes (PDF)…", () => ExportFile("recipes-pdf"));
+            Item("Livre des recettes (CSV pour tableur)…", () => ExportFile("recipes-csv"));
+            Item("Registre des achats (PDF)…", () => ExportFile("purchases-pdf"));
+            Item("Registre des achats (CSV pour tableur)…", () => ExportFile("purchases-csv"));
+        }
         menu.Items.Add(new Separator());
         Item("Numéros de compte comptables (FEC)…", () =>
         {
@@ -495,6 +504,10 @@ public partial class LivreView : UserControl, IPage
         {
             case "pdf": defaultName = $"Livre-journal {fileLabel}.pdf"; filter = "PDF (*.pdf)|*.pdf"; break;
             case "csv": defaultName = $"Livre-journal {fileLabel}.csv"; filter = "CSV (*.csv)|*.csv"; break;
+            case "recipes-pdf": defaultName = $"Livre des recettes {fileLabel}.pdf"; filter = "PDF (*.pdf)|*.pdf"; break;
+            case "recipes-csv": defaultName = $"Livre des recettes {fileLabel}.csv"; filter = "CSV (*.csv)|*.csv"; break;
+            case "purchases-pdf": defaultName = $"Registre des achats {fileLabel}.pdf"; filter = "PDF (*.pdf)|*.pdf"; break;
+            case "purchases-csv": defaultName = $"Registre des achats {fileLabel}.csv"; filter = "CSV (*.csv)|*.csv"; break;
             default:
                 if (string.IsNullOrWhiteSpace(App.Siren))
                 {
@@ -516,6 +529,10 @@ public partial class LivreView : UserControl, IPage
             {
                 case "pdf": File.WriteAllBytes(dlg.FileName, _c.ExportLedgerPdf(_year.Id, App.OrganizationName)); break;
                 case "csv": File.WriteAllText(dlg.FileName, _c.ExportLedgerCsv(_year.Id), new System.Text.UTF8Encoding(true)); break;
+                case "recipes-pdf": File.WriteAllBytes(dlg.FileName, _c.ExportRegisterPdf(_year.Id, RegisterKind.Recipes, App.OrganizationName)); break;
+                case "recipes-csv": File.WriteAllText(dlg.FileName, _c.ExportRegisterCsv(_year.Id, RegisterKind.Recipes), new System.Text.UTF8Encoding(true)); break;
+                case "purchases-pdf": File.WriteAllBytes(dlg.FileName, _c.ExportRegisterPdf(_year.Id, RegisterKind.Purchases, App.OrganizationName)); break;
+                case "purchases-csv": File.WriteAllText(dlg.FileName, _c.ExportRegisterCsv(_year.Id, RegisterKind.Purchases), new System.Text.UTF8Encoding(true)); break;
                 default: File.WriteAllText(dlg.FileName, _c.ExportFec(_year.Id), new System.Text.UTF8Encoding(false)); break;
             }
         });

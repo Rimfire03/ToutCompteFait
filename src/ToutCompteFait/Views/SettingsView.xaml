@@ -223,6 +223,7 @@
                                 <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="150" ElementStyle="{StaticResource LeftCell}"/>
                                 <DataGridTextColumn Header="Nature" Binding="{Binding Kind}" Width="*" ElementStyle="{StaticResource LeftCell}"/>
                                 <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="170" ElementStyle="{StaticResource LeftCell}"/>
+                                <DataGridTextColumn Header="Conservation" Binding="{Binding RetentionText}" Width="130" ElementStyle="{StaticResource LeftCell}"/>
                                 <DataGridTextColumn Header="Schéma" Binding="{Binding SchemaText}" Width="90" ElementStyle="{StaticResource LeftCell}"/>
                                 <DataGridTextColumn Header="Taille" Binding="{Binding SizeText}" Width="110" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
                             </DataGrid.Columns>
@@ -236,7 +237,7 @@
                             <TextBox x:Name="BackupTimeBox" Width="92" LostFocus="BackupTime_LostFocus" Margin="0,0,16,0"/>
                             <TextBlock Text="Conserver" VerticalAlignment="Center" Margin="0,0,6,0"/>
                             <TextBox x:Name="KeepBox" Width="84" LostFocus="Keep_LostFocus"/>
-                            <TextBlock Text="sauvegardes (0 = toutes)" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                            <TextBlock Text="sauvegardes (0 = toutes) — plus la dernière de chaque année, gardée 10 ans (obligation légale)" VerticalAlignment="Center" Margin="6,0,0,0"/>
                         </WrapPanel>
                         <TextBlock x:Name="AutoBackupInfo" Style="{StaticResource MutedText}" Margin="0,6,0,0"/>
 

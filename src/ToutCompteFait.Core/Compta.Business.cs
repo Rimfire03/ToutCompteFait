@@ -258,7 +258,17 @@ public sealed partial class Compta
         var byKind = TurnoverByKind(new DateOnly(calendarYear, 1, 1), new DateOnly(calendarYear, 12, 31), out _, out _);
         var total = byKind.Values.Sum();
         var services = byKind.Where(kv => kv.Key.IsService()).Sum(kv => kv.Value);
-        return new UrssafCeilings(calendarYear, total, services, byKind[UrssafKind.Sale], GetUrssafParams().ForYear(calendarYear));
+        var prm = GetUrssafParams().ForYear(calendarYear);
+        // Année de création : plafonds du régime micro ajustés au prorata du temps d'activité (art. 50-0 CGI).
+        int? prorataDays = null;
+        var daysInYear = DateTime.IsLeapYear(calendarYear) ? 366 : 365;
+        if (GetBusinessProfile().CreationDate is { } created && created.Year == calendarYear && created.DayOfYear > 1)
+        {
+            prorataDays = daysInYear - created.DayOfYear + 1;
+            long Scale(long c) => (long)Math.Round(c * (decimal)prorataDays.Value / daysInYear, 0, MidpointRounding.AwayFromZero);
+            prm = prm with { CeilingTotalCents = Scale(prm.CeilingTotalCents), CeilingServicesCents = Scale(prm.CeilingServicesCents) };
+        }
+        return new UrssafCeilings(calendarYear, total, services, byKind[UrssafKind.Sale], prm, prorataDays, daysInYear);
     }
 
     // ------------------------------------------------------------------ déclarations faites

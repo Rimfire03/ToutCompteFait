@@ -263,6 +263,9 @@ public sealed partial class Compta
                         Direction = p.Line.AmountCents >= 0 ? "IN" : "OUT",
                         AmountCents = Math.Abs(p.Line.AmountCents),
                         ImportRef = p.Line.ExternalId is { Length: > 0 } id ? "banque:" + id : "banque",
+                        // Mentions du livre des recettes / registre des achats, déduites du relevé (modifiables).
+                        PaymentMode = PaymentModes.Guess(p.Line.Label),
+                        PieceRef = p.Line.ExternalId is { Length: > 0 } ext ? (ext.Length > 100 ? ext[..100] : ext) : null,
                         CreatedAt = now,
                         UpdatedAt = now
                     };

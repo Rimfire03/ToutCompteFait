@@ -290,7 +290,7 @@ public partial class BilanView : UserControl, IPage
                 : !chain.Ok
                     ? $"⚠ ATTENTION : le journal d'audit a été altéré ({chain.Problem}). Le contenu de l'exercice {_year.Label} reste conforme à son empreinte."
                     : $"🔒 Exercice validé le {_year.ValidatedAt:dd/MM/yyyy} par {_year.ValidatedBy} : données verrouillées, empreinte de contrôle conforme, " +
-                      $"journal d'audit intact ({chain.Rows} ligne(s) chaînées).";
+                      $"journal d'audit intact ({chain.Rows} ligne(s) chaînées). À conserver jusqu'au 31/12/{_year.End.Year + 10} (10 ans, art. L123-22 du Code de commerce).";
             IssuesTitle.Foreground = new SolidColorBrush(ok && chain.Ok ? Color.FromRgb(0x04, 0x78, 0x57) : Color.FromRgb(0xB9, 0x1C, 0x1C));
             IssuesList.ItemsSource = null;
         }

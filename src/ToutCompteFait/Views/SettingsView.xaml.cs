@@ -614,7 +614,11 @@ public partial class SettingsView : UserControl, IPage
     private void DeleteBackup_Click(object sender, RoutedEventArgs e)
     {
         if (BackupsGrid.SelectedItem is not BackupEntry b) { Ui.Info("Sélectionnez d'abord une sauvegarde."); return; }
-        if (!Ui.Confirm($"Supprimer la sauvegarde du {b.DateText} ?")) return;
+        var warning = b.IsRetentionKeeper
+            ? $"\n\nATTENTION : c'est la dernière sauvegarde de {b.Date.Year}, à conserver {BackupService.RetentionYears} ans " +
+              "(documents comptables : art. L123-22 du Code de commerce). Ne la supprimez que si vous en avez une copie ailleurs."
+            : "";
+        if (!Ui.Confirm($"Supprimer la sauvegarde du {b.DateText} ?{warning}")) return;
         try { BackupService.Delete(b.Path); }
         catch (IOException ex) { Ui.Error(ex.Message); }
         LoadDatabasePanel();

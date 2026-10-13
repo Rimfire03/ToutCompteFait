@@ -49,7 +49,8 @@ public sealed record Category(long Id, long YearId, CategoryKind Kind, string Na
 
 public sealed record Entry(long Id, long YearId, DateOnly Date, string Label, bool Pointed, EntryKind Kind,
     long? AccountId, Direction Direction, long? ToAccountId, long AmountCents, string? MemberName, string? Note,
-    long? RefundOfId = null, bool FromBank = false, long Seq = 0, long? ReversalOfId = null, bool Cancelled = false)
+    long? RefundOfId = null, bool FromBank = false, long Seq = 0, long? ReversalOfId = null, bool Cancelled = false,
+    string? PaymentMode = null, string? PieceRef = null)
 {
     /// <summary>Écriture d'annulation (contre-passation) d'une autre écriture.</summary>
     public bool IsReversal => ReversalOfId is not null;

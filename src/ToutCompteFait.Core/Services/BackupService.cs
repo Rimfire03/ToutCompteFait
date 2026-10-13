@@ -12,6 +12,12 @@ public sealed record BackupEntry(string Path, DateTime Date, long Size, string K
     /// <summary>Sauvegarde protégée : jamais supprimée automatiquement (purge du nombre conservé).</summary>
     public bool IsProtected { get; set; }
 
+    /// <summary>Sauvegarde de conservation : la plus récente de son année civile, à garder 10 ans (documents comptables,
+    /// art. L123-22 du Code de commerce). Jamais supprimée automatiquement.</summary>
+    public bool IsRetentionKeeper { get; set; }
+
+    public string RetentionText => IsRetentionKeeper ? "Conservée (10 ans)" : IsProtected ? "Protégée" : "";
+
     public string FileName => System.IO.Path.GetFileName(Path);
     public string DateText => Date.ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.CurrentCulture);
     public string SchemaText => SchemaVersion is { } v ? "v" + v : "?";
@@ -49,15 +55,34 @@ public static class BackupService
     /// <summary>Noms des fichiers protégés contre la suppression automatique (réglages).</summary>
     public static HashSet<string> ProtectedFiles { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Durée légale de conservation des documents comptables (en années).</summary>
+    public const int RetentionYears = 10;
+
     public static List<BackupEntry> List()
     {
         var dir = DbContextFactory.BackupDirectory;
         if (!Directory.Exists(dir)) return [];
-        return Directory.EnumerateFiles(dir)
+        var list = Directory.EnumerateFiles(dir)
             .Where(f => f.EndsWith(".bak", StringComparison.OrdinalIgnoreCase))
             .Select(Read)
             .OrderByDescending(b => b.Date)
             .ToList();
+        MarkRetentionKeepers(list, DateTime.Now);
+        return list;
+    }
+
+    /// <summary>Repère, pour chaque année civile des 10 dernières années et chaque source (fichier / serveur), la
+    /// sauvegarde la plus récente : c'est elle qui est conservée quand la purge automatique réduit le nombre de
+    /// sauvegardes. La liste doit être triée de la plus récente à la plus ancienne.</summary>
+    internal static void MarkRetentionKeepers(IReadOnlyList<BackupEntry> sortedNewestFirst, DateTime now)
+    {
+        var limit = now.AddYears(-RetentionYears);
+        var seen = new HashSet<(int Year, string Source)>();
+        foreach (var b in sortedNewestFirst)
+        {
+            if (b.Date < limit) continue;
+            if (seen.Add((b.Date.Year, b.Source))) b.IsRetentionKeeper = true;
+        }
     }
 
     private static BackupEntry Read(string path)
@@ -136,12 +161,14 @@ public static class BackupService
             if (File.Exists(path + suffix)) File.Delete(path + suffix);
     }
 
-    /// <summary>Ne garde que les <paramref name="keep"/> sauvegardes les plus récentes (0 = ne rien supprimer).</summary>
+    /// <summary>Ne garde que les <paramref name="keep"/> sauvegardes les plus récentes (0 = ne rien supprimer). Les
+    /// sauvegardes protégées et les sauvegardes de conservation (la plus récente de chaque année civile des 10 dernières
+    /// années) ne sont jamais supprimées automatiquement et ne comptent pas dans <paramref name="keep"/>.</summary>
     public static int Prune(int keep)
     {
         if (keep <= 0 || PruneSuspended) return 0;
         var removed = 0;
-        foreach (var old in List().Where(b => !b.IsProtected).Skip(keep))
+        foreach (var old in List().Where(b => !b.IsProtected && !b.IsRetentionKeeper).Skip(keep))
         {
             try { Delete(old.Path); removed++; }
             catch { /* fichier ouvert ailleurs : réessayé à la prochaine purge */ }

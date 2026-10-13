@@ -266,6 +266,8 @@ public class AppDbContext : DbContext
             e.Property(x => x.MemberName).HasColumnName("member_name").HasMaxLength(200);
             e.Property(x => x.Note).HasColumnName("note").HasMaxLength(1000);
             e.Property(x => x.ImportRef).HasColumnName("import_ref").HasMaxLength(300);
+            e.Property(x => x.PaymentMode).HasColumnName("payment_mode").HasMaxLength(20);
+            e.Property(x => x.PieceRef).HasColumnName("piece_ref").HasMaxLength(100);
             e.Property(x => x.RefundOfId).HasColumnName("refund_of_id");
             e.Property(x => x.Seq).HasColumnName("seq");
             e.Property(x => x.ReversalOfId).HasColumnName("reversal_of_id");

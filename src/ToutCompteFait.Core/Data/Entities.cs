@@ -147,6 +147,10 @@ public sealed class EntryEntity
     public string? MemberName { get; set; }
     public string? Note { get; set; }
     public string? ImportRef { get; set; }
+    /// <summary>Mode de règlement (code <see cref="PaymentModes"/>) et référence de la pièce justificative : mentions du
+    /// livre des recettes et du registre des achats.</summary>
+    public string? PaymentMode { get; set; }
+    public string? PieceRef { get; set; }
     /// <summary>Remboursement reçu : écriture de dépense d'origine (remboursement partiel ou total).</summary>
     public long? RefundOfId { get; set; }
     /// <summary>Numéro d'ordre de l'écriture dans son exercice : séquentiel, sans trou, attribué à la création

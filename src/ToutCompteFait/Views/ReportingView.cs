@@ -77,6 +77,31 @@ public sealed class ReportingView : UserControl, IPage
         Render();
     }
 
+    /// <summary>Encadré d'information (bleu), d'avertissement (jaune) ou d'alerte (rouge).</summary>
+    private void AddNotice(NoticeLevel level, string text)
+    {
+        var (background, border, foreground) = level switch
+        {
+            NoticeLevel.Alert => ("#FEF2F2", "#FECACA", "#991B1B"),
+            NoticeLevel.Warning => ("#FEF9C3", "#FDE047", "#713F12"),
+            _ => ("#EFF6FF", "#BFDBFE", "#1E3A8A")
+        };
+        var conv = new System.Windows.Media.BrushConverter();
+        _body.Children.Add(new Border
+        {
+            Background = (System.Windows.Media.Brush)conv.ConvertFromString(background)!,
+            BorderBrush = (System.Windows.Media.Brush)conv.ConvertFromString(border)!,
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 8, 12, 8),
+            Margin = new Thickness(0, 8, 0, 0),
+            Child = new TextBlock
+            {
+                Text = (level == NoticeLevel.Alert ? "⚠ " : level == NoticeLevel.Warning ? "⚠ " : "ℹ ") + text,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = (System.Windows.Media.Brush)conv.ConvertFromString(foreground)!
+            }
+        });
+    }
+
     private TextBlock Muted(string text) => new() { Text = text, Style = Sty("MutedText"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) };
 
     private void Render()
@@ -232,6 +257,10 @@ public sealed class ReportingView : UserControl, IPage
         _body.Children.Add(Muted("Plafonds et seuils modifiables dans Paramétrage du dossier › Entreprise (ils sont révisés par l'État). " +
                                  "Dépasser le seuil de TVA rend la TVA exigible ; dépasser le plafond du régime micro fait sortir du régime. " +
                                  "Référence des valeurs par défaut : " + ToutCompteFait.Core.Business.UrssafParams.ReferenceLabel + "."));
+        // Règle des deux dépassements consécutifs, prorata de l'année de création, dates d'exigibilité de la TVA.
+        var micro = _c.ComputeMicroRegimeStatus(ceil.Year);
+        AddNotice(micro.Level, micro.Message);
+        foreach (var n in _c.ComputeVatNotices(ceil.Year)) AddNotice(n.Level, n.Message);
         if (ceil.Params.OutdatedFields().Count > 0)
             _body.Children.Add(Muted("⚠ Certains seuils ou taux portent encore les valeurs de 2023-2025 : mettez-les à jour dans " +
                                      "Paramétrage du dossier › Entreprise (bouton « Appliquer le barème 2026 »)."));

@@ -73,6 +73,8 @@ public sealed partial class Compta
         if (allocations.Count > 0)
             sb.Append(" · ventilation : ").Append(string.Join(" ; ", allocations.Select(a =>
                 $"{(cats.TryGetValue(a.CategoryId, out var n) ? n : "?")} {Money.Format(a.AmountCents)} €")));
+        if (!string.IsNullOrEmpty(e.PaymentMode)) sb.Append(" · règlement : ").Append(PaymentModes.Label(e.PaymentMode));
+        if (!string.IsNullOrWhiteSpace(e.PieceRef)) sb.Append(" · pièce : ").Append(e.PieceRef);
         if (e.Pointed) sb.Append(" · pointée");
         if (!string.IsNullOrWhiteSpace(e.Note)) sb.Append(" · commentaire : ").Append(e.Note);
         return sb.ToString();
@@ -192,6 +194,8 @@ public sealed partial class Compta
         e.AmountCents = entry.AmountCents;
         e.MemberName = member;
         e.Note = entry.Note;
+        e.PaymentMode = PaymentModes.Normalize(entry.PaymentMode);
+        e.PieceRef = string.IsNullOrWhiteSpace(entry.PieceRef) ? null : entry.PieceRef.Trim();
         e.RefundOfId = entry.Kind == EntryKind.Normal && entry.Direction == Direction.In ? entry.RefundOfId : null;
         e.UpdatedAt = Now();
         ctx.SaveChanges();
@@ -226,6 +230,7 @@ public sealed partial class Compta
         {
             YearId = o.YearId, EntryDate = D(o.Date), Label = label.Length > 500 ? label[..500] : label,
             Pointed = o.Pointed, AmountCents = o.AmountCents, ReversalOfId = o.Id, CreatedAt = now, UpdatedAt = now,
+            PaymentMode = o.PaymentMode,
             Note = string.IsNullOrWhiteSpace(reason) ? null : "Motif : " + reason.Trim()
         };
         switch (o.Kind)
