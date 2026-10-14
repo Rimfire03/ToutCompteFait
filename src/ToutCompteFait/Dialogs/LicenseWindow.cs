@@ -78,9 +78,16 @@ public sealed class LicenseWindow : Window
         try
         {
             var state = await action();
-            if (state.IsUsable) { DialogResult = true; return; }
+            if (state.IsUsable)
+            {
+                // Compteur de postes connu : « Licence activée (poste 2/5) » (rien de plus si le serveur ne l'envoie pas).
+                if (state.License?.ActivationsText is not null)
+                    MessageBox.Show(this, LicenseFooter.ActivationMessage(state), "Licence", MessageBoxButton.OK, MessageBoxImage.Information);
+                DialogResult = true;
+                return;
+            }
             _message.Foreground = System.Windows.Media.Brushes.Firebrick;
-            _message.Text = LicenseReasons.Describe(state.Reason);
+            _message.Text = LicenseReasons.DescribeRefusal(state);
         }
         catch (Exception ex)
         {

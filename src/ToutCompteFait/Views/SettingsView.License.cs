@@ -14,6 +14,10 @@ public partial class SettingsView
         var service = LicenseGate.Service;
         var state = service?.State;
         var l = state?.License;
+        // Compteur de postes (« Postes : 2/5 ») : seulement quand le serveur l'a renvoyé.
+        var posts = state?.Status is LicenseStatus.Valid or LicenseStatus.OfflineGrace ? LicenseFooter.PostsLine(l) : null;
+        LicensePostsText.Text = posts ?? "";
+        LicensePostsText.Visibility = posts is null ? Visibility.Collapsed : Visibility.Visible;
         if (state is null || state.Status == LicenseStatus.NoLicense)
         {
             LicenseTypeText.Text = "Aucune licence active sur ce poste.";

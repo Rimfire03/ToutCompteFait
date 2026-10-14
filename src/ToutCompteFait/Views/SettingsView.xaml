@@ -304,6 +304,7 @@
                                 <TextBlock x:Name="LicenseTypeText" FontWeight="SemiBold"/>
                                 <TextBlock x:Name="LicenseCustomerText" Margin="0,6,0,0"/>
                                 <TextBlock x:Name="LicenseExpiryText" Margin="0,6,0,0"/>
+                                <TextBlock x:Name="LicensePostsText" Margin="0,6,0,0" Visibility="Collapsed"/>
                                 <TextBlock x:Name="LicenseStatusText" Style="{StaticResource MutedText}" Margin="0,6,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
