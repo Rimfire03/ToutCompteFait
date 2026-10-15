@@ -12,6 +12,16 @@
 
     <MajorUpgrade AllowDowngrades="yes" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+    <!-- Recherches faites avant l'installation : raccourci déjà présent sur le bureau public ? drapeau posé par ce paquet ? -->
+    <Property Id="DESKTOPLNK">
+      <DirectorySearch Id="PublicDesktopDir" Path="[%PUBLIC]\Desktop" Depth="0">
+        <FileSearch Id="DesktopLnkFile" Name="$(EditionName).lnk" />
+      </DirectorySearch>
+    </Property>
+    <Property Id="DESKTOPFLAG">
+      <RegistrySearch Id="DesktopFlagReg" Root="HKLM" Key="SOFTWARE\TomLine\$(DataName)" Name="DesktopShortcutManaged"
+                      Type="raw" Bitness="always64" />
+    </Property>
     <Icon Id="app.ico" SourceFile="$(IconPath)" />
     <Property Id="ARPPRODUCTICON" Value="app.ico" />
 
@@ -24,11 +34,16 @@
           <File Id="MainExeFile" Source="$(PublishDir)\$(ExeName).exe" KeyPath="yes">
             <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="$(EditionName)"
                       WorkingDirectory="INSTALLFOLDER" Advertise="no" />
-            <!-- Raccourci sur le bureau (tous les utilisateurs, installation par machine) : créé s'il n'existe pas, recréé
-                 à la réparation ou à la mise à jour, retiré à la désinstallation. -->
-            <Shortcut Id="DesktopShortcut" Directory="DesktopFolder" Name="$(EditionName)"
-                      WorkingDirectory="INSTALLFOLDER" Advertise="no" />
           </File>
+        </Component>
+
+        <!-- Raccourci sur le bureau (tous les utilisateurs) : composant PERMANENT (jamais retiré ni recréé par une mise à
+             jour) et installé seulement s'il est absent. DESKTOPFLAG (registre) distingue la 1re mise à jour depuis
+             l'ancien paquet, dont le raccourci était retiré avec l'ancienne version et doit donc être recréé. -->
+        <Component Id="DesktopShortcutComp" Guid="*" Bitness="always64" Permanent="yes" Condition="NOT DESKTOPLNK OR NOT DESKTOPFLAG">
+          <RegistryValue Root="HKLM" Key="SOFTWARE\TomLine\$(DataName)" Name="DesktopShortcutManaged" Type="integer" Value="1" KeyPath="yes" />
+          <Shortcut Id="DesktopShortcut" Directory="DesktopFolder" Name="$(EditionName)"
+                    Target="[INSTALLFOLDER]$(ExeName).exe" WorkingDirectory="INSTALLFOLDER" />
         </Component>
 
         <?ifdef LauncherPath?>
@@ -69,6 +84,7 @@
 
     <Feature Id="Main" Title="$(EditionName)" Level="1">
       <ComponentRef Id="MainExe" />
+      <ComponentRef Id="DesktopShortcutComp" />
       <?ifdef LauncherPath?>
       <ComponentRef Id="LegacyLauncher" />
       <?endif?>
