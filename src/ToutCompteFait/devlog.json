@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.10.11",
+      "date": "2026-10-15",
+      "show": false,
+      "title": "Nouveautés de la version 1.10.11 (dev)",
+      "items": [
+        "Habillage terminé : Immobilisations en tuiles, Reporting URSSAF en cartes, fenêtres de dialogue sur fond blanc."
+      ]
+    },
+    {
       "version": "1.10.10",
       "date": "2026-10-15",
       "show": false,
