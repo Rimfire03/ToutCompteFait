@@ -484,6 +484,40 @@ Console.WriteLine("Comparaison entre exercices");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ arborescence d'installation
+Console.WriteLine("Arborescence d'installation et reprise des données");
+{
+    Eq("Tout Compte Fait", AppEdition.InstallRootFolder, "dossier parent commun");
+    Eq("Asso", new AppEdition("asso").InstallSubFolder, "sous-dossier Asso");
+    Eq("Autoentreprise", new AppEdition("autoentreprise").InstallSubFolder, "sous-dossier Autoentreprise");
+    Eq("ToutCompteFait", new AppEdition("asso").LegacyInstallFolder, "ancien dossier Asso");
+    Eq("ToutCompteFaitAutoentreprise", new AppEdition("autoentreprise").LegacyInstallFolder, "ancien dossier Autoentreprise");
+
+    var root = Path.Combine(Path.GetTempPath(), "tcf-mig-" + Guid.NewGuid().ToString("N"));
+    var oldDir = Path.Combine(root, "old");
+    var newDir = Path.Combine(root, "new");
+    try
+    {
+        Directory.CreateDirectory(Path.Combine(oldDir, "Donnees"));
+        Directory.CreateDirectory(Path.Combine(oldDir, "Sauvegardes"));
+        File.WriteAllText(Path.Combine(oldDir, "Donnees", "compta.db"), "base");
+        File.WriteAllText(Path.Combine(oldDir, "Sauvegardes", "a.bak"), "sauvegarde");
+        File.WriteAllText(Path.Combine(oldDir, "ToutCompteFait.exe"), "exe");
+        Directory.CreateDirectory(Path.Combine(newDir, "Donnees"));
+
+        Eq(2, LegacyInstallMigration.Migrate(oldDir, newDir), "base et sauvegarde reprises");
+        Eq("base", File.ReadAllText(Path.Combine(newDir, "Donnees", "compta.db")), "contenu de la base copié");
+        Check(File.Exists(Path.Combine(oldDir, "Donnees", "compta.db")), "l'original n'est pas supprimé");
+        Check(!File.Exists(Path.Combine(newDir, "ToutCompteFait.exe")), "seuls Donnees et Sauvegardes sont repris");
+        File.WriteAllText(Path.Combine(newDir, "Donnees", "compta.db"), "nouvelle base");
+        Eq(0, LegacyInstallMigration.Migrate(oldDir, newDir), "deuxième lancement : rien n'est recopié");
+        Eq("nouvelle base", File.ReadAllText(Path.Combine(newDir, "Donnees", "compta.db")), "la base courante n'est jamais écrasée");
+        Eq(0, LegacyInstallMigration.Migrate(Path.Combine(root, "absent"), newDir), "ancien dossier absent : sans effet");
+        Eq(0, LegacyInstallMigration.Migrate(newDir, newDir), "même dossier : sans effet");
+    }
+    finally { try { Directory.Delete(root, true); } catch { } }
+}
+
 // ------------------------------------------------------------------ licence : une licence gratuite par version
 Console.WriteLine("Licence gratuite propre à chaque version");
 {
@@ -1883,6 +1917,7 @@ Console.WriteLine("Versions du logiciel");
             Eq(ed.ExeBaseName, e.GetProperty("exe").GetString(), $"editions.json[{id}] : exécutable");
             Eq(ed.AppName, e.GetProperty("name").GetString(), $"editions.json[{id}] : nom affiché");
             Eq(ed.DataName, e.GetProperty("dataName").GetString(), $"editions.json[{id}] : nom des données");
+            Eq(ed.InstallSubFolder, e.GetProperty("installFolder").GetString(), $"editions.json[{id}] : sous-dossier d'installation");
             Check(codes.Add(e.GetProperty("upgradeCode").GetString()!) && codes.Add(e.GetProperty("dataFolderGuid").GetString()!)
                   && codes.Add(e.GetProperty("backupFolderGuid").GetString()!), $"editions.json[{id}] : GUID uniques (jamais partagés entre versions)");
         }

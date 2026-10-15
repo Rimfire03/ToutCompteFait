@@ -2,7 +2,7 @@
 <!-- Paquet MSI de Tout Compte Fait, une version (édition) par paquet (WiX 4, par machine, 64 bits). Construit par
      tools\Build-Installer.ps1 à partir de editions.json :
      wix build installer\Product.wxs -d Version=x.y.z -d PublishDir=<dossier publish> -d IconPath=<app.ico>
-       -d EditionName="Tout Compte Fait Asso" -d ExeName=ToutCompteFaitAsso -d UpgradeCode=<GUID> -d InstallFolder=ToutCompteFait
+       -d EditionName="Tout Compte Fait Asso" -d ExeName=ToutCompteFaitAsso -d UpgradeCode=<GUID> -d InstallRoot="Tout Compte Fait" -d InstallFolder=Asso
        -d DataName=ToutCompteFait -d DataGuid=<GUID> -d BackupGuid=<GUID> [-d LauncherPath=<ToutCompteFait.exe>]
      Chaque version a son UpgradeCode, son dossier d'installation, sa clé de registre et ses raccourcis : plusieurs versions
      s'installent côte à côte sur un même poste. -->
@@ -16,6 +16,8 @@
     <Property Id="ARPPRODUCTICON" Value="app.ico" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
+      <!-- C:\Program Files\Tout Compte Fait\<Version> : un seul dossier « Tout Compte Fait », un sous-dossier par version. -->
+      <Directory Id="INSTALLROOT" Name="$(InstallRoot)">
       <Directory Id="INSTALLFOLDER" Name="$(InstallFolder)">
 
         <Component Id="MainExe" Guid="*">
@@ -61,6 +63,7 @@
           </RegistryKey>
         </Component>
 
+      </Directory>
       </Directory>
     </StandardDirectory>
 

@@ -1,12 +1,13 @@
 {
   "_comment": "Versions (éditions) du logiciel, installables côte à côte. Règles de nommage : voir src/ToutCompteFait.Core/Editions.cs (vérifiées par les tests). Une version ajoutée ici est construite et publiée par tools/Release.ps1 ; son UpgradeCode et ses GUID de dossiers sont propres (ne jamais en réutiliser un d'une autre version).",
+  "installRoot": "Tout Compte Fait",
   "editions": [
     {
       "id": "asso",
       "exe": "ToutCompteFaitAsso",
       "name": "Tout Compte Fait Asso",
       "dataName": "ToutCompteFait",
-      "installFolder": "ToutCompteFait",
+      "installFolder": "Asso",
       "upgradeCode": "ADEA732C-8143-4CC9-AFCB-E08D07DE3AF1",
       "dataFolderGuid": "3C2E8A88-99DF-4F94-A685-17F8B5180886",
       "backupFolderGuid": "A210B9A4-8212-4955-A87F-55E620C28B02",
@@ -18,7 +19,7 @@
       "exe": "ToutCompteFaitAutoentreprise",
       "name": "Tout Compte Fait Autoentreprise",
       "dataName": "ToutCompteFaitAutoentreprise",
-      "installFolder": "ToutCompteFaitAutoentreprise",
+      "installFolder": "Autoentreprise",
       "upgradeCode": "F81EEB53-D4F9-4B2B-8870-35C5677F1C5C",
       "dataFolderGuid": "2586F761-4F4B-4821-8B6C-B8CC1AE3BA34",
       "backupFolderGuid": "F1DC7654-92DA-44E5-9F07-75CF4A55DE4C",

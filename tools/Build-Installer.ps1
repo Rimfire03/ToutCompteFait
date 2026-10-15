@@ -28,7 +28,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$ed = (Get-Content (Join-Path $root "editions.json") -Raw -Encoding UTF8 | ConvertFrom-Json).editions | Where-Object { $_.id -eq $Edition }
+$editionsFile = Get-Content (Join-Path $root "editions.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+$installRoot = if ($editionsFile.installRoot) { $editionsFile.installRoot } else { "Tout Compte Fait" }
+$ed = $editionsFile.editions | Where-Object { $_.id -eq $Edition }
 if (-not $ed) { throw "Version (edition) '$Edition' absente de editions.json." }
 $wixExe = Join-Path $env:USERPROFILE ".dotnet\tools\wix.exe"
 if (-not (Test-Path $wixExe)) { $wixExe = (Get-Command wix -ErrorAction Stop).Source }
@@ -44,7 +46,7 @@ if ($data.Count -gt 0) { throw "DONNEES DANS LE DOSSIER PUBLIE, MSI annule : $((
 $defines = @(
     "-d", "Version=$Version", "-d", "PublishDir=$PublishDir", "-d", "IconPath=$ico",
     "-d", "EditionName=$($ed.name)", "-d", "ExeName=$($ed.exe)", "-d", "UpgradeCode=$($ed.upgradeCode)",
-    "-d", "InstallFolder=$($ed.installFolder)", "-d", "DataName=$($ed.dataName)",
+    "-d", "InstallRoot=$installRoot", "-d", "InstallFolder=$($ed.installFolder)", "-d", "DataName=$($ed.dataName)",
     "-d", "DataGuid=$($ed.dataFolderGuid)", "-d", "BackupGuid=$($ed.backupFolderGuid)")
 if ($LauncherPath) {
     if (-not (Test-Path $LauncherPath)) { throw "Lanceur de compatibilite introuvable : $LauncherPath" }

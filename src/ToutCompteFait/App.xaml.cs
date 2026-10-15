@@ -222,6 +222,8 @@ public partial class App : Application
 
         try
         {
+            // Installation par MSI dans la nouvelle arborescence : reprend les données de l'ancien dossier (copie, jamais de suppression).
+            LegacyInstallMigration.RunIfInstalled();
             Settings = AppSettings.Load();
             if (CliDatabase is not null)
             {
