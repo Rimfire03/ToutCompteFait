@@ -765,6 +765,10 @@ Console.WriteLine("Statistique mensuelle (sans les éléments personnels)");
         Eq(10000L, s.Products[0].Values[0], "ventes de septembre");
         Eq(5000L, s.Products[0].Values[2], "ventes de novembre");
         Eq(4000L, s.Charges[0].Values[0], "loyer de septembre");
+        var cmp = c.CompareYears(y.Id, 2);
+        Check(cmp.Products.All(l => l.Name != "Apport"), "comparaison annuelle : produit personnel absent");
+        Check(cmp.Charges.All(l => l.Name != "Courses"), "comparaison annuelle : charge personnelle absente");
+        Check(cmp.Charges.Any(l => l.Name == "Loyer"), "comparaison annuelle : charge normale présente");
     }
     Cleanup(path);
 }
