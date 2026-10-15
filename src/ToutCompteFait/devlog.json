@@ -1,6 +1,22 @@
 {
   "entries": [
     {
+      "version": "1.12.3",
+      "date": "2026-10-16",
+      "show": true,
+      "title": "Nouveautés de la version 1.12.3",
+      "items": [
+        "Nouvel onglet « Statistiques » : produits, charges et opérations, avec un tableau de bord (graphique mensuel, camembert des revenus, tableaux), un graphique en ligne par produit, charge ou opération, et un commutateur Mensuel / Annuel. Les éléments marqués « personnel » n'y figurent pas.",
+        "Import d'un relevé bancaire : si un libellé a toujours été classé dans la même catégorie, la ventilation est proposée et appliquée seulement après votre validation.",
+        "Opérations bancaires : à l'ouverture, la première écriture à ventiler s'affiche en haut de la vue.",
+        "Autoentreprise : alerte à l'ouverture lorsqu'une déclaration URSSAF est à réaliser ; elle disparaît dès que la période est marquée « déclarée » dans le Reporting URSSAF.",
+        "Autoentreprise : produits personnels (apports de l'exploitant) exclus du résultat, une opération en débit ne propose que des charges et une opération en crédit que des produits.",
+        "Autoentreprise : on parle désormais d'« année fiscale » à la place d'« exercice ».",
+        "Les boîtes de message du logiciel reprennent les couleurs de l'application.",
+        "La mise à jour du logiciel est proposée à tous les utilisateurs, pas seulement aux administrateurs."
+      ]
+    },
+    {
       "version": "1.12.2",
       "date": "2026-10-16",
       "show": false,
