@@ -89,7 +89,7 @@ internal sealed class SimplePdf
     public void Text(double x, double y, string text, double size = 8, bool bold = false)
     {
         _page.Append("BT /").Append(bold ? "F2" : "F1").Append(' ').Append(Num(size)).Append(" Tf ")
-            .Append(Num(x)).Append(' ').Append(Num(y)).Append(" Td (").Append(Escape(text)).Append(") Tj ET\n");
+            .Append(Num(x)).Append(' ').Append(Num(y)).Append(" Td (").Append(Escape(Wording.Adapt(text))).Append(") Tj ET\n");
     }
 
     public void TextRight(double xRight, double y, string text, double size = 8, bool bold = false) =>

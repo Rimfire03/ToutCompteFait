@@ -667,6 +667,20 @@ Console.WriteLine("Recettes personnelles (apports, hors résultat)");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ vocabulaire « année fiscale » (Autoentreprise)
+Console.WriteLine("Vocabulaire année fiscale");
+{
+    Eq("l'année fiscale validée", Wording.Apply("l'exercice validé"), "article élidé + adjectif");
+    Eq("Une année fiscale ouverte", Wording.Apply("Un exercice ouvert"), "article indéfini, majuscule");
+    Eq("la dernière année fiscale", Wording.Apply("le dernier exercice"), "adjectif antéposé");
+    Eq("Les années fiscales précédentes", Wording.Apply("Les exercices précédents"), "pluriel");
+    Eq("cette année fiscale", Wording.Apply("cet exercice"), "démonstratif");
+    Eq("Année fiscale 2025", Wording.Apply("Exercice 2025"), "nom seul");
+    Eq("de la dernière année fiscale", Wording.Apply("du dernier exercice"), "du → de la");
+    Eq("sans changement", Wording.Apply("sans changement"), "texte sans le mot");
+    Eq("Exercice validé", Wording.Adapt("Exercice validé"), "autres versions : inchangé");
+}
+
 // ------------------------------------------------------------------ ventilation proposée à l'import
 Console.WriteLine("Ventilation proposée d'après l'historique");
 {

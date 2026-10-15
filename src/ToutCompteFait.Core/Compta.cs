@@ -10,7 +10,7 @@ namespace ToutCompteFait.Core;
 /// <summary>Erreur métier : message affichable tel quel à l'utilisateur.</summary>
 public sealed class ComptaException : Exception
 {
-    public ComptaException(string message) : base(message) { }
+    public ComptaException(string message) : base(Wording.Adapt(message)) { }
 }
 
 /// <summary>Cœur comptable : toutes les règles (exercices, écritures, régularisations, bilan, utilisateurs) vivent ici,

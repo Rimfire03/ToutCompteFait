@@ -170,6 +170,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        ToutCompteFait.Services.WordingHook.Install();
         ApplyVisualTheme();
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         DispatcherUnhandledException += (_, args) =>
@@ -695,13 +696,13 @@ public partial class App : Application
 public static class Ui
 {
     public static void Info(string text, string? title = null) =>
-        MessageBox.Show(text, title ?? Editions.AppName, MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show(Wording.Adapt(text), Wording.Adapt(title ?? Editions.AppName), MessageBoxButton.OK, MessageBoxImage.Information);
 
     public static void Error(string text, string? title = null) =>
-        MessageBox.Show(text, title ?? Editions.AppName, MessageBoxButton.OK, MessageBoxImage.Warning);
+        MessageBox.Show(Wording.Adapt(text), Wording.Adapt(title ?? Editions.AppName), MessageBoxButton.OK, MessageBoxImage.Warning);
 
     public static bool Confirm(string text, string title = "Confirmation") =>
-        MessageBox.Show(text, title, MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+        MessageBox.Show(Wording.Adapt(text), Wording.Adapt(title), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
 
     /// <summary>Exécute une action d'écriture : les erreurs métier sont affichées sans planter. Retourne true si OK.</summary>
     public static bool Try(Action action)
