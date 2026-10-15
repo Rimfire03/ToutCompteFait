@@ -38,7 +38,7 @@ public partial class App
             return false;
         }
         if (info is null) return false;
-        var accepted = MessageBox.Show(
+        var accepted = Ui.Box(
             $"La base de données a été mise à jour par une version plus récente du logiciel : votre version ({CurrentVersion}) ne peut pas l'ouvrir.\n\n" +
             $"La version {info.Version} est disponible. La télécharger et l'installer maintenant ? " +
             "La base de données ne sera pas modifiée. Le logiciel va se fermer puis redémarrer automatiquement.",
@@ -119,7 +119,7 @@ public partial class App
     public static void ShowUpdateFailure(UpdateInfo info, string reason)
     {
         var url = string.IsNullOrWhiteSpace(info.ReleaseUrl) ? info.AssetUrl : info.ReleaseUrl;
-        var answer = MessageBox.Show(
+        var answer = Ui.Box(
             $"La mise à jour automatique vers la version {info.Version} a échoué :\n{reason}\n\n" +
             "Vous pouvez installer cette version manuellement : téléchargez-la depuis la page ci-dessous (installateur .msi " +
             "ou archive .zip), puis lancez-la. Vos données ne sont pas touchées.\n\n" + url +
@@ -133,7 +133,7 @@ public partial class App
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
             Clipboard.SetText(url);
-            MessageBox.Show("Impossible d'ouvrir le navigateur. Le lien a été copié dans le presse-papiers :\n" + url,
+            Ui.Box("Impossible d'ouvrir le navigateur. Le lien a été copié dans le presse-papiers :\n" + url,
                 "Mise à jour impossible", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }

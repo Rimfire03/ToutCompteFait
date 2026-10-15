@@ -82,7 +82,7 @@ public sealed class LicenseWindow : Window
             {
                 // Compteur de postes connu : « Licence activée (poste 2/5) » (rien de plus si le serveur ne l'envoie pas).
                 if (state.License?.ActivationsText is not null)
-                    MessageBox.Show(this, LicenseFooter.ActivationMessage(state), "Licence", MessageBoxButton.OK, MessageBoxImage.Information);
+                    Ui.Box(this, LicenseFooter.ActivationMessage(state), "Licence", MessageBoxButton.OK, MessageBoxImage.Information);
                 DialogResult = true;
                 return;
             }

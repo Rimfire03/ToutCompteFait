@@ -19,6 +19,7 @@ public sealed class UrssafAlertWindow : Window
         SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ResizeMode = ResizeMode.NoResize;
+        Background = (Brush)Application.Current.FindResource("BrushSurface");
 
         var panel = new StackPanel { Margin = new Thickness(22, 18, 22, 8) };
         panel.Children.Add(new TextBlock { Text = "Déclaration URSSAF à réaliser", Style = Sty("TitleText") });

@@ -47,7 +47,7 @@ public static class LicenseGate
         }
         catch (Exception ex) when (ex is InvalidOperationException or PlatformNotSupportedException)
         {
-            MessageBox.Show("Impossible d'identifier ce poste pour la licence :\n\n" + ex.Message, "Licence",
+            Ui.Box("Impossible d'identifier ce poste pour la licence :\n\n" + ex.Message, "Licence",
                 MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
         }
@@ -94,7 +94,7 @@ public static class LicenseGate
             var state = await Service.RevalidateAsync();
             if (state.IsUsable) { TryShowProfilePrompt(); return; }
             _timer?.Stop();
-            MessageBox.Show(LicenseReasons.Describe(state.Reason) + "\n\nLe logiciel va se fermer.",
+            Ui.Box(LicenseReasons.Describe(state.Reason) + "\n\nLe logiciel va se fermer.",
                 "Licence", MessageBoxButton.OK, MessageBoxImage.Warning);
             Application.Current.Shutdown();
         };

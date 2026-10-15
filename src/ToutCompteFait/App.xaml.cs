@@ -267,7 +267,7 @@ public partial class App : Application
         catch (Exception ex)
         {
             while (ex.InnerException is not null && ex is not ComptaException) ex = ex.InnerException;
-            MessageBox.Show("Impossible d'ouvrir la base de données :\n\n" + ex.Message,
+            Ui.Box("Impossible d'ouvrir la base de données :\n\n" + ex.Message,
                 Editions.AppName, MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();
             return;
@@ -309,7 +309,7 @@ public partial class App : Application
         {
             if (!TryAcquireWriteLock())
             {
-                MessageBox.Show(
+                Ui.Box(
                     "La base de données doit être créée ou mise à jour, mais elle est utilisée en écriture par " +
                     (WriteLockOwner is null ? "un autre poste" : "@" + WriteLockOwner) +
                     ".\n\nLa mise à jour se fera au prochain lancement sur un poste ayant l'accès en écriture. " +
@@ -327,7 +327,7 @@ public partial class App : Application
             // Le logiciel est trop ancien pour la base : proposer d'abord la mise à jour (la base n'est pas touchée).
             if (OfferUpdateForNewerDatabase()) return false;
             var by = new DbContextFactory(Target, readOnly: true).GetLastMigratedByAppVersion();
-            MessageBox.Show(
+            Ui.Box(
                 $"Cette version du logiciel ({DisplayVersion}) est trop ancienne pour ouvrir la base (version {version}, " +
                 $"le logiciel gère jusqu'à la version {DbContextFactory.LatestVersion})." +
                 (by is null ? "" : $"\nBase mise à jour par le logiciel {by} ou plus récent.") +
@@ -344,7 +344,7 @@ public partial class App : Application
         {
             if (!TryAcquireWriteLock())
             {
-                MessageBox.Show(
+                Ui.Box(
                     "Aucun compte utilisateur n'existe encore, et un autre poste détient l'accès en écriture" +
                     (WriteLockOwner is null ? "." : $" ({WriteLockOwner}).") +
                     "\n\nLe premier administrateur doit être créé depuis ce poste : réessayez quand l'autre aura fermé le logiciel.",
@@ -406,7 +406,7 @@ public partial class App : Application
         var pending = Target.IsServer ? DbContextFactory.PendingServerMigrations(from) : DbContextFactory.PendingMigrations(from);
         if (pending.Count == 0) return true;
         var changes = string.Join("\n", pending.Select(c => "  • " + c));
-        return MessageBox.Show(
+        return Ui.Box(
             $"La base de données est en version {from} ; cette version du logiciel ({DisplayVersion}) a besoin de la version {DbContextFactory.LatestVersion}.\n\n" +
             $"Modifications à appliquer :\n{changes}\n\n" +
             (Target.IsServer
@@ -423,7 +423,7 @@ public partial class App : Application
         var hadLock = _fileLock is not null || _serverLock is not null;
         if (!hadLock && !TryAcquireWriteLock())
         {
-            MessageBox.Show(
+            Ui.Box(
                 "Votre mot de passe est provisoire et doit être changé, mais la base est utilisée en écriture par un autre poste" +
                 (WriteLockOwner is null ? "." : $" ({WriteLockOwner}).") +
                 "\n\nRéessayez quand l'autre poste aura fermé le logiciel.",
@@ -504,7 +504,7 @@ public partial class App : Application
                 error = ex.InnermostMessage();
             }
 
-            var choice = MessageBox.Show(
+            var choice = Ui.Box(
                 $"Impossible de joindre le serveur de base de données :\n{Settings.DatabaseServer.Describe()}\n\n{error}\n\n" +
                 "Oui : réessayer.\n" +
                 "Non : utiliser de nouveau le fichier SQLite local.\n" +
@@ -577,7 +577,7 @@ public partial class App : Application
             _serverLock = null;
             string? by = null;
             try { by = await Task.Run(() => ServerWriteLock.ReadOwner(Target)); } catch { /* sans gravité */ }
-            MessageBox.Show(
+            Ui.Box(
                 (by is null ? "Un autre poste a repris" : $"{by} a repris") +
                 " l'accès en écriture à la base (reprise forcée par un administrateur, ou ce poste est resté injoignable trop longtemps).\n\n" +
                 "Vous venez de perdre le droit d'écriture : le logiciel va redémarrer en lecture seule. " +
@@ -647,7 +647,7 @@ public partial class App : Application
         var by = WriteLock.ConsumeTakeoverRequest(Target.FilePath!);
         if (by is null) return false;
         ReleaseWriteLock();
-        MessageBox.Show(
+        Ui.Box(
             $"{by} (administrateur) vient de reprendre de force l'accès en écriture à la base.\n\n" +
             "Vous venez de perdre le droit d'écriture : le logiciel va redémarrer en lecture seule. " +
             "Les modifications non enregistrées sont perdues.",
@@ -696,13 +696,39 @@ public partial class App : Application
 public static class Ui
 {
     public static void Info(string text, string? title = null) =>
-        MessageBox.Show(Wording.Adapt(text), Wording.Adapt(title ?? Editions.AppName), MessageBoxButton.OK, MessageBoxImage.Information);
+        Box(text, title ?? Editions.AppName, MessageBoxButton.OK, MessageBoxImage.Information);
 
     public static void Error(string text, string? title = null) =>
-        MessageBox.Show(Wording.Adapt(text), Wording.Adapt(title ?? Editions.AppName), MessageBoxButton.OK, MessageBoxImage.Warning);
+        Box(text, title ?? Editions.AppName, MessageBoxButton.OK, MessageBoxImage.Warning);
 
     public static bool Confirm(string text, string title = "Confirmation") =>
-        MessageBox.Show(Wording.Adapt(text), Wording.Adapt(title), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+        Box(text, title, MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+
+    /// <summary>Boîte de message aux couleurs de l'application (même contrat que <see cref="MessageBox.Show(string)"/>),
+    /// adaptée au vocabulaire de la version. Se replie sur la boîte système si la fenêtre ne peut pas s'afficher.</summary>
+    public static MessageBoxResult Box(string text, string caption, MessageBoxButton buttons = MessageBoxButton.OK,
+        MessageBoxImage icon = MessageBoxImage.None, MessageBoxResult defaultResult = MessageBoxResult.None) =>
+        Box(null, text, caption, buttons, icon, defaultResult);
+
+    public static MessageBoxResult Box(Window? owner, string text, string caption, MessageBoxButton buttons = MessageBoxButton.OK,
+        MessageBoxImage icon = MessageBoxImage.None, MessageBoxResult defaultResult = MessageBoxResult.None)
+    {
+        text = Wording.Adapt(text);
+        caption = Wording.Adapt(caption);
+        var app = Application.Current;
+        try
+        {
+            if (app is null) return MessageBox.Show(text, caption, buttons, icon, defaultResult);
+            if (!app.Dispatcher.CheckAccess())
+                return app.Dispatcher.Invoke(() => Box(owner, text, caption, buttons, icon, defaultResult));
+            owner ??= app.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive) ?? app.MainWindow;
+            return ToutCompteFait.Dialogs.MessageDialog.Show(owner, text, caption, buttons, icon, defaultResult);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return MessageBox.Show(text, caption, buttons, icon, defaultResult);
+        }
+    }
 
     /// <summary>Exécute une action d'écriture : les erreurs métier sont affichées sans planter. Retourne true si OK.</summary>
     public static bool Try(Action action)
