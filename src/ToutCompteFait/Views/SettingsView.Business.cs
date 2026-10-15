@@ -69,6 +69,7 @@ public partial class SettingsView
             return;
         }
         // Colonne « Type URSSAF » dans la liste des produits.
+        TypeProduct.Visibility = Visibility.Visible;
         ProductsGrid.Columns.Insert(1, new DataGridTextColumn
         {
             Header = "Type URSSAF", Binding = new System.Windows.Data.Binding("Type"), Width = 130,
@@ -156,13 +157,6 @@ public partial class SettingsView
         apeBar.Children.Add(removeApe);
         root.Children.Add(apeBar);
         _apeNew.IsEnabled = canEdit;
-        var createCats = new Button
-        {
-            Content = $"Créer les catégories de recettes de l'exercice d'après ces codes APE", Style = Sty("SecondaryButton"),
-            HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0), IsEnabled = canEdit && _year.Open
-        };
-        createCats.Click += BizCreateCategories_Click;
-        root.Children.Add(createCats);
 
         // --- Déclaration
         root.Children.Add(Section("Déclaration de chiffre d'affaires"));
@@ -508,25 +502,6 @@ public partial class SettingsView
             _bizLoaded = _c.GetBusinessProfile();
             Ui.Info("Informations de l'entreprise enregistrées.");
             MainWindow.Current?.RefreshBusinessNav();
-            // Aucune catégorie de recettes dans cet exercice : propose de les créer d'après les codes APE.
-            if (_year.Open && App.Can(Permission.ManageStructure) && _c.Categories(_year.Id).All(c => c.Kind != CategoryKind.Product))
-                BizCreateCategories_Click(sender, e);
         }
-    }
-
-    private void BizCreateCategories_Click(object sender, RoutedEventArgs e)
-    {
-        // Tous les types auxquels les codes APE donnent droit (principal puis alternatifs) : une catégorie inutilisée
-        // se supprime ensuite depuis « Produits et charges ».
-        var wanted = ApeMapper.AllKinds(ApeCodesFromBox());
-        if (wanted.Count == 0) { Ui.Info("Aucun type de déclaration n'a pu être déduit des codes APE : créez les catégories depuis « Produits et charges »."); return; }
-        var existing = _c.CategoryUrssafKinds();
-        var cats = _c.Categories(_year.Id).Where(c => c.Kind == CategoryKind.Product)
-            .Select(c => Compta.ResolveUrssafKind(existing, c.Name)).Where(k => k is not null).Select(k => k!.Value).ToHashSet();
-        var toCreate = wanted.Where(k => !cats.Contains(k)).ToList();
-        if (toCreate.Count == 0) { Ui.Info("Les catégories de recettes de ces types existent déjà dans cet exercice."); return; }
-        if (!Ui.Confirm("Créer dans l'exercice " + _year.Label + " les catégories de recettes :\n\n• " +
-                        string.Join("\n• ", toCreate.Select(k => k.Short())), "Catégories d'activité")) return;
-        if (Ui.Try(() => { foreach (var k in toCreate) _c.AddActivityCategory(_year.Id, k, null); })) Reload();
     }
 }

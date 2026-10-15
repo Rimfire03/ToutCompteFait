@@ -29,6 +29,7 @@ internal static class DatabaseMigrations
         (12, "Charges classées investissement (repère par nom de catégorie)", AddCategoryInvestments),
         (13, "Charges personnelles de l'exploitant (écartées du résultat, repère par nom de catégorie)", AddCategoryPersonal),
         (14, "Mode de règlement et référence de pièce des écritures (livre des recettes, registre des achats)", AddPaymentInfo),
+        (15, "Autoentreprise : ventilations en produits remises à zéro (produits désormais libres, rattachés ensuite à un type URSSAF)", ResetProductAllocations),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -53,6 +54,7 @@ internal static class DatabaseMigrations
         (12, "Charges classées investissement (repère par nom de catégorie)", AddCategoryInvestments),
         (13, "Charges personnelles de l'exploitant (écartées du résultat, repère par nom de catégorie)", AddCategoryPersonal),
         (14, "Mode de règlement et référence de pièce des écritures (livre des recettes, registre des achats)", AddPaymentInfo),
+        (15, "Autoentreprise : ventilations en produits remises à zéro (produits désormais libres, rattachés ensuite à un type URSSAF)", ResetProductAllocations),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -402,6 +404,22 @@ internal static class DatabaseMigrations
             ctx.Database.ExecuteSqlRaw(sql);
         }
     }
+
+    // ------------------------------------------------------------------ v15 : produits libres (Autoentreprise)
+
+    /// <summary>Version Autoentreprise uniquement : supprime les ventilations sur des produits (recettes) des exercices
+    /// NON validés, les écritures redeviennent « à ventiler » (montants, dates et libellés des écritures intacts). Les
+    /// exercices validés ne sont jamais touchés : leurs ventilations sont couvertes par l'empreinte. Édition Asso : sans effet.</summary>
+    private static void ResetProductAllocations(AppDbContext ctx)
+    {
+        if (!Editions.Current.IsBusiness) return;
+        var q = (string n) => ServerSql.Q(ctx.Provider, n);
+        ctx.Database.ExecuteSqlRaw(
+            $"DELETE FROM {q("allocations")} WHERE {q("category_id")} IN (" +
+            $"SELECT c.{q("id")} FROM {q("categories")} c JOIN {q("fiscal_years")} y ON y.{q("id")} = c.{q("year_id")} " +
+            $"WHERE c.{q("kind")} = 'P' AND y.{q("status")} <> 'VALIDATED')");
+    }
+
     /// <summary>Table <c>category_personal</c> (nom de la charge) : dépenses privées de l'exploitant, hors des tables
     /// verrouillées avec les exercices.</summary>
     private static void AddCategoryPersonal(AppDbContext ctx)

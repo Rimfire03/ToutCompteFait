@@ -88,7 +88,7 @@ public partial class SettingsView : UserControl, IPage
                 ? "Votre rôle (" + RoleInfo.DisplayName(App.Session.Role) + ") donne un accès en consultation seule à ces réglages."
             : App.IsReadOnly ? "Poste en lecture seule : aucune modification possible." : "";
 
-        foreach (var b in new Button[] { AddProduct, RenameProduct, UpProduct, DownProduct, DeleteProduct,
+        foreach (var b in new Button[] { AddProduct, RenameProduct, TypeProduct, UpProduct, DownProduct, DeleteProduct,
                                          AddCharge, RenameCharge, UpCharge, DownCharge, DeleteCharge,
                                          SavePeriodButton, DeleteYearButton })
             b.IsEnabled = _canEdit;
@@ -226,20 +226,26 @@ public partial class SettingsView : UserControl, IPage
     private void AddCategory_Click(object sender, RoutedEventArgs e)
     {
         var kind = KindOf(sender);
-        if (kind == CategoryKind.Product && Editions.Current.IsBusiness)
-        {
-            // Entreprise : une recette est d'un type de déclaration URSSAF (BIC vente, BIC prestation, BNC…), nom libre après.
-            // Types principaux puis alternatifs : un même code APE peut donner droit à plusieurs types de déclaration.
-            var suggested = ToutCompteFait.Core.Business.ApeMapper.AllKinds(_c.GetBusinessProfile().ApeCodes);
-            var choice = ActivityCategoryWindow.Ask(Window.GetWindow(this), suggested);
-            if (choice is null) return;
-            if (Ui.Try(() => _c.AddActivityCategory(_year.Id, choice.Value.Kind, choice.Value.Name))) Reload();
-            return;
-        }
         var name = PromptWindow.Ask(Window.GetWindow(this), kind == CategoryKind.Product ? "Nouveau produit" : "Nouvelle charge",
             "Nom :", okText: "Ajouter");
         if (name is null) return;
         if (Ui.Try(() => _c.AddCategory(_year.Id, kind, name))) Reload();
+    }
+
+    /// <summary>Entreprise : rattache le produit sélectionné à un type de déclaration URSSAF (nom libre, type choisi après).</summary>
+    private void SetUrssafType_Click(object sender, RoutedEventArgs e)
+    {
+        if (ProductsGrid.SelectedItem is not CategoryRow row) { Ui.Info("Sélectionnez d'abord un produit."); return; }
+        var suggested = ToutCompteFait.Core.Business.ApeMapper.AllKinds(_c.GetBusinessProfile().ApeCodes);
+        var current = Compta.ResolveUrssafKind(_c.CategoryUrssafKinds(), row.Cat.Name);
+        var choice = UrssafTypeWindow.Ask(Window.GetWindow(this), row.Cat.Name, suggested, current);
+        if (choice is null) return;
+        var id = row.Cat.Id;
+        if (Ui.Try(() => _c.SetCategoryUrssafKind(row.Cat.Name, choice.Value.Kind)))
+        {
+            Reload();
+            ProductsGrid.SelectedItem = ProductsGrid.Items.OfType<CategoryRow>().FirstOrDefault(r => r.Cat.Id == id);
+        }
     }
 
     private void RenameCategory_Click(object sender, RoutedEventArgs e)

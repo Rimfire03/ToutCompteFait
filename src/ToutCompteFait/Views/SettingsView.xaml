@@ -24,6 +24,7 @@
                         <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                             <Button x:Name="AddProduct" Content="＋ Ajouter" Style="{StaticResource PrimaryButton}" Tag="P" Click="AddCategory_Click"/>
                             <Button x:Name="RenameProduct" Content="Renommer" Style="{StaticResource SecondaryButton}" Tag="P" Click="RenameCategory_Click"/>
+                            <Button x:Name="TypeProduct" Content="Type URSSAF…" Style="{StaticResource SecondaryButton}" Visibility="Collapsed" Click="SetUrssafType_Click"/>
                             <Button x:Name="UpProduct" Content="↑" Style="{StaticResource SecondaryButton}" Tag="P" Click="UpCategory_Click"/>
                             <Button x:Name="DownProduct" Content="↓" Style="{StaticResource SecondaryButton}" Tag="P" Click="DownCategory_Click"/>
                             <Button x:Name="DeleteProduct" Content="Supprimer" Style="{StaticResource DangerButton}" Tag="P" Click="DeleteCategory_Click"/>
