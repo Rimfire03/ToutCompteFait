@@ -122,6 +122,10 @@ Livre → « Importer un relevé bancaire… » (CSV ou OFX téléchargé depuis
   « Créer une nouvelle écriture » ou « Ignorer cette ligne ». Tant qu'une ligne orange n'est pas tranchée, l'import
   est impossible. Option : prendre la date de la banque pour les rapprochements validés (sinon la date saisie est
   conservée). Une correspondance à la date exacte reste prioritaire.
+* **Ventilation proposée** : pour une nouvelle ligne dont le libellé (sans moyen de paiement, chiffres ni dates) a déjà
+  été classé au moins 2 fois, toujours dans la même catégorie, la catégorie est proposée dans la colonne « Ventilation
+  proposée (à valider) ». Rien n'est appliqué sans que vous cochiez la ligne (ou « Accepter toutes… ») ; les autres
+  restent à ventiler.
 * Ré-importer le même relevé ne crée aucun doublon. Les lignes d'un exercice validé ou hors de tout exercice sont
   ignorées. Une écriture à ventiler empêche la validation de l'exercice.
 
@@ -192,7 +196,20 @@ Pour un auto-entrepreneur (micro-entreprise) : pas de remboursements aux membres
   (`ApeMapper`, à vérifier : un même code peut relever de plusieurs types) et conservé hors des tables verrouillées.
 * **Reporting URSSAF** : pour chaque période, les montants à saisir sur le site (chiffre d'affaires encaissé par rubrique),
   les cotisations estimées, l'échéance, le suivi des plafonds et de la TVA, et l'historique des déclarations marquées comme faites.
+* **Alerte à l'ouverture** : les périodes terminées (jusqu'à 12 mois en arrière, pas avant le début d'activité) non
+  marquées « déclarées » sont listées avec leur échéance ; « Marquer comme déclarée » dans le Reporting éteint l'alerte.
+* **Produits** : créés librement (Paramétrage du dossier), puis rattachés à un type URSSAF (« Type URSSAF… »). Un produit
+  peut être marqué **personnel** (apport de l'exploitant) : hors résultat, hors livre des recettes, hors statistiques,
+  porté au passif du bilan en « Apports de l'exploitant ». Une opération bancaire en débit n'accepte que des charges, en
+  crédit que des produits.
+* **Vocabulaire** : on parle d'« année fiscale » et non d'« exercice » (adaptation d'affichage, `Wording`).
 * Tables : `business_settings`, `category_urssaf`, `urssaf_declarations` (migration v9, toutes versions).
+
+### Statistique
+
+Onglet « Statistique » : produits, charges et opérations, chacun en vue **mensuelle** (mois par mois, graphique des
+principaux éléments et tableau complet) et **annuelle** (comparaison avec les exercices précédents). Les éléments marqués
+personnels n'y figurent pas.
 
 Même système que FiltresApp : le logiciel interroge la dernière **release GitHub** du dépôt
 [Rimfire03/ToutCompteFait](https://github.com/Rimfire03/ToutCompteFait/releases) au démarrage (désactivable) et propose
