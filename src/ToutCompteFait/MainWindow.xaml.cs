@@ -77,6 +77,7 @@ public partial class MainWindow : Window
             LoadYears(App.Settings.LastYear);
             if (CurrentYear is null && App.Can(Permission.ManageStructure)) PromptFirstYear();
             Dispatcher.BeginInvoke(new Action(ShowDevLogIfNeeded), DispatcherPriority.ApplicationIdle);
+            Dispatcher.BeginInvoke(new Action(ShowUrssafAlertIfNeeded), DispatcherPriority.ApplicationIdle);
         };
 
         // Poste en lecture seule : on surveille le fichier pour afficher les modifications de l'autre poste.
@@ -389,6 +390,26 @@ public partial class MainWindow : Window
         App.Settings.LastDevLogVersion = current;
         try { App.Settings.Save(); } catch { /* confort : sera représenté au prochain lancement */ }
         if (pending.Count > 0) new DevLogWindow(pending) { Owner = this }.ShowDialog();
+    }
+
+    /// <summary>Autoentreprise : à l'ouverture, alerte si une déclaration URSSAF (mensuelle ou trimestrielle) est à faire,
+    /// c'est-à-dire une période terminée non marquée « déclarée » dans le Reporting URSSAF.</summary>
+    private void ShowUrssafAlertIfNeeded()
+    {
+        if (!Editions.Current.IsBusiness || App.ShotsMode || App.RunSelfTest || CurrentYear is null) return;
+        List<ToutCompteFait.Core.Business.UrssafPeriod> pending;
+        try { pending = App.Compta.PendingUrssafDeclarations(DateOnly.FromDateTime(DateTime.Today)); }
+        catch { return; }   // base momentanément indisponible : pas d'alerte
+        if (pending.Count == 0) return;
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var lines = pending.Select(p => $"• {p.Label} : à déclarer avant le {p.DueDate:dd/MM/yyyy}" + (today > p.DueDate ? " (en retard)" : ""));
+        var text = "Déclaration URSSAF à réaliser :\n\n" + string.Join("\n", lines) +
+                   "\n\nUne fois faite sur autoentrepreneur.urssaf.fr, marquez-la « déclarée » dans le Reporting URSSAF : " +
+                   "cette alerte ne s'affichera plus.\n\nOuvrir le Reporting URSSAF maintenant ?";
+        if (!Ui.Confirm(text, "Déclaration URSSAF")) return;
+        if (NavMembers.Parent is Panel panel)
+            foreach (var b in panel.Children.OfType<RadioButton>().Where(b => b.Tag as string == "reporting"))
+                b.IsChecked = true;
     }
 
     private void PromptFirstYear()

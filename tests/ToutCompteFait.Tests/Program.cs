@@ -667,6 +667,26 @@ Console.WriteLine("Recettes personnelles (apports, hors résultat)");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ alerte de déclaration URSSAF à l'ouverture
+Console.WriteLine("Alerte déclaration URSSAF");
+{
+    var path = TempDb();
+    {
+        var c = NewCompta(NewFactory(path));
+        c.CreateYear(Dt(2025, 1, 1), Dt(2025, 12, 31));
+        var today = new DateOnly(2026, 5, 10);
+        var pending = c.PendingUrssafDeclarations(today);
+        Eq(4, pending.Count, "4 trimestres terminés sur 12 mois, non déclarés");
+        Eq("2026-T1", pending[^1].Key, "le plus récent : 1er trimestre 2026");
+        c.MarkUrssafDeclared(UrssafPeriod.Quarterly(2026, 1));
+        var after = c.PendingUrssafDeclarations(today);
+        Eq(3, after.Count, "période marquée déclarée : plus d'alerte pour elle");
+        Check(after.All(p => p.Key != "2026-T1"), "1er trimestre 2026 retiré de l'alerte");
+        Eq(0, c.PendingUrssafDeclarations(new DateOnly(2024, 6, 1)).Count, "avant le début de l'activité : rien");
+    }
+    Cleanup(path);
+}
+
 // ------------------------------------------------------------------ devlog (nouveautés après mise à jour)
 Console.WriteLine("Devlog affiché après une mise à jour");
 {

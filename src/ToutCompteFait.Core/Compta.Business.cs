@@ -286,6 +286,31 @@ public sealed partial class Compta
             .OrderByDescending(d => d.Start).ToList();
     }
 
+    /// <summary>Périodes terminées dont la déclaration n'est pas marquée « faite » (de la plus ancienne à la plus récente).
+    /// Remonte au plus à 12 mois, et pas avant le début de l'activité (création de l'entreprise ou premier exercice) :
+    /// sert à l'alerte affichée à l'ouverture de l'application.</summary>
+    public List<UrssafPeriod> PendingUrssafDeclarations(DateOnly today)
+    {
+        var profile = GetBusinessProfile();
+        var earliest = today.AddMonths(-12);
+        var starts = new List<DateOnly>();
+        if (profile.CreationDate is { } created) starts.Add(created);
+        var years = Years();
+        if (years.Count > 0) starts.Add(years.Min(y => y.Start));
+        if (starts.Count == 0) return new List<UrssafPeriod>();   // aucune activité connue : rien à déclarer
+        var from = starts.Min() > earliest ? starts.Min() : earliest;
+        var done = Declarations().Select(d => d.PeriodKey).ToHashSet();
+        var result = new List<UrssafPeriod>();
+        var p = UrssafPeriod.ForDate(today, profile.Mode);
+        for (var i = 0; i < 24; i++)
+        {
+            p = UrssafPeriod.ForDate(p.Start.AddDays(-1), profile.Mode);   // période précédente : terminée
+            if (p.End < from) break;
+            if (!done.Contains(p.Key)) result.Insert(0, p);
+        }
+        return result;
+    }
+
     /// <summary>Marque la période comme déclarée à l'URSSAF (trace : date, auteur, montant du chiffre d'affaires).</summary>
     public void MarkUrssafDeclared(UrssafPeriod period, string? note = null)
     {
