@@ -306,7 +306,10 @@ public partial class LivreView : UserControl, IPage
         }
         else if (shown.Count > 0 && string.IsNullOrEmpty(text) && OnlyIssues.IsChecked != true && OnlyToFill.IsChecked != true)
         {
-            EntriesGrid.ScrollIntoView(shown[^1]);
+            // À l'ouverture : première écriture (la plus ancienne) encore à ventiler, sinon la dernière.
+            var target = shown.FirstOrDefault(r => r.ToFill) ?? shown[^1];
+            if (target.ToFill) EntriesGrid.SelectedItem = target;
+            EntriesGrid.ScrollIntoView(target);
         }
     }
 
