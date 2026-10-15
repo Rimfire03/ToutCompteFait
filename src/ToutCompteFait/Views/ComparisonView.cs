@@ -83,11 +83,7 @@ public sealed class ComparisonView : UserControl, IPage
         foreach (var ch in Charts)
         {
             ch.Height = 300;
-            var holder = new ScrollViewer
-            {
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = ch
-            };
-            var card = Card(holder);
+            var card = Card(ch);
             card.Margin = new Thickness(0, 0, 0, 12);
             charts.Children.Add(card);
         }
@@ -137,6 +133,12 @@ public sealed class ComparisonView : UserControl, IPage
         CornerRadius = new CornerRadius(8), Background = Brushes.White, Child = child, ClipToBounds = true
     };
 
+    /// <summary>Dernière comparaison calculée (exercices du plus ancien au plus récent) ; null avant le premier calcul.</summary>
+    internal YearComparison? Comparison => _cmp;
+
+    /// <summary>Libellés des exercices comparés (« en cours » pour un exercice non clôturé).</summary>
+    internal string[] YearLabels => _cmp is null ? Array.Empty<string>() : Labels;
+
     private string[] Labels => _cmp!.Years.Select(y => y.Validated ? y.Label : y.Label + " (en cours)").ToArray();
 
     public void Reload()
@@ -169,16 +171,12 @@ public sealed class ComparisonView : UserControl, IPage
                     _chartCharges.SetData("Charges par opération", names, ByYear(_cmp.OperationCharges));
                     break;
             }
-            foreach (var ch in Charts)
-                ch.MinWidth = Math.Max(700, names.Length * years.Count * 34 + 120);
-
             BuildTables();
             var none = ops.Count == 0;
             _empty.Visibility = none ? Visibility.Visible : Visibility.Collapsed;
             _tables.Visibility = none ? Visibility.Collapsed : Visibility.Visible;
             foreach (var ch in Charts)
-                ((FrameworkElement)ch.Parent is ScrollViewer sv && sv.Parent is Border card ? card : (FrameworkElement)ch).Visibility =
-                    none ? Visibility.Collapsed : Visibility.Visible;
+                (ch.Parent is Border card ? card : (FrameworkElement)ch).Visibility = none ? Visibility.Collapsed : Visibility.Visible;
         }
         finally { _loading = false; }
     }
@@ -238,7 +236,8 @@ public sealed class ComparisonView : UserControl, IPage
         var grid = new DataGrid
         {
             AutoGenerateColumns = false, IsReadOnly = true, CanUserAddRows = false, HeadersVisibility = DataGridHeadersVisibility.Column,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, ItemsSource = rows, Margin = new Thickness(0, 0, 0, 16),
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            ItemsSource = rows, Margin = new Thickness(0, 0, 0, 16),
             SelectionMode = DataGridSelectionMode.Single
         };
         grid.Columns.Add(new DataGridTextColumn
@@ -277,6 +276,8 @@ public sealed class ComparisonView : UserControl, IPage
     private DataGridTextColumn RightColumn(string header, int index, double width) => new()
     {
         Header = header, Binding = new System.Windows.Data.Binding($"Cells[{index}]"),
-        Width = new DataGridLength(width), ElementStyle = Sty("RightCell"), HeaderStyle = Sty("HeaderRight")
+        // Colonnes proportionnelles : le tableau tient toujours dans la largeur, sans défilement horizontal.
+        Width = new DataGridLength(width / 100.0, DataGridLengthUnitType.Star), MinWidth = 64,
+        ElementStyle = Sty("RightCell"), HeaderStyle = Sty("HeaderRight")
     };
 }

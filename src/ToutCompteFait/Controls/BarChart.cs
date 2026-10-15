@@ -38,7 +38,7 @@ public sealed class BarChart : FrameworkElement
     private static string Euros(long cents) => (cents / 100m).ToString("N0", Fr) + " €";
 
     /// <summary>Pas « rond » de l'axe : 1, 2, 2,5 ou 5 × 10^k.</summary>
-    private static double NiceStep(double range, int ticks)
+    internal static double NiceStep(double range, int ticks)
     {
         if (range <= 0) return 1;
         var raw = range / ticks;
@@ -59,16 +59,18 @@ public sealed class BarChart : FrameworkElement
 
         if (_title.Length > 0) dc.DrawText(Text(_title, 13, dark, FontWeights.SemiBold), new Point(10, 6));
 
-        // Légende
+        // Légende : passe à la ligne quand la largeur manque (aucun défilement horizontal).
         var lx = 10.0;
-        const double ly = 28;
+        var ly = 28.0;
         foreach (var s in _series)
         {
             var t = Text(s.Name, 11, muted);
+            if (lx > 10 && lx + 14 + t.Width > w - 10) { lx = 10; ly += 16; }
             dc.DrawRectangle(s.Brush, null, new Rect(lx, ly + 3, 10, 10));
             dc.DrawText(t, new Point(lx + 14, ly));
             lx += 14 + t.Width + 16;
         }
+        var legendBottom = ly + 16;
 
         if (_categories.Count == 0 || _series.Count == 0 || w < 120 || h < 120) return;
 
@@ -80,7 +82,8 @@ public sealed class BarChart : FrameworkElement
         var bottom = Math.Floor(min / step) * step;
         if (top == bottom) top = bottom + step;
 
-        const double left = 74, right = 12, topPad = 56, bottomPad = 34;
+        const double left = 74, right = 12, bottomPad = 34;
+        var topPad = Math.Max(56, legendBottom + 14);
         var plot = new Rect(left, topPad, Math.Max(10, w - left - right), Math.Max(10, h - topPad - bottomPad));
         double Y(double v) => plot.Bottom - (v - bottom) / (top - bottom) * plot.Height;
 
