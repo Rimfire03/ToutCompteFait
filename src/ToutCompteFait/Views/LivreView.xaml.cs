@@ -309,7 +309,18 @@ public partial class LivreView : UserControl, IPage
             // À l'ouverture : première écriture (la plus ancienne) encore à ventiler, sinon la dernière.
             var target = shown.FirstOrDefault(r => r.ToFill) ?? shown[^1];
             if (target.ToFill) EntriesGrid.SelectedItem = target;
+            // ScrollIntoView aligne la ligne en bas de la vue quand elle vient d'en dessous : on va d'abord à la fin de la
+            // liste, puis on remonte jusqu'à la ligne, qui se retrouve alors en haut de la vue.
+            EntriesGrid.ScrollIntoView(shown[^1]);
+            EntriesGrid.UpdateLayout();
             EntriesGrid.ScrollIntoView(target);
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                EntriesGrid.UpdateLayout();
+                EntriesGrid.ScrollIntoView(shown[^1]);
+                EntriesGrid.UpdateLayout();
+                EntriesGrid.ScrollIntoView(target);
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
     }
 
