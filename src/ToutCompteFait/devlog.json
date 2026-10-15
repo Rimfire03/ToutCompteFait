@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.10.10",
+      "date": "2026-10-15",
+      "show": false,
+      "title": "Nouveautés de la version 1.10.10 (dev)",
+      "items": [
+        "Nouvel habillage étendu à toutes les pages : onglets modernes du paramétrage, aide en cartes, messages d'accueil quand une liste est vide."
+      ]
+    },
+    {
       "version": "1.10.9",
       "date": "2026-10-14",
       "show": false,
