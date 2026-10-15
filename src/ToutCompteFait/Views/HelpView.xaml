@@ -62,8 +62,8 @@
 
             <Border Style="{StaticResource Card}" Margin="0,0,0,10">
                 <StackPanel>
-                    <TextBlock Text="Statistique opérations" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
-                    <TextBlock TextWrapping="Wrap" Text="Cet écran compare chaque opération entre l&apos;exercice affiché (N) et les exercices précédents (N-1, N-2…), jusqu&apos;à 10 exercices au choix. Pour le résultat, les produits et les charges, un graphique place côte à côte les colonnes de chaque exercice (une couleur par exercice). Les tableaux dessous donnent les montants, l&apos;écart en euros et l&apos;écart en pourcentage par rapport à l&apos;exercice précédent."/>
+                    <TextBlock Text="Statistique" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Trois onglets : Produits, Charges et Opérations. Chacun propose une vue Mensuelle (l&apos;exercice affiché, mois par mois : graphique des principaux éléments et tableau complet) et une vue Annuelle (comparaison de l&apos;exercice affiché N avec les exercices précédents N-1, N-2…, jusqu&apos;à 10 au choix, avec l&apos;écart en euros et en pourcentage). Les produits et charges marqués « personnel » n&apos;y figurent pas."/>
                 </StackPanel>
             </Border>
 

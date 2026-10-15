@@ -69,7 +69,7 @@ public sealed class YearComparison
         }
 
         var products = Group(b => b.OperatingProducts.Select(p => (p.Name, p.Total)));
-        var charges = Group(b => b.Charges.Select(c => (c.Name, c.Total)));
+        var charges = Group(b => b.Charges.Where(c => !c.Personal).Select(c => (c.Name, c.Total)));
         // Immobilisations : dotations et sorties, nettes des achats portés à l'actif (comme dans le résultat du bilan).
         var fixedAssets = bilans.Select(b => b.AssetsDepreciation + b.AssetsDisposals - b.AssetsReclass).ToArray();
         if (fixedAssets.Any(v => v != 0)) charges.Add(new ComparisonLine(DepreciationName, fixedAssets));

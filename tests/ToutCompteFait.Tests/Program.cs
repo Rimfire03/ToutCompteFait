@@ -667,6 +667,40 @@ Console.WriteLine("Recettes personnelles (apports, hors résultat)");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ statistique mensuelle
+Console.WriteLine("Statistique mensuelle (sans les éléments personnels)");
+{
+    var path = TempDb();
+    {
+        var c = NewCompta(NewFactory(path));
+        var y = c.CreateYear(Dt(2025, 9, 1), Dt(2026, 8, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var vente = c.AddCategory(y.Id, CategoryKind.Product, "Ventes");
+        var apport = c.AddCategory(y.Id, CategoryKind.Product, "Apport");
+        var loyer = c.AddCategory(y.Id, CategoryKind.Charge, "Loyer");
+        var perso = c.AddCategory(y.Id, CategoryKind.Charge, "Courses");
+        void In(DateOnly d, long cents, Category cat) =>
+            c.SaveEntry(new Entry(0, y.Id, d, "E", false, EntryKind.Normal, banque.Id, Direction.In, null, cents, null, null), new[] { new Allocation(cat.Id, cents) });
+        void Out(DateOnly d, long cents, Category cat) =>
+            c.SaveEntry(new Entry(0, y.Id, d, "S", false, EntryKind.Normal, banque.Id, Direction.Out, null, cents, null, null), new[] { new Allocation(cat.Id, cents) });
+        In(Dt(2025, 9, 10), 10000, vente);
+        In(Dt(2025, 11, 3), 5000, vente);
+        In(Dt(2025, 9, 11), 30000, apport);
+        Out(Dt(2025, 9, 15), 4000, loyer);
+        Out(Dt(2025, 9, 16), 2000, perso);
+        c.SetCategoryPersonal("Apport", true, CategoryKind.Product);
+        c.SetCategoryPersonal("Courses", true);
+        var s = c.ComputeMonthlyStatistics(y.Id);
+        Eq(12, s.Months.Count, "12 mois dans l'exercice");
+        Eq(1, s.Products.Count, "produit personnel absent");
+        Eq(1, s.Charges.Count, "charge personnelle absente");
+        Eq(10000L, s.Products[0].Values[0], "ventes de septembre");
+        Eq(5000L, s.Products[0].Values[2], "ventes de novembre");
+        Eq(4000L, s.Charges[0].Values[0], "loyer de septembre");
+    }
+    Cleanup(path);
+}
+
 // ------------------------------------------------------------------ alerte de déclaration URSSAF à l'ouverture
 Console.WriteLine("Alerte déclaration URSSAF");
 {

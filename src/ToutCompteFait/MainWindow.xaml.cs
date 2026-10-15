@@ -55,10 +55,10 @@ public partial class MainWindow : Window
         if (NavMembers.Parent is Panel assetsPanel)
             assetsPanel.Children.Insert(assetsPanel.Children.IndexOf(NavMembers) + 1, _navAssets);
         RefreshAssetsNav();
-        // Onglet Statistique opérations : juste après les remboursements des membres.
+        // Onglet Statistique (produits, charges, opérations) : juste après les remboursements des membres.
         var navCompare = new RadioButton
         {
-            Content = "📉   Statistique opérations", GroupName = "nav", Tag = "compare",
+            Content = "📉   Statistique", GroupName = "nav", Tag = "compare",
             Style = (Style)FindResource("NavButton")
         };
         navCompare.Checked += Nav_Checked;
@@ -492,7 +492,7 @@ public partial class MainWindow : Window
             view = tag switch
             {
                 "bilan" => new BilanView(y),
-                "compare" => new ComparisonView(y),
+                "compare" => new StatisticsView(y),
                 "reports" => new ReportsView(y),
                 "members" => new MembersView(y),
                 "reporting" => new ReportingView(),

@@ -8,6 +8,9 @@ using ToutCompteFait.Core;
 
 namespace ToutCompteFait.Views;
 
+/// <summary>Éléments comparés par la statistique : produits, charges ou opérations.</summary>
+public enum StatKind { Products, Charges, Operations }
+
 /// <summary>Comparaison entre exercices : l'exercice affiché (N) et les précédents (N-1 … N-x, nombre réglable) en
 /// tableaux chiffrés (synthèse, produits, charges, opérations) et en graphiques. Lecture seule.</summary>
 public sealed class ComparisonView : UserControl, IPage
@@ -47,17 +50,23 @@ public sealed class ComparisonView : UserControl, IPage
     private YearComparison? _cmp;
     private bool _loading;
 
-    public ComparisonView(FiscalYear year)
+    private readonly StatKind _kind;
+
+    public ComparisonView(FiscalYear year, StatKind kind = StatKind.Operations)
     {
         _year = year;
+        _kind = kind;
         var root = new DockPanel { Margin = new Thickness(0) };
         var head = new StackPanel();
-        head.Children.Add(new TextBlock { Text = $"Statistique opérations — {year.Label}", Style = Sty("TitleText") });
+        var what = kind switch { StatKind.Products => "produit", StatKind.Charges => "charge", _ => "opération" };
+        head.Children.Add(new TextBlock { Text = $"Statistique annuelle — {year.Label}", Style = Sty("TitleText") });
         head.Children.Add(new TextBlock
         {
             Style = Sty("MutedText"), TextWrapping = TextWrapping.Wrap,
-            Text = "Compare, opération par opération, l'exercice affiché (N) aux exercices précédents (N-1, N-2…) : produits, charges et résultat de chaque opération. " +
-                   "Les opérations sont regroupées par nom d'un exercice à l'autre ; montants des comptes annuels (régularisations et reports comprises)."
+            Text = $"Compare, {what} par {what}, l'exercice affiché (N) aux exercices précédents (N-1, N-2…). " +
+                   "Les éléments sont regroupés par nom d'un exercice à l'autre ; montants des comptes annuels (régularisations et reports comprises)." +
+                   (kind == StatKind.Operations ? " Produits, charges et résultat de chaque opération." : "") +
+                   " Les éléments marqués « personnel » n'y figurent pas."
         });
         var bar = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
         bar.Children.Add(new TextBlock { Text = "Exercices comparés (N compris) :", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
@@ -71,7 +80,7 @@ public sealed class ComparisonView : UserControl, IPage
         root.Children.Add(head);
 
         var charts = new StackPanel { Margin = new Thickness(0, 0, 0, 14) };
-        foreach (var ch in new[] { _chartResult, _chartProducts, _chartCharges })
+        foreach (var ch in Charts)
         {
             ch.Height = 300;
             var holder = new ScrollViewer
@@ -87,13 +96,15 @@ public sealed class ComparisonView : UserControl, IPage
         emptyText.Children.Add(new TextBlock { Text = "📊", FontSize = 40, HorizontalAlignment = HorizontalAlignment.Center });
         emptyText.Children.Add(new TextBlock
         {
-            Text = "Aucune opération à comparer", FontSize = 16, FontWeight = FontWeights.SemiBold,
+            Text = kind == StatKind.Operations ? "Aucune opération à comparer" : "Rien à comparer", FontSize = 16, FontWeight = FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0)
         });
         emptyText.Children.Add(new TextBlock
         {
-            Text = "Une opération regroupe les produits et charges d'un même événement (ex. Loto Octobre). Créez-en dans " +
-                   "Paramétrage du dossier → Opérations : leur résultat sera comparé ici, exercice par exercice.",
+            Text = kind == StatKind.Operations
+                ? "Une opération regroupe les produits et charges d'un même événement (ex. Loto Octobre). Créez-en dans " +
+                  "Paramétrage du dossier → Opérations : leur résultat sera comparé ici, exercice par exercice."
+                : "Aucun montant enregistré sur les exercices comparés.",
             TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Foreground = Grey, Margin = new Thickness(0, 6, 0, 0)
         });
         _empty.Child = emptyText;
@@ -116,9 +127,11 @@ public sealed class ComparisonView : UserControl, IPage
         Reload();
     }
 
-    private static Style Sty(string key) => (Style)Application.Current.FindResource(key);
+    internal static Style Sty(string key) => (Style)Application.Current.FindResource(key);
 
-    private static Border Card(UIElement child) => new()
+    internal static Brush PaletteBrush(int i) => Palette[i % Palette.Length];
+
+    internal static Border Card(UIElement child) => new()
     {
         BorderBrush = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0)), BorderThickness = new Thickness(1),
         CornerRadius = new CornerRadius(8), Background = Brushes.White, Child = child, ClipToBounds = true
@@ -140,24 +153,31 @@ public sealed class ComparisonView : UserControl, IPage
             _info.Foreground = Grey;
 
             // Une couleur par exercice, colonnes côte à côte pour chaque opération (du plus ancien au plus récent).
-            var ops = _cmp.Operations;
+            var ops = Main;
             var names = ops.Select(o => o.Name).ToArray();
             BarChart.Series[] ByYear(IReadOnlyList<ComparisonLine> lines) =>
                 Enumerable.Range(0, years.Count)
                     .Select(i => new BarChart.Series(Labels[i], Palette[i % Palette.Length], lines.Select(o => o.Values[i]).ToArray()))
                     .ToArray();
-            _chartResult.SetData("Résultat par opération (produits − charges)", names, ByYear(_cmp.Operations));
-            _chartProducts.SetData("Produits par opération", names, ByYear(_cmp.OperationProducts));
-            _chartCharges.SetData("Charges par opération", names, ByYear(_cmp.OperationCharges));
-            foreach (var ch in new[] { _chartResult, _chartProducts, _chartCharges })
+            switch (_kind)
+            {
+                case StatKind.Products: _chartResult.SetData("Produits par exercice", names, ByYear(_cmp.Products)); break;
+                case StatKind.Charges: _chartResult.SetData("Charges par exercice", names, ByYear(_cmp.Charges)); break;
+                default:
+                    _chartResult.SetData("Résultat par opération (produits − charges)", names, ByYear(_cmp.Operations));
+                    _chartProducts.SetData("Produits par opération", names, ByYear(_cmp.OperationProducts));
+                    _chartCharges.SetData("Charges par opération", names, ByYear(_cmp.OperationCharges));
+                    break;
+            }
+            foreach (var ch in Charts)
                 ch.MinWidth = Math.Max(700, names.Length * years.Count * 34 + 120);
 
             BuildTables();
             var none = ops.Count == 0;
             _empty.Visibility = none ? Visibility.Visible : Visibility.Collapsed;
             _tables.Visibility = none ? Visibility.Collapsed : Visibility.Visible;
-            foreach (var ch in new FrameworkElement[] { _chartResult, _chartProducts, _chartCharges })
-                ((FrameworkElement)ch.Parent is ScrollViewer sv && sv.Parent is Border card ? card : ch).Visibility =
+            foreach (var ch in Charts)
+                ((FrameworkElement)ch.Parent is ScrollViewer sv && sv.Parent is Border card ? card : (FrameworkElement)ch).Visibility =
                     none ? Visibility.Collapsed : Visibility.Visible;
         }
         finally { _loading = false; }
@@ -169,10 +189,26 @@ public sealed class ComparisonView : UserControl, IPage
     {
         _tables.Children.Clear();
         var c = _cmp!;
-        AddTable("Résultat par opération (produits − charges)", "Opération", c.Operations, total: true);
-        AddTable("Produits par opération", "Opération", c.OperationProducts, total: true);
-        AddTable("Charges par opération", "Opération", c.OperationCharges, total: true);
+        switch (_kind)
+        {
+            case StatKind.Products: AddTable("Produits par exercice", "Produit", c.Products, total: true); break;
+            case StatKind.Charges: AddTable("Charges par exercice", "Charge", c.Charges, total: true); break;
+            default:
+                AddTable("Résultat par opération (produits − charges)", "Opération", c.Operations, total: true);
+                AddTable("Produits par opération", "Opération", c.OperationProducts, total: true);
+                AddTable("Charges par opération", "Opération", c.OperationCharges, total: true);
+                break;
+        }
     }
+
+    private BarChart[] Charts => _kind == StatKind.Operations ? new[] { _chartResult, _chartProducts, _chartCharges } : new[] { _chartResult };
+
+    private IReadOnlyList<ComparisonLine> Main => _kind switch
+    {
+        StatKind.Products => _cmp!.Products,
+        StatKind.Charges => _cmp!.Charges,
+        _ => _cmp!.Operations
+    };
 
     private static string Signed(long cents) => (cents > 0 ? "+" : "") + Money.Format(cents) + " €";
 
