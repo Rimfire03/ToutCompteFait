@@ -13,7 +13,7 @@
     <AssemblyName>ToutCompteFait$(EditionLabel)</AssemblyName>
     <RootNamespace>ToutCompteFait</RootNamespace>
     <InvariantGlobalization>false</InvariantGlobalization>
-    <Version>1.12.1</Version>
+    <Version>1.12.2</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Company>TomLine prod&amp;co</Company>
     <Product>Tout Compte Fait $(EditionLabel)</Product>

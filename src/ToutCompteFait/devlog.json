@@ -1,12 +1,12 @@
 {
   "entries": [
     {
-      "version": "1.12.1",
+      "version": "1.12.2",
       "date": "2026-10-16",
       "show": false,
-      "title": "Version 1.12.1",
+      "title": "Version 1.12.2",
       "items": [
-        "Version de maintenance : aucune modification fonctionnelle (documentation mise à jour)."
+        "La mise à jour du logiciel est proposée à tous les utilisateurs, pas seulement aux administrateurs."
       ]
     },
     {
