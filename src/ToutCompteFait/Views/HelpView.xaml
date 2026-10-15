@@ -11,56 +11,124 @@
             <Button x:Name="DevLogButton" Content="Nouveautés de cette version" Style="{StaticResource SecondaryButton}"
                     HorizontalAlignment="Left" Margin="0,0,0,10"/>
 
-            <TextBlock Text="Le principe" Style="{StaticResource SectionText}"/>
-            <TextBlock x:Name="IntroText" TextWrapping="Wrap" Text="Ce logiciel remplace votre classeur Excel pour gérer votre trésorerie. Vous saisissez une écriture par ligne de votre relevé bancaire en la ventilant sur des produits et des charges. Le logiciel calcule automatiquement le bilan, les soldes et la rentabilité de vos opérations."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Le principe" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="IntroText" TextWrapping="Wrap" Text="Ce logiciel remplace votre classeur Excel pour gérer votre trésorerie. Vous saisissez une écriture par ligne de votre relevé bancaire en la ventilant sur des produits et des charges. Le logiciel calcule automatiquement le bilan, les soldes et la rentabilité de vos opérations."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Les écrans du menu" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Le menu de gauche donne accès aux écrans suivants. « Opérations bancaires » : saisie et import des écritures. « Statistique opérations » : comparaison des exercices. « Bilan &amp; comptes annuels » : résultat, situation et impression. « Reports entre exercices » : dépenses et recettes à rattacher à un autre exercice. « Remboursements membres », « Immobilisations » et « Reporting URSSAF » apparaissent selon la version et les réglages. « Paramétrage du dossier » concerne l&apos;exercice et la comptabilité (listes, opérations, comptes, nouvel exercice) ; « Paramétrage appli » concerne le poste (base de données, sauvegardes, mises à jour). L&apos;exercice affiché se choisit en haut du menu."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Les écrans du menu" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Le menu de gauche donne accès aux écrans suivants. « Opérations bancaires » : saisie et import des écritures. « Statistique opérations » : comparaison des exercices. « Bilan &amp; comptes annuels » : résultat, situation et impression. « Reports entre exercices » : dépenses et recettes à rattacher à un autre exercice. « Remboursements membres », « Immobilisations » et « Reporting URSSAF » apparaissent selon la version et les réglages. « Paramétrage du dossier » concerne l&apos;exercice et la comptabilité (listes, opérations, comptes, nouvel exercice) ; « Paramétrage appli » concerne le poste (base de données, sauvegardes, mises à jour). L&apos;exercice affiché se choisit en haut du menu."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Saisir une écriture" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Allez dans Opérations bancaires puis cliquez sur Nouvelle écriture pour renseigner le type, la date, le libellé, le montant et la catégorie. Vous pouvez ventiler une écriture sur plusieurs catégories, à condition que le total corresponde au montant saisi. Un remboursement reçu se saisit comme une recette sur la charge concernée et vous pouvez joindre des justificatifs."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Saisir une écriture" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Allez dans Opérations bancaires puis cliquez sur Nouvelle écriture pour renseigner le type, la date, le libellé, le montant et la catégorie. Vous pouvez ventiler une écriture sur plusieurs catégories, à condition que le total corresponde au montant saisi. Un remboursement reçu se saisit comme une recette sur la charge concernée et vous pouvez joindre des justificatifs."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Importer un relevé bancaire" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Importez votre relevé bancaire téléchargé directement depuis le menu Opérations bancaires. Les nouvelles lignes apparaissent en jaune et vous permettent de choisir le produit ou la charge immédiatement. Le logiciel contrôle le solde du relevé et ne recrée pas les lignes déjà importées lors d&apos;un nouvel import."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Importer un relevé bancaire" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Importez votre relevé bancaire téléchargé directement depuis le menu Opérations bancaires. Les nouvelles lignes apparaissent en jaune et vous permettent de choisir le produit ou la charge immédiatement. Le logiciel contrôle le solde du relevé et ne recrée pas les lignes déjà importées lors d&apos;un nouvel import."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Virement entre comptes" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Choisissez le type « Virement entre comptes », puis le compte de départ et le compte d&apos;arrivée. Les deux soldes sont mis à jour et le résultat ne change pas. Pour suivre une avance, créez un compte « Avances en cours » dans le Paramétrage du dossier."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Virement entre comptes" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Choisissez le type « Virement entre comptes », puis le compte de départ et le compte d&apos;arrivée. Les deux soldes sont mis à jour et le résultat ne change pas. Pour suivre une avance, créez un compte « Avances en cours » dans le Paramétrage du dossier."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock x:Name="MemberHelpTitle" Text="Remboursement à un membre" Style="{StaticResource SectionText}"/>
-            <TextBlock x:Name="MemberHelpText" TextWrapping="Wrap" Text="Cette fonction est disponible dans la version Association. Indiquez le nom du membre et la charge concernée lorsqu&apos;un membre a payé avec son compte personnel. Un récapitulatif est ensuite disponible dans la section Remboursements membres."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock x:Name="MemberHelpTitle" Text="Remboursement à un membre" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="MemberHelpText" TextWrapping="Wrap" Text="Cette fonction est disponible dans la version Association. Indiquez le nom du membre et la charge concernée lorsqu&apos;un membre a payé avec son compte personnel. Un récapitulatif est ensuite disponible dans la section Remboursements membres."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Opérations et rentabilité" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Le paramétrage du dossier permet de regrouper les produits et charges d&apos;un même événement, comme un loto. Le logiciel calcule automatiquement la rentabilité en soustrayant les charges des produits. Ce résultat est directement visible dans votre bilan."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Opérations et rentabilité" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Le paramétrage du dossier permet de regrouper les produits et charges d&apos;un même événement, comme un loto. Le logiciel calcule automatiquement la rentabilité en soustrayant les charges des produits. Ce résultat est directement visible dans votre bilan."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Statistique opérations" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Cet écran compare chaque opération entre l&apos;exercice affiché (N) et les exercices précédents (N-1, N-2…), jusqu&apos;à 10 exercices au choix. Pour le résultat, les produits et les charges, un graphique place côte à côte les colonnes de chaque exercice (une couleur par exercice). Les tableaux dessous donnent les montants, l&apos;écart en euros et l&apos;écart en pourcentage par rapport à l&apos;exercice précédent."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Statistique opérations" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Cet écran compare chaque opération entre l&apos;exercice affiché (N) et les exercices précédents (N-1, N-2…), jusqu&apos;à 10 exercices au choix. Pour le résultat, les produits et les charges, un graphique place côte à côte les colonnes de chaque exercice (une couleur par exercice). Les tableaux dessous donnent les montants, l&apos;écart en euros et l&apos;écart en pourcentage par rapport à l&apos;exercice précédent."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Reports entre exercices" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Déclarez dans cette section une dépense payée cette année mais concernant l&apos;exercice suivant. Le montant est alors retiré du résultat actuel et ajouté automatiquement au suivant. Les soldes des comptes sont également reportés automatiquement d&apos;une année à l&apos;autre."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Reports entre exercices" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Déclarez dans cette section une dépense payée cette année mais concernant l&apos;exercice suivant. Le montant est alors retiré du résultat actuel et ajouté automatiquement au suivant. Les soldes des comptes sont également reportés automatiquement d&apos;une année à l&apos;autre."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock x:Name="ReportingHelpTitle" Text="Reporting URSSAF" Style="{StaticResource SectionText}" Visibility="Collapsed"/>
-            <TextBlock x:Name="ReportingHelpText" TextWrapping="Wrap" Visibility="Collapsed" Text="Cet écran de la version Autoentreprise suit le chiffre d'affaires par période de déclaration à l'URSSAF. Une fois la déclaration faite, marquez-la comme faite : la date, le montant et l'auteur sont conservés."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock x:Name="ReportingHelpTitle" Text="Reporting URSSAF" Style="{StaticResource SectionText}" Visibility="Collapsed" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="ReportingHelpText" TextWrapping="Wrap" Visibility="Collapsed" Text="Cet écran de la version Autoentreprise suit le chiffre d'affaires par période de déclaration à l'URSSAF. Une fois la déclaration faite, marquez-la comme faite : la date, le montant et l'auteur sont conservés."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Bilan et impression" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Consultez votre compte de résultat par catégorie et la situation de votre actif et passif. Vous pouvez imprimer des bilans synthétiques ou détaillés en format PDF. Tant que l&apos;exercice n&apos;est pas validé, un filigrane provisoire apparaît sur les documents."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Bilan et impression" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Consultez votre compte de résultat par catégorie et la situation de votre actif et passif. Vous pouvez imprimer des bilans synthétiques ou détaillés en format PDF. Tant que l&apos;exercice n&apos;est pas validé, un filigrane provisoire apparaît sur les documents."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Valider un exercice" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Pour valider un exercice, assurez-vous que toutes les écritures sont complètes avant de cliquer sur Valider l&apos;exercice. Une fois validé, aucune modification ou ajout n&apos;est plus possible. Les exercices doivent être validés dans l&apos;ordre chronologique et une réouverture nécessite un motif et n'est possible que dans les 7 jours suivant la validation."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Valider un exercice" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Pour valider un exercice, assurez-vous que toutes les écritures sont complètes avant de cliquer sur Valider l&apos;exercice. Une fois validé, aucune modification ou ajout n&apos;est plus possible. Les exercices doivent être validés dans l&apos;ordre chronologique et une réouverture nécessite un motif et n'est possible que dans les 7 jours suivant la validation."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Immobilisations" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Cette fonction permet de gérer le matériel durable amorti sur sa durée de vie. La valeur nette de ces biens figure à l&apos;actif de votre bilan. Vous devez activer cette option dans le paramétrage pour l&apos;utiliser."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Immobilisations" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Cette fonction permet de gérer le matériel durable amorti sur sa durée de vie. La valeur nette de ces biens figure à l&apos;actif de votre bilan. Vous devez activer cette option dans le paramétrage pour l&apos;utiliser."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Export pour l&apos;expert-comptable" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Le logiciel permet d&apos;exporter un fichier FEC pour votre expert-comptable. Vous pouvez régler les numéros de comptes directement dans le paramétrage du dossier."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Export pour l&apos;expert-comptable" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Le logiciel permet d&apos;exporter un fichier FEC pour votre expert-comptable. Vous pouvez régler les numéros de comptes directement dans le paramétrage du dossier."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Utilisateurs et sécurité" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Chaque personne a son compte et un rôle (administrateur, comptable, lecteur…) qui définit ce qu&apos;elle peut faire. Une déconnexion automatique survient après un temps d&apos;inactivité réglable. Toutes les modifications sont consignées dans le journal d&apos;audit, et une écriture n&apos;est jamais supprimée : elle s&apos;annule par une contre-passation."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Utilisateurs et sécurité" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Chaque personne a son compte et un rôle (administrateur, comptable, lecteur…) qui définit ce qu&apos;elle peut faire. Une déconnexion automatique survient après un temps d&apos;inactivité réglable. Toutes les modifications sont consignées dans le journal d&apos;audit, et une écriture n&apos;est jamais supprimée : elle s&apos;annule par une contre-passation."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Plusieurs postes" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Plusieurs postes peuvent ouvrir la même base, mais un seul écrit à la fois (le premier ouvert) ; les autres sont en lecture seule et voient les modifications apparaître automatiquement. Le pied de page indique l&apos;état : puce verte = base accessible, orange = lecture seule, rouge = connexion perdue. La base peut se trouver sur un dossier partagé du réseau ou sur un serveur (Paramétrage appli → Base de données) ; l&apos;administrateur fournit alors un fichier de configuration à charger."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Plusieurs postes" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Plusieurs postes peuvent ouvrir la même base, mais un seul écrit à la fois (le premier ouvert) ; les autres sont en lecture seule et voient les modifications apparaître automatiquement. Le pied de page indique l&apos;état : puce verte = base accessible, orange = lecture seule, rouge = connexion perdue. La base peut se trouver sur un dossier partagé du réseau ou sur un serveur (Paramétrage appli → Base de données) ; l&apos;administrateur fournit alors un fichier de configuration à charger."/>
+                </StackPanel>
+            </Border>
 
-            <TextBlock Text="Sauvegardes et mises à jour" Style="{StaticResource SectionText}"/>
-            <TextBlock TextWrapping="Wrap" Text="Vous pouvez planifier des sauvegardes automatiques ou les lancer manuellement via le paramétrage de l&apos;application. Le logiciel effectue également une sauvegarde automatique avant toute mise à jour ou restauration. Le logiciel vérifie la disponibilité d&apos;une nouvelle version à chaque démarrage."/>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Sauvegardes et mises à jour" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Vous pouvez planifier des sauvegardes automatiques ou les lancer manuellement via le paramétrage de l&apos;application. Le logiciel effectue également une sauvegarde automatique avant toute mise à jour ou restauration. Le logiciel vérifie la disponibilité d&apos;une nouvelle version à chaque démarrage."/>
+                </StackPanel>
+            </Border>
 
         </StackPanel>
     </ScrollViewer>

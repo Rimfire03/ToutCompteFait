@@ -1,4 +1,4 @@
-﻿using System.Windows.Controls;
+using System.Windows.Controls;
 using ToutCompteFait.Core;
 
 namespace ToutCompteFait.Views;
@@ -28,6 +28,7 @@ public partial class MembersView : UserControl, IPage
             Categories = string.Join(", ", r.Allocations.Select(a => cats[a.CategoryId].Name)),
             Amount = Money.Format(r.Entry.AmountCents)
         }).ToList();
+        Empty.Visibility = refunds.Count == 0 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
         ByMember.ItemsSource = refunds
             .GroupBy(r => (r.Entry.MemberName ?? "").Trim(), StringComparer.CurrentCultureIgnoreCase)
             .Select(g => new { Member = g.Key, Count = g.Count(), Total = Money.Format(g.Sum(r => r.Entry.AmountCents)) })

@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ToutCompteFait.Core;
@@ -53,6 +53,8 @@ public partial class ReportsView : UserControl, IPage
             Effect = (a.Sign > 0 ? "+" : "−") + Money.Format(a.AmountCents),
             Origin = a.SourceId is not null ? $"Reporté de {srcYears.GetValueOrDefault(a.Id, "l'exercice précédent")}" : "Saisi à la main"
         }).ToList();
+
+        Empty.Visibility = all.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         var un = all.Count(a => a.CategoryId is null);
         if (un > 0)

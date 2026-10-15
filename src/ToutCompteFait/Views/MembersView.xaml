@@ -1,6 +1,7 @@
 <UserControl x:Class="ToutCompteFait.Views.MembersView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="clr-namespace:ToutCompteFait.Controls">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/>
@@ -26,6 +27,8 @@
                 <DataGridTextColumn Header="Montant (€)" Binding="{Binding Amount}" Width="110" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
             </DataGrid.Columns>
         </DataGrid>
-    </Grid>
+        <ctl:EmptyState x:Name="Empty" Grid.Row="1" Grid.RowSpan="2" Icon="🧾" Title="Aucun remboursement"
+                    Text="Quand un membre avance de l'argent, saisissez une écriture de type « Remboursement à un membre » dans Opérations bancaires : le récapitulatif par membre apparaît ici."/>
+</Grid>
 </UserControl>
 

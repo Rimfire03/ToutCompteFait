@@ -1,6 +1,7 @@
-﻿<UserControl x:Class="ToutCompteFait.Views.ReportsView"
+<UserControl x:Class="ToutCompteFait.Views.ReportsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="clr-namespace:ToutCompteFait.Controls">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/>
@@ -41,6 +42,8 @@
                 <DataGridTextColumn Header="Origine" Binding="{Binding Origin}" Width="190" ElementStyle="{StaticResource LeftCell}"/>
             </DataGrid.Columns>
         </DataGrid>
-    </Grid>
+        <ctl:EmptyState x:Name="Empty" Grid.Row="3" Icon="🔁" Title="Aucun report"
+                    Text="Un report corrige le résultat quand un paiement tombe sur un autre exercice. Ajoutez-en un, ou laissez les reports de l'exercice précédent se reprendre automatiquement."/>
+</Grid>
 </UserControl>
 
