@@ -1,8 +1,8 @@
-﻿<Window x:Class="ToutCompteFait.Dialogs.NewYearWindow"
+<Window x:Class="ToutCompteFait.Dialogs.NewYearWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Nouvel exercice" Width="460" SizeToContent="Height" ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner" Background="{StaticResource BrushBackground}">
+        WindowStartupLocation="CenterOwner" Background="{StaticResource BrushSurface}">
     <StackPanel Margin="22">
         <TextBlock Text="Nouvel exercice comptable" Style="{StaticResource TitleText}"/>
         <TextBlock Style="{StaticResource MutedText}"

@@ -25,7 +25,7 @@ public sealed class CloseYearWindow : Window
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushBackground");
+        Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushSurface");
 
         var root = new StackPanel { Margin = new Thickness(24) };
         root.Children.Add(new TextBlock

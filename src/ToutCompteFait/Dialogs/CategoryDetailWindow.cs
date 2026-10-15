@@ -19,7 +19,7 @@ public sealed class CategoryDetailWindow : Window
         Height = 560;
         MinWidth = 720;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushBackground");
+        Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushSurface");
 
         var cats = c.Categories(year.Id).ToDictionary(k => k.Id);
         var accounts = c.Accounts(includeInactive: true).ToDictionary(a => a.Id, a => a.Name);

@@ -1,8 +1,8 @@
-﻿<Window x:Class="ToutCompteFait.Dialogs.StatementOcrWindow"
+<Window x:Class="ToutCompteFait.Dialogs.StatementOcrWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Lire un relevé PDF ou une image" Width="1400" Height="800" MinWidth="1000" MinHeight="600"
-        WindowStartupLocation="CenterOwner" Background="{StaticResource BrushBackground}">
+        WindowStartupLocation="CenterOwner" Background="{StaticResource BrushSurface}">
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>

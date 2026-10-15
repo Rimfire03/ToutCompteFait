@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctl="clr-namespace:ToutCompteFait.Controls"
         Title="Connexion" Width="440" SizeToContent="Height" ResizeMode="NoResize"
-        WindowStartupLocation="CenterScreen" Background="{StaticResource BrushBackground}">
+        WindowStartupLocation="CenterScreen" Background="{StaticResource BrushSurface}">
     <StackPanel Margin="28">
         <ctl:AppLogo Width="72" Height="72" HorizontalAlignment="Left" Margin="0,0,0,10"/>
         <TextBlock x:Name="AppTitleText" Text="Tout Compte Fait" FontSize="24" FontWeight="Bold" TextWrapping="Wrap"/>

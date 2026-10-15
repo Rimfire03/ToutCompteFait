@@ -17,7 +17,7 @@ public sealed class EulaWindow : Window
         MinWidth = 560;
         MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushBackground");
+        Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushSurface");
 
         var root = new DockPanel { Margin = new Thickness(20) };
         var header = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };

@@ -29,7 +29,7 @@ public sealed class ActivityCategoryWindow : Window
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushBackground");
+        Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushSurface");
 
         var items = UrssafKinds.All.OrderBy(k => suggested.Contains(k) ? 0 : 1)
             .Select(k => new Item(k, k.Label() + (suggested.Contains(k) ? "  (d'après votre code APE)" : ""))).ToList();

@@ -43,7 +43,7 @@ public sealed class AssetWindow : Window
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushBackground");
+        Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushSurface");
 
         _prorata.ItemsSource = new[] { "Au mois (le mois d'acquisition compte en entier)", "Au jour" };
         _prorata.SelectedIndex = 0;

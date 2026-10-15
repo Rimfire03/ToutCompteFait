@@ -107,6 +107,11 @@
         </Style.Triggers>
     </Style>
 
+    <!-- Fenêtres de dialogue : fond blanc ; la fenêtre principale garde la toile grise (Background posé sur MainWindow). -->
+    <Style TargetType="Window" BasedOn="{StaticResource {x:Type Window}}">
+        <Setter Property="Background" Value="{StaticResource BrushSurface}"/>
+    </Style>
+
     <!-- Onglets : soulignement d'accent sous l'onglet actif, contenu dans une carte blanche arrondie. -->
     <Style TargetType="TabControl">
         <Setter Property="Background" Value="Transparent"/>

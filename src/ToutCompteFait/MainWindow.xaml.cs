@@ -510,7 +510,9 @@ public partial class MainWindow : Window
             enc.Save(fs);
         }
 
-        foreach (var page in new[] { "livre", "bilan", "compare", "reports", "members", "dossier", "settings", "help" }.Concat(Editions.Current.IsBusiness ? new[] { "reporting" } : Array.Empty<string>()))
+        foreach (var page in new[] { "livre", "bilan", "compare", "reports", "members", "dossier", "settings", "help" }
+            .Concat(Editions.Current.IsBusiness ? new[] { "reporting" } : Array.Empty<string>())
+            .Concat(App.Compta.AssetsEnabled() ? new[] { "assets" } : Array.Empty<string>()))
         {
             ShowPage(page);
             await Shot(this, page);

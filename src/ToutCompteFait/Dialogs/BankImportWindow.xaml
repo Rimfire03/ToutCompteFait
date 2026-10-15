@@ -4,7 +4,7 @@
         xmlns:v="clr-namespace:ToutCompteFait.Views"
         xmlns:ctl="clr-namespace:ToutCompteFait.Controls"
         Title="Importer un relevé bancaire" Width="900" Height="720" MinHeight="560"
-        WindowStartupLocation="CenterOwner" Background="{StaticResource BrushBackground}">
+        WindowStartupLocation="CenterOwner" Background="{StaticResource BrushSurface}">
     <Window.Resources>
         <v:InvertBoolToVisibilityConverter x:Key="InvertBoolToVis"/>
     </Window.Resources>

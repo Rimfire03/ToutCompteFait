@@ -47,6 +47,9 @@ if (args.Length >= 4 && args[0] == "demo")
     dc.CancelEntry(wrong, "doublon");
     dc.SaveEntry(new Entry(0, y2.Id, new DateOnly(2026, 10, 5), "Fournitures", false, EntryKind.Normal, bq.Id, Direction.Out, null, 7500, null, null),
         new[] { new Allocation(c2.Id, 7500) });
+    dc.SaveAssetSettings(true, 50000);
+    dc.AddFixedAsset("Ordinateur portable", new DateOnly(2026, 10, 1), 120000, 3, AssetProrata.Monthly, false, null, null, null);
+    dc.AddFixedAsset("Four professionnel", new DateOnly(2026, 9, 15), 350000, 5, AssetProrata.Monthly, false, null, null, null);
     Console.WriteLine($"Base de démonstration créée : {args[1]}");
     Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
     return 0;

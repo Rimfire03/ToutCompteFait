@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctl="clr-namespace:ToutCompteFait.Controls"
         Title="Écriture" Width="720" SizeToContent="Height" MaxHeight="900" ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner" Background="{StaticResource BrushBackground}">
+        WindowStartupLocation="CenterOwner" Background="{StaticResource BrushSurface}">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="22">
             <TextBlock x:Name="TitleText" Text="Nouvelle écriture" Style="{StaticResource TitleText}"/>

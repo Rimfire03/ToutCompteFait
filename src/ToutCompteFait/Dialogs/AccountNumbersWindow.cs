@@ -33,7 +33,7 @@ public sealed class AccountNumbersWindow : Window
         Width = 720;
         Height = 620;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushBackground");
+        Background = (System.Windows.Media.Brush)Application.Current.FindResource("BrushSurface");
 
         var canEdit = App.Can(Permission.ManageStructure) && !App.IsReadOnly;
         foreach (var a in _c.Accounts(includeInactive: true))

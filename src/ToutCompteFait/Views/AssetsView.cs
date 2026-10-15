@@ -18,6 +18,40 @@ public sealed class AssetsView : UserControl, IPage
     private readonly FiscalYear _year;
     private readonly DataGrid _grid = new() { AutoGenerateColumns = false, IsReadOnly = true, SelectionMode = DataGridSelectionMode.Single };
     private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0) };
+    private readonly TextBlock _tileDep = new() { FontSize = 22, FontWeight = FontWeights.SemiBold };
+    private readonly TextBlock _tileNet = new() { FontSize = 22, FontWeight = FontWeights.SemiBold };
+    private readonly TextBlock _tileBuy = new() { FontSize = 22, FontWeight = FontWeights.SemiBold };
+    private readonly ToutCompteFait.Controls.EmptyState _empty = new()
+    {
+        Icon = "🏭", Title = "Aucune immobilisation",
+        Text = "Ajoutez un bien durable (matériel, véhicule…) : sa valeur est étalée en charges sur sa durée d'utilisation. Vous pouvez aussi immobiliser une dépense depuis les Opérations bancaires."
+    };
+
+    private static Border Tile(string title, TextBlock value, string glyph, string bg, string fg, Thickness margin)
+    {
+        var conv = new System.Windows.Media.BrushConverter();
+        var icon = new Border
+        {
+            Width = 40, Height = 40, CornerRadius = new CornerRadius(20), VerticalAlignment = VerticalAlignment.Top,
+            Background = (System.Windows.Media.Brush)conv.ConvertFromString(bg)!,
+            Child = new TextBlock
+            {
+                Text = glyph, FontSize = 19, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center, Foreground = (System.Windows.Media.Brush)conv.ConvertFromString(fg)!
+            }
+        };
+        var text = new StackPanel { Margin = new Thickness(12, 0, 0, 0) };
+        text.Children.Add(new TextBlock { Text = title, Style = (Style)Application.Current.FindResource("MutedText") });
+        value.Foreground = (System.Windows.Media.Brush)conv.ConvertFromString(fg)!;
+        text.Children.Add(value);
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        grid.Children.Add(icon);
+        Grid.SetColumn(text, 1);
+        grid.Children.Add(text);
+        return new Border { Style = (Style)Application.Current.FindResource("Card"), Margin = margin, Child = grid };
+    }
     private readonly Button _add = new() { Content = "＋  Nouvelle immobilisation" };
     private readonly Button _edit = new() { Content = "Modifier" };
     private readonly Button _dispose = new() { Content = "Sortie du bien…" };
@@ -44,6 +78,11 @@ public sealed class AssetsView : UserControl, IPage
         _delete.Style = Sty("DangerButton");
         bar.Children.Add(_delete);
         head.Children.Add(bar);
+        var tiles = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3, Margin = new Thickness(0, 4, 0, 14) };
+        tiles.Children.Add(Tile("Dotations aux amortissements de l'exercice", _tileDep, "↘", "#FEE2E2", "#B91C1C", new Thickness(0, 0, 10, 0)));
+        tiles.Children.Add(Tile("Valeur nette à la clôture", _tileNet, "＝", "#DBEAFE", "#1D4ED8", new Thickness(5, 0, 5, 0)));
+        tiles.Children.Add(Tile("Achats immobilisés (hors charges)", _tileBuy, "↗", "#DCFCE7", "#15803D", new Thickness(10, 0, 0, 0)));
+        head.Children.Add(tiles);
         DockPanel.SetDock(head, Dock.Top);
         root.Children.Add(head);
 
@@ -66,11 +105,14 @@ public sealed class AssetsView : UserControl, IPage
         Col("Valeur", nameof(Row.Cost), 90, right: true);
         Col("Durée", nameof(Row.Duration), 70);
         Col("Prorata", nameof(Row.Mode), 70);
-        Col("Dotation de l'exercice", nameof(Row.Depreciation), 130, right: true);
-        Col("Amortissements cumulés", nameof(Row.Cumulative), 150, right: true);
-        Col("Valeur nette (clôture)", nameof(Row.Net), 140, right: true);
+        Col("Dotation de l'exercice", nameof(Row.Depreciation), 160, right: true);
+        Col("Amortissements cumulés", nameof(Row.Cumulative), 190, right: true);
+        Col("Valeur nette (clôture)", nameof(Row.Net), 180, right: true);
         Col("État", nameof(Row.State), 150);
-        root.Children.Add(_grid);
+        var gridHost = new Grid();
+        gridHost.Children.Add(_grid);
+        gridHost.Children.Add(_empty);
+        root.Children.Add(gridHost);
         Content = root;
 
         _add.Click += (_, _) => Add();
@@ -127,8 +169,12 @@ public sealed class AssetsView : UserControl, IPage
         }
         _grid.ItemsSource = rows;
         if (keep is { } id) _grid.SelectedItem = rows.FirstOrDefault(r => r.Asset.Id == id);
+        _tileDep.Text = Money.Format(dep) + " €";
+        _tileNet.Text = Money.Format(net) + " €";
+        _tileBuy.Text = Money.Format(reclass) + " €";
+        _empty.Visibility = assets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         _summary.Text = assets.Count == 0
-            ? "Aucune immobilisation. Ajoutez un bien ici, ou depuis les Opérations bancaires (« Immobiliser… » sur une dépense)."
+            ? ""
             : $"Exercice {_year.Label} : dotations aux amortissements {Money.Format(dep)} € · valeur nette des immobilisations à la clôture {Money.Format(net)} €" +
               (reclass > 0 ? $" · achats immobilisés retirés des charges {Money.Format(reclass)} €." : ".");
         UpdateButtons();
