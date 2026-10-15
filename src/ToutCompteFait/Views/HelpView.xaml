@@ -21,7 +21,7 @@
             <Border Style="{StaticResource Card}" Margin="0,0,0,10">
                 <StackPanel>
                     <TextBlock Text="Les écrans du menu" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
-                    <TextBlock TextWrapping="Wrap" Text="Le menu de gauche donne accès aux écrans suivants. « Opérations bancaires » : saisie et import des écritures. « Statistique opérations » : comparaison des exercices. « Bilan &amp; comptes annuels » : résultat, situation et impression. « Reports entre exercices » : dépenses et recettes à rattacher à un autre exercice. « Remboursements membres », « Immobilisations » et « Reporting URSSAF » apparaissent selon la version et les réglages. « Paramétrage du dossier » concerne l&apos;exercice et la comptabilité (listes, opérations, comptes, nouvel exercice) ; « Paramétrage appli » concerne le poste (base de données, sauvegardes, mises à jour). L&apos;exercice affiché se choisit en haut du menu."/>
+                    <TextBlock TextWrapping="Wrap" Text="Le menu de gauche donne accès aux écrans suivants. « Opérations bancaires » : saisie et import des écritures. « Statistiques » : produits, charges et opérations, mois par mois et exercice par exercice. « Bilan &amp; comptes annuels » : résultat, situation et impression. « Reports entre exercices » : dépenses et recettes à rattacher à un autre exercice. « Remboursements membres », « Immobilisations » et « Reporting URSSAF » apparaissent selon la version et les réglages. « Paramétrage du dossier » concerne l&apos;exercice et la comptabilité (listes, opérations, comptes, nouvel exercice) ; « Paramétrage appli » concerne le poste (base de données, sauvegardes, mises à jour). L&apos;exercice affiché se choisit en haut du menu."/>
                 </StackPanel>
             </Border>
 
@@ -62,7 +62,7 @@
 
             <Border Style="{StaticResource Card}" Margin="0,0,0,10">
                 <StackPanel>
-                    <TextBlock Text="Statistique" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock Text="Statistiques" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
                     <TextBlock TextWrapping="Wrap" Text="Trois onglets : Produits, Charges et Opérations. Chacun propose une vue Mensuelle (l&apos;exercice affiché, mois par mois : graphique des principaux éléments et tableau complet) et une vue Annuelle (comparaison de l&apos;exercice affiché N avec les exercices précédents N-1, N-2…, jusqu&apos;à 10 au choix, avec l&apos;écart en euros et en pourcentage). Les produits et charges marqués « personnel » n&apos;y figurent pas."/>
                 </StackPanel>
             </Border>

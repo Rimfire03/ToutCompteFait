@@ -59,7 +59,7 @@ public sealed class ComparisonView : UserControl, IPage
         var root = new DockPanel { Margin = new Thickness(0) };
         var head = new StackPanel();
         var what = kind switch { StatKind.Products => "produit", StatKind.Charges => "charge", _ => "opération" };
-        head.Children.Add(new TextBlock { Text = $"Statistique annuelle — {year.Label}", Style = Sty("TitleText") });
+        head.Children.Add(new TextBlock { Text = $"Statistiques annuelles — {year.Label}", Style = Sty("TitleText") });
         head.Children.Add(new TextBlock
         {
             Style = Sty("MutedText"), TextWrapping = TextWrapping.Wrap,

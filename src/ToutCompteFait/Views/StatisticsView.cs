@@ -34,7 +34,7 @@ public sealed class StatisticsView : UserControl, IPage
         }
         var root = new DockPanel();
         var head = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
-        head.Children.Add(new TextBlock { Text = $"Statistique — {year.Label}", Style = ComparisonView.Sty("TitleText") });
+        head.Children.Add(new TextBlock { Text = $"Statistiques — {year.Label}", Style = ComparisonView.Sty("TitleText") });
         DockPanel.SetDock(head, Dock.Top);
         root.Children.Add(head);
         root.Children.Add(tabs);

@@ -58,7 +58,7 @@ public partial class MainWindow : Window
         // Onglet Statistique (produits, charges, opérations) : juste après les remboursements des membres.
         var navCompare = new RadioButton
         {
-            Content = "📉   Statistique", GroupName = "nav", Tag = "compare",
+            Content = "📉   Statistiques", GroupName = "nav", Tag = "compare",
             Style = (Style)FindResource("NavButton")
         };
         navCompare.Checked += Nav_Checked;

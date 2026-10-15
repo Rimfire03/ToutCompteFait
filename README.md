@@ -205,9 +205,9 @@ Pour un auto-entrepreneur (micro-entreprise) : pas de remboursements aux membres
 * **Vocabulaire** : on parle d'« année fiscale » et non d'« exercice » (adaptation d'affichage, `Wording`).
 * Tables : `business_settings`, `category_urssaf`, `urssaf_declarations` (migration v9, toutes versions).
 
-### Statistique
+### Statistiques
 
-Onglet « Statistique » : produits, charges et opérations, chacun en vue **mensuelle** (mois par mois, graphique des
+Onglet « Statistiques » : produits, charges et opérations, chacun en vue **mensuelle** (mois par mois, graphique des
 principaux éléments et tableau complet) et **annuelle** (comparaison avec les exercices précédents). Les éléments marqués
 personnels n'y figurent pas.
 
