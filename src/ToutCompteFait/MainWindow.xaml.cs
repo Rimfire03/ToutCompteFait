@@ -402,11 +402,7 @@ public partial class MainWindow : Window
         catch { return; }   // base momentanément indisponible : pas d'alerte
         if (pending.Count == 0) return;
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var lines = pending.Select(p => $"• {p.Label} : à déclarer avant le {p.DueDate:dd/MM/yyyy}" + (today > p.DueDate ? " (en retard)" : ""));
-        var text = "Déclaration URSSAF à réaliser :\n\n" + string.Join("\n", lines) +
-                   "\n\nUne fois faite sur autoentrepreneur.urssaf.fr, marquez-la « déclarée » dans le Reporting URSSAF : " +
-                   "cette alerte ne s'affichera plus.\n\nOuvrir le Reporting URSSAF maintenant ?";
-        if (!Ui.Confirm(text, "Déclaration URSSAF")) return;
+        if (new UrssafAlertWindow(pending, today) { Owner = this }.ShowDialog() != true) return;
         if (NavMembers.Parent is Panel panel)
             foreach (var b in panel.Children.OfType<RadioButton>().Where(b => b.Tag as string == "reporting"))
                 b.IsChecked = true;
