@@ -30,6 +30,7 @@ internal static class DatabaseMigrations
         (13, "Charges personnelles de l'exploitant (écartées du résultat, repère par nom de catégorie)", AddCategoryPersonal),
         (14, "Mode de règlement et référence de pièce des écritures (livre des recettes, registre des achats)", AddPaymentInfo),
         (15, "Autoentreprise : ventilations en produits remises à zéro (produits désormais libres, rattachés ensuite à un type URSSAF)", ResetProductAllocations),
+        (16, "Autoentreprise : ventilations de sens contraire annulées (crédits en charges, débits en produits)", ResetWrongWayAllocations),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -55,6 +56,7 @@ internal static class DatabaseMigrations
         (13, "Charges personnelles de l'exploitant (écartées du résultat, repère par nom de catégorie)", AddCategoryPersonal),
         (14, "Mode de règlement et référence de pièce des écritures (livre des recettes, registre des achats)", AddPaymentInfo),
         (15, "Autoentreprise : ventilations en produits remises à zéro (produits désormais libres, rattachés ensuite à un type URSSAF)", ResetProductAllocations),
+        (16, "Autoentreprise : ventilations de sens contraire annulées (crédits en charges, débits en produits)", ResetWrongWayAllocations),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -418,6 +420,30 @@ internal static class DatabaseMigrations
             $"DELETE FROM {q("allocations")} WHERE {q("category_id")} IN (" +
             $"SELECT c.{q("id")} FROM {q("categories")} c JOIN {q("fiscal_years")} y ON y.{q("id")} = c.{q("year_id")} " +
             $"WHERE c.{q("kind")} = 'P' AND y.{q("status")} <> 'VALIDATED')");
+    }
+
+    // ------------------------------------------------------------------ v16 : ventilation selon le sens (Autoentreprise)
+
+    /// <summary>Version Autoentreprise uniquement : annule les ventilations de sens contraire à l'écriture, sur les
+    /// exercices NON validés : crédit ventilé sur une charge (hors remboursement lié à une dépense) et débit ventilé sur
+    /// un produit. Les écritures redeviennent « à ventiler » ; montants, dates et libellés intacts. Exercices validés
+    /// jamais touchés (empreinte). Deux requêtes sans auto-référence (MariaDB refuse de supprimer d'une table lue en sous-requête).</summary>
+    private static void ResetWrongWayAllocations(AppDbContext ctx)
+    {
+        if (!Editions.Current.IsBusiness) return;
+        var q = (string n) => ServerSql.Q(ctx.Provider, n);
+        string Entries(string direction, string extra) =>
+            $"SELECT e.{q("id")} FROM {q("entries")} e JOIN {q("fiscal_years")} y ON y.{q("id")} = e.{q("year_id")} " +
+            $"WHERE e.{q("direction")} = '{direction}'{extra} AND y.{q("status")} <> 'VALIDATED'";
+        string Categories(string kind) => $"SELECT {q("id")} FROM {q("categories")} WHERE {q("kind")} = '{kind}'";
+        // Crédits (hors remboursements liés) ventilés sur des charges.
+        ctx.Database.ExecuteSqlRaw(
+            $"DELETE FROM {q("allocations")} WHERE {q("category_id")} IN ({Categories("C")}) " +
+            $"AND {q("entry_id")} IN ({Entries("IN", $" AND e.{q("refund_of_id")} IS NULL")})");
+        // Débits ventilés sur des produits.
+        ctx.Database.ExecuteSqlRaw(
+            $"DELETE FROM {q("allocations")} WHERE {q("category_id")} IN ({Categories("P")}) " +
+            $"AND {q("entry_id")} IN ({Entries("OUT", "")})");
     }
 
     /// <summary>Table <c>category_personal</c> (nom de la charge) : dépenses privées de l'exploitant, hors des tables

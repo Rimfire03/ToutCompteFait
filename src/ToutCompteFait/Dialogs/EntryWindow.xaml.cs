@@ -316,6 +316,9 @@ public partial class EntryWindow : Window
         var products = _cats.Where(c => c.Kind == CategoryKind.Product).Select(c => new CatItem(c, "Produit · " + c.Name));
         var m = CurrentMode;
         if (m == Mode.Reimbursed) return charges;
+        // Entreprise : un débit ne se ventile que sur des charges, un crédit que sur des produits.
+        if (Editions.Current.IsBusiness)
+            return m is Mode.Income or Mode.NoCash ? products : charges;
         return m is Mode.Income ? products.Concat(charges)
              : m is Mode.NoCash ? products.Concat(charges)
              : charges.Concat(products);
