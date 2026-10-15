@@ -71,7 +71,7 @@ public partial class App
             return;
         }
         if (info is null) return;
-        if (!Session.Can(ToutCompteFait.Core.Security.Permission.ManageDatabase)) return;   // seul un administrateur installe
+        // Proposée à tout utilisateur, quel que soit son rôle : la mise à jour ne remplace que les fichiers du programme.
 
         var proceed = Ui.Confirm(
             (info.IsChannelSwitch

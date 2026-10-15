@@ -61,9 +61,7 @@ public partial class SettingsView
                     : $"Nouvelle version disponible : {info.Version} (actuelle : {App.AppVersionText}).";
                 if (!string.IsNullOrWhiteSpace(info.ReleaseNotes))
                     UpdateStatusText.Text += "\n\n" + info.ReleaseNotes.Split("<!--")[0].Trim();
-                var admin = App.Session.Can(Permission.ManageDatabase);
-                InstallUpdateButton.Visibility = admin ? Visibility.Visible : Visibility.Collapsed;
-                if (!admin) UpdateStatusText.Text += "\n\nL'installation est réservée à un administrateur.";
+                InstallUpdateButton.Visibility = Visibility.Visible;
             }
         }
         catch (Exception ex)
