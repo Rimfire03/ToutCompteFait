@@ -33,6 +33,17 @@ public sealed record AppEdition(string Id)
     /// <c>ToutCompteFait</c> pour la version historique, sinon <see cref="ExeBaseName"/>.</summary>
     public string DataName => Id == Legacy ? "ToutCompteFait" : ExeBaseName;
 
+    /// <summary>Dossier parent commun des installations (par machine) : <c>C:\Program Files\Tout Compte Fait</c>.</summary>
+    public const string InstallRootFolder = "Tout Compte Fait";
+
+    /// <summary>Sous-dossier de cette version dans <see cref="InstallRootFolder"/> : <c>Asso</c>, <c>Autoentreprise</c>.</summary>
+    public string InstallSubFolder => Label;
+
+    /// <summary>Ancien dossier d'installation (avant le regroupement sous <see cref="InstallRootFolder"/>) : directement sous
+    /// Program Files, <c>ToutCompteFait</c> pour la version historique, sinon le nom de l'exécutable. Sert à reprendre les
+    /// données (Donnees, Sauvegardes) laissées en place par la mise à jour.</summary>
+    public string LegacyInstallFolder => Id == Legacy ? "ToutCompteFait" : ExeBaseName;
+
     /// <summary>Produit côté serveur de licences : commun à toutes les versions (la version est portée par la licence).</summary>
     public string ProductSlug => "tout-compte-fait";
 

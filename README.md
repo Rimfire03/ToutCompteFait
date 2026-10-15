@@ -166,7 +166,7 @@ version). Le numéro de version est **commun** à toutes ; chaque version y ajou
 | Nom affiché | Tout Compte Fait Asso |
 | Exécutable | `ToutCompteFaitAsso.exe` |
 | Installateur / archive | `ToutCompteFaitAsso-v<version>-win-x64.msi` / `.zip` |
-| Dossier d'installation | `C:\Program Files\ToutCompteFait` (inchangé : les données `Donnees\` restent en place) |
+| Dossier d'installation | `C:\Program Files\Tout Compte Fait\Asso` (depuis la 1.11 ; avant : `C:\Program Files\ToutCompteFait`, dont les données `Donnees\` et `Sauvegardes\` sont reprises au premier lancement) |
 | Réglages, clé de registre, licence | `ToutCompteFait` (inchangés : les installations et licences existantes continuent) |
 
 * **Une seule base de code.** La version est choisie à la compilation (`-p:Edition=asso`, métadonnée d'assembly lue par
@@ -200,7 +200,7 @@ Même système que FiltresApp : le logiciel interroge la dernière **release Git
 stable, Dev = préversions), « Vérifier maintenant », « Télécharger et installer ».
 
 * **Deux formes de livraison**, publiées ensemble à chaque release : le `.zip` portable (exécutable à lancer depuis
-  n'importe quel dossier) et l'**installateur `.msi`** (par poste : `C:\Program Files\ToutCompteFait`, raccourci du menu
+  n'importe quel dossier) et l'**installateur `.msi`** (par poste : `C:\Program Files\Tout Compte Fait\<Version>`, raccourci du menu
   Démarrer, dossiers `Donnees\` et `Sauvegardes\` inscriptibles par tous les utilisateurs du poste). Le logiciel détecte
   son mode et télécharge le bon fichier : un poste installé se met à jour par le `.msi`, un poste portable par le `.zip`.
 * L'installation sauvegarde la base juste avant, télécharge le fichier signé, ferme le logiciel, remplace **uniquement
