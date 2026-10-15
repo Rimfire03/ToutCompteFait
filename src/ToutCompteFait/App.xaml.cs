@@ -53,6 +53,27 @@ public partial class App : Application
     public static string DisplayVersion { get; } =
         (Assembly.GetExecutingAssembly().GetName().Version ?? new Version(1, 0, 0)).ToString(3);
 
+    /// <summary>Habillage de la zone de contenu : toile gris-bleu clair derrière des cartes blanches, grilles plus légères.
+    /// Surcharge locale des couleurs de la palette partagée (TomLine.UI.Wpf), sans la modifier.</summary>
+    private static void ApplyVisualTheme()
+    {
+        void Set(string key, string hex)
+        {
+            var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+            try
+            {
+                if (Current.TryFindResource(key) is System.Windows.Media.SolidColorBrush b && !b.IsFrozen) { b.Color = color; return; }
+            }
+            catch { /* repli ci-dessous */ }
+            Current.Resources[key] = new System.Windows.Media.SolidColorBrush(color);
+        }
+        Set("BrushBackground", "#EAEFF6");      // toile
+        Set("BrushGridHeaderBg", "#F5F8FC");    // en-têtes de colonnes
+        Set("BrushGridLine", "#EDF1F6");        // traits de grille très discrets
+        Set("BrushGridRowAlt", "#FAFBFD");
+        Set("BrushGridRowHover", "#EEF4FF");    // survol : teinte bleutée
+    }
+
     public static int DatabaseVersion => DbFactory.GetDatabaseVersion();
 
     public static string DatabaseModeLabel
@@ -149,6 +170,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        ApplyVisualTheme();
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         DispatcherUnhandledException += (_, args) =>
         {

@@ -39,6 +39,11 @@ public sealed class ComparisonView : UserControl, IPage
     private readonly BarChart _chartProducts = new();
     private readonly BarChart _chartCharges = new();
     private readonly StackPanel _tables = new();
+    private readonly Border _empty = new()
+    {
+        Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 14), Padding = new Thickness(28), CornerRadius = new CornerRadius(12),
+        Background = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0)), BorderThickness = new Thickness(1)
+    };
     private YearComparison? _cmp;
     private bool _loading;
 
@@ -78,7 +83,23 @@ public sealed class ComparisonView : UserControl, IPage
             charts.Children.Add(card);
         }
 
+        var emptyText = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 520 };
+        emptyText.Children.Add(new TextBlock { Text = "📊", FontSize = 40, HorizontalAlignment = HorizontalAlignment.Center });
+        emptyText.Children.Add(new TextBlock
+        {
+            Text = "Aucune opération à comparer", FontSize = 16, FontWeight = FontWeights.SemiBold,
+            HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0)
+        });
+        emptyText.Children.Add(new TextBlock
+        {
+            Text = "Une opération regroupe les produits et charges d'un même événement (ex. Loto Octobre). Créez-en dans " +
+                   "Paramétrage du dossier → Opérations : leur résultat sera comparé ici, exercice par exercice.",
+            TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Foreground = Grey, Margin = new Thickness(0, 6, 0, 0)
+        });
+        _empty.Child = emptyText;
+
         var content = new StackPanel();
+        content.Children.Add(_empty);
         content.Children.Add(charts);
         content.Children.Add(_tables);
         var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = content };
@@ -132,6 +153,12 @@ public sealed class ComparisonView : UserControl, IPage
                 ch.MinWidth = Math.Max(700, names.Length * years.Count * 34 + 120);
 
             BuildTables();
+            var none = ops.Count == 0;
+            _empty.Visibility = none ? Visibility.Visible : Visibility.Collapsed;
+            _tables.Visibility = none ? Visibility.Collapsed : Visibility.Visible;
+            foreach (var ch in new FrameworkElement[] { _chartResult, _chartProducts, _chartCharges })
+                ((FrameworkElement)ch.Parent is ScrollViewer sv && sv.Parent is Border card ? card : ch).Visibility =
+                    none ? Visibility.Collapsed : Visibility.Visible;
         }
         finally { _loading = false; }
     }

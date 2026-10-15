@@ -32,25 +32,54 @@
             </Border>
 
             <!-- Synthèse -->
-            <UniformGrid Columns="3" Margin="0,14,0,0">
-                <Border Style="{StaticResource Card}" Margin="0,0,8,0" BorderBrush="#16A34A" BorderThickness="2">
-                    <StackPanel>
-                        <TextBlock Text="Produits" Style="{StaticResource MutedText}"/>
-                        <TextBlock x:Name="ProductsTotal" FontSize="22" FontWeight="Bold"/>
-                    </StackPanel>
+            <UniformGrid Columns="3" Margin="0,16,0,0">
+                <Border Style="{StaticResource Card}" Margin="0,0,10,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Width="42" Height="42" CornerRadius="21" Background="#DCFCE7" VerticalAlignment="Top">
+                            <TextBlock Text="↘" FontSize="20" FontWeight="Bold" Foreground="#15803D" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="14,0,0,0">
+                            <TextBlock Text="Produits" Style="{StaticResource MutedText}"/>
+                            <TextBlock x:Name="ProductsTotal" FontSize="26" FontWeight="SemiBold"/>
+                            <Border x:Name="ProductsPill" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left" Margin="0,6,0,0" Visibility="Collapsed">
+                                <TextBlock x:Name="ProductsDelta" FontSize="11.5" FontWeight="SemiBold"/>
+                            </Border>
+                            <TextBlock x:Name="ProductsNote" Style="{StaticResource MutedText}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0" Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Grid>
                 </Border>
-                <Border Style="{StaticResource Card}" Margin="4,0,4,0" BorderBrush="#DC2626" BorderThickness="2">
-                    <StackPanel>
-                        <TextBlock Text="Charges" Style="{StaticResource MutedText}"/>
-                        <TextBlock x:Name="ChargesTotal" FontSize="22" FontWeight="Bold"/>
-                    </StackPanel>
+                <Border Style="{StaticResource Card}" Margin="5,0,5,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Width="42" Height="42" CornerRadius="21" Background="#FEE2E2" VerticalAlignment="Top">
+                            <TextBlock Text="↗" FontSize="20" FontWeight="Bold" Foreground="#B91C1C" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="14,0,0,0">
+                            <TextBlock Text="Charges" Style="{StaticResource MutedText}"/>
+                            <TextBlock x:Name="ChargesTotal" FontSize="26" FontWeight="SemiBold"/>
+                            <Border x:Name="ChargesPill" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left" Margin="0,6,0,0" Visibility="Collapsed">
+                                <TextBlock x:Name="ChargesDelta" FontSize="11.5" FontWeight="SemiBold"/>
+                            </Border>
+                            <TextBlock x:Name="ChargesNote" Style="{StaticResource MutedText}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0" Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Grid>
                 </Border>
-                <Border Style="{StaticResource Card}" Margin="8,0,0,0">
-                    <StackPanel>
-                        <TextBlock Text="Résultat net de l'exercice" Style="{StaticResource MutedText}"/>
-                        <TextBlock x:Name="ResultTotal" FontSize="22" FontWeight="Bold"/>
-                        <TextBlock x:Name="ResultNote" Style="{StaticResource MutedText}" FontSize="11.5" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed"/>
-                    </StackPanel>
+                <Border Style="{StaticResource Card}" Margin="10,0,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Width="42" Height="42" CornerRadius="21" Background="#DBEAFE" VerticalAlignment="Top">
+                            <TextBlock Text="＝" FontSize="20" FontWeight="Bold" Foreground="#1D4ED8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="14,0,0,0">
+                            <TextBlock Text="Résultat net de l'exercice" Style="{StaticResource MutedText}"/>
+                            <TextBlock x:Name="ResultTotal" FontSize="26" FontWeight="SemiBold"/>
+                            <Border x:Name="ResultPill" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left" Margin="0,6,0,0" Visibility="Collapsed">
+                                <TextBlock x:Name="ResultDelta" FontSize="11.5" FontWeight="SemiBold"/>
+                            </Border>
+                            <TextBlock x:Name="ResultNote" Style="{StaticResource MutedText}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0" Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Grid>
                 </Border>
             </UniformGrid>
 
@@ -61,8 +90,8 @@
                     <ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="Charges" FontWeight="Bold" Foreground="#B91C1C" Margin="0,0,0,4"/>
-                    <DataGrid x:Name="ChargesGrid" MouseDoubleClick="Detail_DoubleClick" ToolTip="Double-clic sur une catégorie : détail des lignes du livre" BorderBrush="#DC2626" BorderThickness="2" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                    <TextBlock Text="●  Charges" FontWeight="SemiBold" Foreground="#B91C1C" Margin="2,0,0,6"/>
+                    <DataGrid x:Name="ChargesGrid" MouseDoubleClick="Detail_DoubleClick" ToolTip="Double-clic sur une catégorie : détail des lignes du livre" ScrollViewer.VerticalScrollBarVisibility="Disabled">
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
                                 <Style.Triggers>
@@ -78,12 +107,20 @@
                             <DataGridTextColumn Header="Livre" Binding="{Binding CashText}" Width="86" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
                             <DataGridTextColumn Header="Reports" Binding="{Binding AdjText}" Width="80" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
                             <DataGridTextColumn Header="Total" Binding="{Binding TotalText}" Width="92" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                            <DataGridTemplateColumn Header="Part" Width="74">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding Share}" Height="6" Margin="6,0" BorderThickness="0"
+                                                     Background="#E8EEF5" Foreground="{Binding ShareBrush}" Visibility="{Binding ShareVisibility}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </StackPanel>
                 <StackPanel Grid.Column="2">
-                    <TextBlock Text="Produits" FontWeight="Bold" Foreground="#15803D" Margin="0,0,0,4"/>
-                    <DataGrid x:Name="ProductsGrid" MouseDoubleClick="Detail_DoubleClick" ToolTip="Double-clic sur une catégorie : détail des lignes du livre" BorderBrush="#16A34A" BorderThickness="2" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                    <TextBlock Text="●  Produits" FontWeight="SemiBold" Foreground="#15803D" Margin="2,0,0,6"/>
+                    <DataGrid x:Name="ProductsGrid" MouseDoubleClick="Detail_DoubleClick" ToolTip="Double-clic sur une catégorie : détail des lignes du livre" ScrollViewer.VerticalScrollBarVisibility="Disabled">
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
                                 <Style.Triggers>
@@ -99,6 +136,14 @@
                             <DataGridTextColumn Header="Livre" Binding="{Binding CashText}" Width="86" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
                             <DataGridTextColumn Header="Reports" Binding="{Binding AdjText}" Width="80" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
                             <DataGridTextColumn Header="Total" Binding="{Binding TotalText}" Width="92" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                            <DataGridTemplateColumn Header="Part" Width="74">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding Share}" Height="6" Margin="6,0" BorderThickness="0"
+                                                     Background="#E8EEF5" Foreground="{Binding ShareBrush}" Visibility="{Binding ShareVisibility}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </StackPanel>

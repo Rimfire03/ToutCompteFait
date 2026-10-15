@@ -498,6 +498,11 @@ public partial class MainWindow : Window
             var width = (int)Math.Max(1, root.ActualWidth);
             var height = (int)Math.Max(1, root.ActualHeight);
             var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            // Le fond de la fenêtre n'appartient pas au contenu : on le peint d'abord pour que la capture soit fidèle.
+            var back = new System.Windows.Media.DrawingVisual();
+            using (var dc = back.RenderOpen())
+                dc.DrawRectangle(w.Background, null, new Rect(0, 0, width, height));
+            rtb.Render(back);
             rtb.Render(root);
             var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
             enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));

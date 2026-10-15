@@ -295,6 +295,10 @@ public partial class LivreView : UserControl, IPage
         // C'est aussi l'ordre du solde cumulé.
         var shown = q.OrderBy(r => r.Source.Entry.Date).ThenBy(r => r.Id).ToList();
         EntriesGrid.ItemsSource = shown;
+        EmptyState.Visibility = shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        EmptyStateText.Text = _all.Count == 0
+            ? "Saisissez une écriture ou importez un relevé bancaire pour commencer."
+            : "Aucune écriture ne correspond à la recherche ou aux filtres choisis.";
         if (keepId is { } id)
         {
             var sel = shown.FirstOrDefault(r => r.Id == id);

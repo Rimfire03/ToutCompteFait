@@ -18,6 +18,11 @@ public sealed class BilanLine
     public string TotalText { get; init; } = "";
     public bool IsTotal { get; init; }
 
+    /// <summary>Part de la catégorie dans le total de sa liste (0 à 100), pour la barre de répartition.</summary>
+    public double Share { get; set; }
+    public Brush ShareBrush { get; set; } = Brushes.SteelBlue;
+    public Visibility ShareVisibility => IsTotal || Share <= 0 ? Visibility.Hidden : Visibility.Visible;
+
     /// <summary>Catégorie du bilan (double-clic : détail des lignes du livre) ; null pour une ligne de synthèse.</summary>
     public long? CategoryId { get; init; }
 }
@@ -60,6 +65,28 @@ public partial class BilanView : UserControl, IPage
         foreach (var g in new[] { ChargesGrid, ProductsGrid, OperationsGrid })
             g.PreviewMouseWheel += ForwardWheel;
         Reload();
+    }
+
+    /// <summary>Pastilles d'évolution par rapport à l'exercice précédent (N-1), si celui-ci existe.</summary>
+    private void ShowDeltas(Bilan b)
+    {
+        var prevYear = _c.Years().Where(y => y.Start < _year.Start).OrderByDescending(y => y.Start).FirstOrDefault();
+        var prev = prevYear is null ? null : _c.ComputeBilan(prevYear.Id);
+
+        void Pill(Border pill, TextBlock text, long now, long before, bool higherIsBetter)
+        {
+            if (prev is null || before == 0) { pill.Visibility = Visibility.Collapsed; return; }
+            var pct = (double)(now - before) / Math.Abs(before) * 100;
+            var good = higherIsBetter ? pct >= 0 : pct <= 0;
+            text.Text = (pct > 0 ? "▲ +" : pct < 0 ? "▼ " : "= ") + pct.ToString("0.#", System.Globalization.CultureInfo.GetCultureInfo("fr-FR")) +
+                        " % vs " + prevYear!.Label;
+            text.Foreground = new SolidColorBrush(good ? Color.FromRgb(0x15, 0x80, 0x3D) : Color.FromRgb(0xB9, 0x1C, 0x1C));
+            pill.Background = new SolidColorBrush(good ? Color.FromRgb(0xDC, 0xFC, 0xE7) : Color.FromRgb(0xFE, 0xE2, 0xE2));
+            pill.Visibility = Visibility.Visible;
+        }
+        Pill(ProductsPill, ProductsDelta, b.ProductsTotal, prev?.ProductsTotal ?? 0, higherIsBetter: true);
+        Pill(ChargesPill, ChargesDelta, b.ChargesTotal, prev?.ChargesTotal ?? 0, higherIsBetter: false);
+        Pill(ResultPill, ResultDelta, b.Result, prev?.Result ?? 0, higherIsBetter: true);
     }
 
     // ------------------------------------------------------------------ impression
@@ -161,9 +188,12 @@ public partial class BilanView : UserControl, IPage
         ProductsTotal.Text = Money.Format(b.ProductsTotal) + " €";
         ChargesTotal.Text = Money.Format(b.ChargesTotal) + " €";
         ResultTotal.Text = (b.Result > 0 ? "+" : "") + Money.Format(b.Result) + " €";
+        ProductsTotal.Foreground = new SolidColorBrush(Color.FromRgb(0x15, 0x80, 0x3D));
+        ChargesTotal.Foreground = new SolidColorBrush(Color.FromRgb(0xB9, 0x1C, 0x1C));
         ResultTotal.Foreground = b.Result >= 0
             ? new SolidColorBrush(Color.FromRgb(0x04, 0x78, 0x57))
             : new SolidColorBrush(Color.FromRgb(0xB9, 0x1C, 0x1C));
+        ShowDeltas(b);
 
         // Résultat négatif : précise la part d'investissement (achats d'immobilisations), qui explique souvent la baisse
         // de trésorerie sans peser sur le résultat (porté à l'actif, seule la dotation aux amortissements est une charge).
@@ -173,13 +203,18 @@ public partial class BilanView : UserControl, IPage
 
         List<BilanLine> Lines(IReadOnlyList<CategoryResult> src, long total)
         {
+            var positive = src.Where(c => c.Total > 0).Sum(c => c.Total);
+            var isCharges = ReferenceEquals(src, b.Charges) || (src.Count > 0 && src[0].Kind == CategoryKind.Charge);
+            var barBrush = new SolidColorBrush(isCharges ? Color.FromRgb(0xEF, 0x44, 0x44) : Color.FromRgb(0x16, 0xA3, 0x4A));
             var l = src.Select(c => new BilanLine
             {
                 Name = c.Name,
                 CategoryId = c.CategoryId,
                 CashText = Money.FormatOrBlank(c.Cash),
                 AdjText = c.Adjustments == 0 ? "" : (c.Adjustments > 0 ? "+" : "") + Money.Format(c.Adjustments),
-                TotalText = Money.Format(c.Total)
+                TotalText = Money.Format(c.Total),
+                Share = positive > 0 && c.Total > 0 ? (double)c.Total / positive * 100 : 0,
+                ShareBrush = barBrush
             }).ToList();
             l.Add(new BilanLine { Name = "TOTAL", CashText = Money.Format(src.Sum(s => s.Cash)),
                 AdjText = Money.Format(src.Sum(s => s.Adjustments)), TotalText = Money.Format(total), IsTotal = true });
