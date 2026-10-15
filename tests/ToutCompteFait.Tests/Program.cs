@@ -638,6 +638,35 @@ Console.WriteLine("Dépenses personnelles (hors résultat)");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ recettes personnelles de l'exploitant (apports)
+Console.WriteLine("Recettes personnelles (apports, hors résultat)");
+{
+    var path = TempDb();
+    {
+        var c = NewCompta(NewFactory(path));
+        var y = c.CreateYear(Dt(2025, 9, 1), Dt(2026, 8, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var apport = c.AddCategory(y.Id, CategoryKind.Product, "Apport perso");
+        var vente = c.AddCategory(y.Id, CategoryKind.Product, "Ventes diverses");
+        c.SaveEntry(new Entry(0, y.Id, Dt(2026, 1, 5), "Apport", false, EntryKind.Normal, banque.Id, Direction.In, null, 50000, null, null),
+            new[] { new Allocation(apport.Id, 50000) });
+        c.SaveEntry(new Entry(0, y.Id, Dt(2026, 1, 6), "Vente", false, EntryKind.Normal, banque.Id, Direction.In, null, 20000, null, null),
+            new[] { new Allocation(vente.Id, 20000) });
+        Eq(70000L, c.ComputeBilan(y.Id).ProductsTotal, "recette normale : dans le résultat");
+        c.SetCategoryPersonal("Apport perso", true, CategoryKind.Product);
+        var b = c.ComputeBilan(y.Id);
+        Eq(20000L, b.ProductsTotal, "apport personnel : hors produits");
+        Eq(20000L, b.Result, "apport personnel : hors résultat");
+        Eq(50000L, b.PersonalReceiptsTotal, "apports de l'exploitant");
+        Eq(0L, b.BalanceDifference, "bilan équilibré");
+        Check(c.PersonalCategoryNames().Count == 0, "le repère produit n'est pas une charge personnelle");
+        Eq(1, c.BuildRegister(y.Id, RegisterKind.Recipes).Lines.Count, "livre des recettes : sans l'apport");
+        c.RenameCategory(apport.Id, "Apport exploitant");
+        Eq(50000L, c.ComputeBilan(y.Id).PersonalReceiptsTotal, "le repère suit le renommage");
+    }
+    Cleanup(path);
+}
+
 // ------------------------------------------------------------------ devlog (nouveautés après mise à jour)
 Console.WriteLine("Devlog affiché après une mise à jour");
 {

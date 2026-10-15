@@ -208,6 +208,7 @@ public sealed partial class Compta
     private Dictionary<UrssafKind, long> TurnoverByKind(DateOnly from, DateOnly to, out long unclassified, out int pending)
     {
         var kinds = CategoryUrssafKinds();
+        var personalProducts = PersonalProductNames();
         var result = UrssafKinds.All.ToDictionary(k => k, _ => 0L);
         unclassified = 0;
         pending = 0;
@@ -222,6 +223,7 @@ public sealed partial class Compta
                 foreach (var a in row.Allocations)
                 {
                     if (!cats.TryGetValue(a.CategoryId, out var cat) || cat.Kind != CategoryKind.Product) continue;
+                    if (personalProducts.Contains(cat.Name)) continue;   // apport personnel : pas du chiffre d'affaires
                     if (ResolveUrssafKind(kinds, cat.Name) is { } k) result[k] += a.AmountCents;
                     else unclassified += a.AmountCents;
                 }

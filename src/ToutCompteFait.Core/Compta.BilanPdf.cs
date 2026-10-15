@@ -211,7 +211,7 @@ public sealed partial class Compta
         pos -= 4;
         Table(N() + "Compte de fonctionnement — Charges", b.OperatingCharges.ToList(), b.ChargesTotal, (0.73, 0.11, 0.11), true);
         pos -= 6;
-        Table(number + " (suite). Compte de fonctionnement — Produits", b.Products, b.ProductsTotal, (0.08, 0.5, 0.24), false);
+        Table(number + " (suite). Compte de fonctionnement — Produits", b.OperatingProducts.ToList(), b.ProductsTotal, (0.08, 0.5, 0.24), false);
         pdf.SetFill(0.3, 0.35, 0.42);
         Need(14);
         pdf.Text(left + 4, pos, "« Reports » : régularisations entre exercices (payé un exercice pour un autre). Montants en euros.", 7.5);
@@ -241,6 +241,7 @@ public sealed partial class Compta
         Cols("Report (régularisations entre exercices)", "", "", Money.Format(b.Report));
         Cols("Résultat de l'exercice", "", "", Money.Format(b.Result));
         if (b.PersonalTotal != 0) Cols("Prélèvements de l'exploitant (dépenses personnelles)", "", "", Money.Format(-b.PersonalTotal));
+        if (b.PersonalReceiptsTotal != 0) Cols("Apports de l'exploitant (sommes personnelles encaissées)", "", "", Money.Format(b.PersonalReceiptsTotal));
         if (b.UnallocatedGap != 0) Cols($"Écritures non ventilées ({b.UnbalancedEntries})", "", "", Money.Format(b.UnallocatedGap));
         Cols("TOTAL PASSIF", "", "", Eur(b.LiabilitiesTotal), total: true);
         Need(18);

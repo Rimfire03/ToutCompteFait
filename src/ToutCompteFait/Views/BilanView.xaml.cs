@@ -238,7 +238,7 @@ public partial class BilanView : UserControl, IPage
             total.AdjText = Money.Format(b.ChargesTotal - operatingCharges.Sum(x => x.Cash));
         }
         ChargesGrid.ItemsSource = chargeLines;
-        ProductsGrid.ItemsSource = Lines(b.Products, b.ProductsTotal);
+        ProductsGrid.ItemsSource = Lines(b.OperatingProducts.ToList(), b.ProductsTotal);
 
         OperationsGrid.ItemsSource = b.Operations.Select(o => new OperationRow
         {
@@ -266,6 +266,8 @@ public partial class BilanView : UserControl, IPage
         };
         if (b.PersonalTotal != 0)
             passif.Add(new LabelValue { Label = "Prélèvements de l'exploitant (dépenses personnelles, hors résultat)", Value = Money.Format(-b.PersonalTotal) + " €" });
+        if (b.PersonalReceiptsTotal != 0)
+            passif.Add(new LabelValue { Label = "Apports de l'exploitant (sommes personnelles encaissées, hors résultat)", Value = Money.Format(b.PersonalReceiptsTotal) + " €" });
         if (b.UnallocatedGap != 0)
             passif.Add(new LabelValue { Label = $"⚠ Écritures non ventilées ({b.UnbalancedEntries})", Value = Money.Format(b.UnallocatedGap) + " €" });
         PassifList.ItemsSource = passif;
@@ -401,8 +403,9 @@ public partial class BilanView : UserControl, IPage
         sb.AppendLine($"TOTAL CHARGES;{N(opCharges.Sum(x => x.Cash))};{N(b.ChargesTotal - opCharges.Sum(x => x.Cash))};{N(b.ChargesTotal)}");
         sb.AppendLine();
         sb.AppendLine("PRODUITS;Livre;Reports;Total");
-        foreach (var c in b.Products) sb.AppendLine($"{Q(c.Name)};{N(c.Cash)};{N(c.Adjustments)};{N(c.Total)}");
-        sb.AppendLine($"TOTAL PRODUITS;{N(b.Products.Sum(x => x.Cash))};{N(b.Products.Sum(x => x.Adjustments))};{N(b.ProductsTotal)}");
+        var opProducts = b.OperatingProducts.ToList();
+        foreach (var c in opProducts) sb.AppendLine($"{Q(c.Name)};{N(c.Cash)};{N(c.Adjustments)};{N(c.Total)}");
+        sb.AppendLine($"TOTAL PRODUITS;{N(opProducts.Sum(x => x.Cash))};{N(opProducts.Sum(x => x.Adjustments))};{N(b.ProductsTotal)}");
         sb.AppendLine();
         sb.AppendLine($"RESULTAT NET;;;{N(b.Result)}");
         sb.AppendLine();
@@ -420,6 +423,7 @@ public partial class BilanView : UserControl, IPage
         sb.AppendLine($"Report;{N(b.Report)}");
         sb.AppendLine($"Résultat de l'exercice;{N(b.Result)}");
         if (b.PersonalTotal != 0) sb.AppendLine($"Prélèvements de l'exploitant (dépenses personnelles);{N(-b.PersonalTotal)}");
+        if (b.PersonalReceiptsTotal != 0) sb.AppendLine($"Apports de l'exploitant (sommes personnelles encaissées);{N(b.PersonalReceiptsTotal)}");
         if (b.UnallocatedGap != 0) sb.AppendLine($"Ecritures non ventilées;{N(b.UnallocatedGap)}");
         sb.AppendLine($"TOTAL PASSIF;{N(b.LiabilitiesTotal)}");
         try

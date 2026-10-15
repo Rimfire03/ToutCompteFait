@@ -60,7 +60,14 @@ public sealed class Bilan
     public long AssetsNetOpening => Assets.Sum(a => a.Opening);
     public long AssetsNetClosing => Assets.Sum(a => a.Closing);
 
-    public long ProductsTotal => Products.Sum(p => p.Total);
+    /// <summary>Produits de l'activité (hors apports personnels de l'exploitant).</summary>
+    public IEnumerable<CategoryResult> OperatingProducts => Products.Where(p => !p.Personal);
+
+    public long ProductsTotal => OperatingProducts.Sum(p => p.Total);
+
+    /// <summary>Sommes personnelles de l'exploitant encaissées sur les comptes de l'activité : hors résultat, elles
+    /// augmentent les capitaux propres (apports).</summary>
+    public long PersonalReceiptsTotal => Products.Where(p => p.Personal).Sum(p => p.Total);
 
     /// <summary>Charges de l'activité (hors dépenses personnelles de l'exploitant).</summary>
     public IEnumerable<CategoryResult> OperatingCharges => Charges.Where(c => !c.Personal);
@@ -106,7 +113,7 @@ public sealed class Bilan
     // PASSIF = solde d'ouverture + report (−régularisations nettes) + résultat − prélèvements + écart non ventilé.
     public long Report => -NetAdjustments;
     // Les immobilisations (valeur nette) s'ajoutent à l'actif ; leur valeur d'ouverture est une ressource reportée.
-    public long LiabilitiesTotal => OpeningTotal + AssetsNetOpening + Report + Result - PersonalTotal + UnallocatedGap;
+    public long LiabilitiesTotal => OpeningTotal + AssetsNetOpening + Report + Result - PersonalTotal + PersonalReceiptsTotal + UnallocatedGap;
 
     /// <summary>Total de l'actif : trésorerie + immobilisations nettes.</summary>
     public long AssetsTotal => ClosingTotal + AssetsNetClosing;
@@ -168,13 +175,14 @@ public sealed partial class Compta
         }
 
         var personalNames = PersonalCategoryNames();
+        var personalProducts = PersonalProductNames();
         CategoryResult Build(Category c)
         {
             long Sum(AdjustmentType t) => adjs.Where(a => a.CategoryId == c.Id && a.Type == t).Sum(a => a.AmountCents);
             return new CategoryResult(c.Id, c.Name, c.Kind, c.OperationId, cash.GetValueOrDefault(c.Id),
                 Sum(AdjustmentType.FromPrev), Sum(AdjustmentType.Due), Sum(AdjustmentType.ToNext), Sum(AdjustmentType.ForPast))
             {
-                Personal = c.Kind == CategoryKind.Charge && personalNames.Contains(c.Name)
+                Personal = c.Kind == CategoryKind.Charge ? personalNames.Contains(c.Name) : personalProducts.Contains(c.Name)
             };
         }
 
@@ -199,7 +207,7 @@ public sealed partial class Compta
         var operations = new List<OperationResult>();
         foreach (var op in Operations(yearId))
         {
-            var p = products.Where(x => x.OperationId == op.Id).ToList();
+            var p = products.Where(x => x.OperationId == op.Id && !x.Personal).ToList();
             var c = charges.Where(x => x.OperationId == op.Id && !x.Personal).ToList();
             operations.Add(new OperationResult(op, p, c, p.Sum(x => x.Total), c.Sum(x => x.Total)));
         }
@@ -417,6 +425,7 @@ public sealed partial class Compta
             result = b.Result,
             report = b.Report,
             drawings = b.PersonalTotal == 0 ? (long?)null : b.PersonalTotal,
+            contributions = b.PersonalReceiptsTotal == 0 ? (long?)null : b.PersonalReceiptsTotal,
             assets = b.Assets.Count == 0 ? null : new
             {
                 opening = b.AssetsNetOpening, closing = b.AssetsNetClosing, depreciation = b.AssetsDepreciation,

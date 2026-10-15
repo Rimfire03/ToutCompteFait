@@ -44,6 +44,7 @@ public sealed partial class Compta
         var cats = Categories(yearId).ToDictionary(c => c.Id);
         var counts = AttachmentCounts(yearId);
         var personal = PersonalCategoryNames();
+        var personalProducts = PersonalProductNames();
         var urssaf = Editions.Current.IsBusiness ? CategoryUrssafKinds() : null;
         var lines = new List<RegisterLine>();
 
@@ -56,8 +57,9 @@ public sealed partial class Compta
             if (kind == RegisterKind.Recipes)
             {
                 if (e.Direction != Direction.In || e.RefundOfId is not null) continue;
-                var products = r.Allocations.Where(a => cats.TryGetValue(a.CategoryId, out var c) && c.Kind == CategoryKind.Product).ToList();
-                if (r.Allocations.Count > 0 && products.Count == 0) continue;   // avoir / remboursement : pas une recette
+                var products = r.Allocations.Where(a => cats.TryGetValue(a.CategoryId, out var c) && c.Kind == CategoryKind.Product
+                                                        && !personalProducts.Contains(c.Name)).ToList();
+                if (r.Allocations.Count > 0 && products.Count == 0) continue;   // avoir / remboursement / apport personnel : pas une recette
                 amount = products.Count == 0 ? e.AmountCents : products.Sum(a => a.AmountCents);
                 nature = products.Count == 0
                     ? "À classer"
