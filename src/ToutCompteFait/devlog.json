@@ -1,6 +1,18 @@
 {
   "entries": [
     {
+      "version": "1.11.0",
+      "date": "2026-10-15",
+      "show": false,
+      "title": "Nouveautés de la version 1.11.0",
+      "items": [
+        "Nouvel habillage : fond clair, cartes, tableaux plus aérés, onglets modernes, indicateurs du bilan avec évolution par rapport à l'exercice précédent et barres de répartition.",
+        "Messages d'accueil quand une liste est vide (opérations, reports, remboursements, immobilisations).",
+        "Installation : un seul dossier « Tout Compte Fait » dans Program Files, avec un sous-dossier par version (Asso, Autoentreprise). Vos bases et sauvegardes de l'ancien dossier sont reprises automatiquement au premier lancement.",
+        "Les fenêtres de saisie et de paramétrage sont sur fond blanc."
+      ]
+    },
+    {
       "version": "1.10.11",
       "date": "2026-10-15",
       "show": false,
