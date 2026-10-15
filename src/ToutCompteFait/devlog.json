@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.11.1",
+      "date": "2026-10-15",
+      "show": false,
+      "title": "Nouveautés de la version 1.11.1",
+      "items": [
+        "Mise à jour : le raccourci du bureau n'est plus supprimé puis recréé, il n'est créé que s'il est absent."
+      ]
+    },
+    {
       "version": "1.11.0",
       "date": "2026-10-15",
       "show": false,
