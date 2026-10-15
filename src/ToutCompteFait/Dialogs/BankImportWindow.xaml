@@ -80,6 +80,19 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Ventilation proposée (à valider)" Width="260">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding Accepted, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Content="{Binding SuggestionText}"
+                                      VerticalAlignment="Center" Margin="6,0,0,0" Checked="Suggestion_Changed" Unchecked="Suggestion_Changed"
+                                      ToolTip="Même libellé déjà toujours classé dans cette catégorie. Cochez pour l'appliquer à l'import ; sinon l'écriture reste à ventiler.">
+                                <CheckBox.Visibility>
+                                    <Binding Path="HasSuggestion" Converter="{StaticResource BoolToVis}"/>
+                                </CheckBox.Visibility>
+                            </CheckBox>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
 
@@ -95,6 +108,8 @@
                 </StackPanel>
                 <StackPanel VerticalAlignment="Center">
                     <CheckBox x:Name="PointBox" Content="Pointer les écritures du relevé (retrouvées ou créées)" IsChecked="True"/>
+                    <CheckBox x:Name="AcceptAllBox" Content="Accepter toutes les ventilations proposées" Margin="0,6,0,0"
+                              Visibility="Collapsed" Click="AcceptAll_Click"/>
                     <CheckBox x:Name="AlignBox" Content="Pour les rapprochements validés, prendre la date de la banque" Margin="0,6,0,0"
                               Visibility="Collapsed"
                               ToolTip="Sinon la date saisie est conservée ; seul l'intitulé est remplacé."/>

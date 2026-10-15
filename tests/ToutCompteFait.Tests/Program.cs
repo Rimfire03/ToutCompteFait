@@ -667,6 +667,60 @@ Console.WriteLine("Recettes personnelles (apports, hors résultat)");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ ventilation proposée à l'import
+Console.WriteLine("Ventilation proposée d'après l'historique");
+{
+    var path = TempDb();
+    {
+        var c = NewCompta(NewFactory(path));
+        var y = c.CreateYear(Dt(2025, 9, 1), Dt(2026, 8, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var loyer = c.AddCategory(y.Id, CategoryKind.Charge, "Loyer");
+        var autre = c.AddCategory(y.Id, CategoryKind.Charge, "Divers");
+        void Out(DateOnly d, string label, long cents, Category cat) =>
+            c.SaveEntry(new Entry(0, y.Id, d, label, false, EntryKind.Normal, banque.Id, Direction.Out, null, cents, null, null),
+                new[] { new Allocation(cat.Id, cents) });
+        Out(Dt(2025, 9, 5), "PRLV AGENCE DUPONT LOYER 09/25", 50000, loyer);
+        Out(Dt(2025, 10, 5), "PRLV AGENCE DUPONT LOYER 10/25", 50000, loyer);
+        Out(Dt(2025, 9, 7), "CARTE 07/09 BOULANGERIE", 800, loyer);
+        Out(Dt(2025, 10, 7), "CARTE 07/10 BOULANGERIE", 900, autre);
+        var lines = new[]
+        {
+            new BankLine(Dt(2025, 11, 5), "PRLV AGENCE DUPONT LOYER 11/25", -50000),
+            new BankLine(Dt(2025, 11, 7), "CARTE 07/11 BOULANGERIE", -700),
+            new BankLine(Dt(2025, 11, 9), "PRLV NOUVEAU FOURNISSEUR", -1000)
+        };
+        var plan = c.PlanBankImport(banque.Id, lines);
+        var sug = c.SuggestBankCategories(plan);
+        Eq(1, sug.Count, "une seule proposition : libellé toujours classé pareil");
+        Eq("Loyer", sug[0].CategoryName, "catégorie proposée");
+        Check(!sug.ContainsKey(1), "libellé classé dans deux catégories : aucune proposition");
+        // Sans validation : rien n'est ventilé.
+        var r1 = c.ApplyBankImport(plan);
+        Eq(3, r1.Created, "3 écritures créées");
+        Eq(3, c.Entries(y.Id).Count(r => r.Allocations.Count == 0), "sans validation : toutes à ventiler");
+    }
+    Cleanup(path);
+    path = TempDb();
+    {
+        var c = NewCompta(NewFactory(path));
+        var y = c.CreateYear(Dt(2025, 9, 1), Dt(2026, 8, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        var loyer = c.AddCategory(y.Id, CategoryKind.Charge, "Loyer");
+        for (var m = 9; m <= 10; m++)
+            c.SaveEntry(new Entry(0, y.Id, Dt(2025, m, 5), $"PRLV LOYER {m}/25", false, EntryKind.Normal, banque.Id, Direction.Out, null, 50000, null, null),
+                new[] { new Allocation(loyer.Id, 50000) });
+        var plan = c.PlanBankImport(banque.Id, new[] { new BankLine(Dt(2025, 11, 5), "PRLV LOYER 11/25", -50000) });
+        var sug = c.SuggestBankCategories(plan);
+        c.ApplyBankImport(plan, true, null, false, new Dictionary<int, long> { [0] = sug[0].CategoryId });
+        var e = c.Entries(y.Id).First(r => r.Entry.Date == Dt(2025, 11, 5));
+        Eq(1, e.Allocations.Count, "ventilation validée appliquée");
+        Eq(50000L, e.Allocations[0].AmountCents, "montant ventilé");
+        Eq(0L, c.ComputeBilan(y.Id).UnallocatedGap, "aucun écart de ventilation");
+    }
+    Cleanup(path);
+}
+
 // ------------------------------------------------------------------ statistique mensuelle
 Console.WriteLine("Statistique mensuelle (sans les éléments personnels)");
 {

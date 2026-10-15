@@ -19,6 +19,12 @@ public sealed class BankPreviewRow
     public bool NeedsDecision { get; init; }
     public IReadOnlyList<DecisionOption> Options { get; init; } = Array.Empty<DecisionOption>();
     public DecisionOption? Selected { get; set; }
+
+    /// <summary>Ventilation proposée d'après l'historique (null : aucune) ; appliquée seulement si l'utilisateur la coche.</summary>
+    public BankSuggestion? Suggestion { get; init; }
+    public bool HasSuggestion => Suggestion is not null;
+    public string SuggestionText => Suggestion is null ? "" : $"→ {Suggestion.CategoryName} ({Suggestion.Occurrences}×)";
+    public bool Accepted { get; set; }
 }
 
 public partial class BankImportWindow : Window
@@ -337,8 +343,12 @@ public partial class BankImportWindow : Window
             _wasFirstImport = _c.IsFirstImport(acc.Id);
             _precheck = _c.PrecheckStatement(acc.Id, _lines, balances);
         }
-        _rows = _plan.Lines.Select(p => new BankPreviewRow
+        IReadOnlyDictionary<int, BankSuggestion> suggestions;
+        try { suggestions = _c.SuggestBankCategories(_plan); }
+        catch (ComptaException) { suggestions = new Dictionary<int, BankSuggestion>(); }
+        _rows = _plan.Lines.Select((p, idx) => new BankPreviewRow
         {
+            Suggestion = p.Status == BankLineStatus.New && suggestions.TryGetValue(idx, out var sg) ? sg : null,
             DateText = p.Line.Date.ToString("dd/MM/yyyy"),
             Label = p.Line.Label,
             AmountText = Money.Format(p.Line.AmountCents),
@@ -368,6 +378,8 @@ public partial class BankImportWindow : Window
             r.Selected = only.Count == 1 && only[0].Decision!.Kind == BankDecisionKind.Transfer ? only[0] : r.Options[0];
         }
         PreviewGrid.ItemsSource = _rows;
+        AcceptAllBox.IsChecked = false;
+        AcceptAllBox.Visibility = _rows.Any(r => r.HasSuggestion) ? Visibility.Visible : Visibility.Collapsed;
         AlignBox.Visibility = _rows.Any(r => r.NeedsDecision) ? Visibility.Visible : Visibility.Collapsed;
 
         UpdateSummary();
@@ -420,6 +432,21 @@ public partial class BankImportWindow : Window
 
     private static string Short(string s) => s.Length > 34 ? s[..34] + "…" : s;
 
+    private void Suggestion_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded || _plan is null) return;
+        AcceptAllBox.IsChecked = _rows.Where(r => r.HasSuggestion).All(r => r.Accepted);
+        UpdateSummary();
+    }
+
+    private void AcceptAll_Click(object sender, RoutedEventArgs e)
+    {
+        var on = AcceptAllBox.IsChecked == true;
+        foreach (var r in _rows.Where(r => r.HasSuggestion)) r.Accepted = on;
+        PreviewGrid.Items.Refresh();
+        UpdateSummary();
+    }
+
     private void Decision_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (IsLoaded) UpdateSummary();
@@ -436,7 +463,8 @@ public partial class BankImportWindow : Window
         var skipped = _plan.Count(BankLineStatus.NoYear) + _plan.Count(BankLineStatus.YearValidated)
                       + _rows.Count(r => r.NeedsDecision && r.Selected?.Decision?.Kind == BankDecisionKind.Skip);
         SummaryText.Text = $"{_plan.Lines.Count} opération(s) : {creates} nouvelle(s) à ventiler · {u + matches} rapprochée(s) (intitulé mis à jour) · " +
-                           $"{same} déjà à jour · {skipped} ignorée(s)" + (undecided > 0 ? $" · ❓ {undecided} à valider" : "") + "." +
+                           $"{same} déjà à jour · {skipped} ignorée(s)" +
+                           (_rows.Any(r => r.Accepted) ? $" · {_rows.Count(r => r.Accepted)} ventilée(s) d'après l'historique" : "") + (undecided > 0 ? $" · ❓ {undecided} à valider" : "") + "." +
                            (_precheck is { Note.Length: > 0 } pc ? "\n" + pc.Note : "");
         ImportButton.IsEnabled = undecided == 0 && (creates + u + matches > 0 || (PointBox.IsChecked == true && same > 0));
         ImportButton.ToolTip = undecided > 0 ? "Validez d'abord les lignes en orange (correspondance incertaine)." : null;
@@ -459,7 +487,10 @@ public partial class BankImportWindow : Window
             if (_precheck is { Inconsistent: true } && !Ui.Confirm(
                     "Le contrôle des soldes signale une incohérence :\n\n" + _precheck.Note + "\n\nImporter quand même ?", "Contrôle des soldes"))
                 return;
-            var one = _c.ApplyBankImport(_plan, PointBox.IsChecked == true, decisions, AlignBox.IsChecked == true);
+            var categories = new Dictionary<int, long>();
+            for (var i = 0; i < _rows.Count; i++)
+                if (_rows[i] is { Accepted: true, Suggestion: { } sg }) categories[i] = sg.CategoryId;
+            var one = _c.ApplyBankImport(_plan, PointBox.IsChecked == true, decisions, AlignBox.IsChecked == true, categories);
             _lastCreated = one.Created;
             Result = _total = Add(_total, one);
             if (_statementText is not null && AccountCombo.SelectedItem is Account acc)

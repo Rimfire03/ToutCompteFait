@@ -178,7 +178,8 @@ public sealed partial class Compta
     /// <paramref name="alignDates"/> : pour les rapprochements confirmés, la date de l'écriture prend celle de la banque
     /// (si elle reste dans le même exercice). Tout ou rien (une seule transaction).</summary>
     public BankImportResult ApplyBankImport(BankImportPlan plan, bool markPointed = true,
-        IReadOnlyDictionary<int, BankDecision>? decisions = null, bool alignDates = false)
+        IReadOnlyDictionary<int, BankDecision>? decisions = null, bool alignDates = false,
+        IReadOnlyDictionary<int, long>? categories = null)
     {
         Require(Permission.WriteLedger);
         RequireWritable();
@@ -191,6 +192,7 @@ public sealed partial class Compta
 
         int created = 0, updated = 0, pointed = 0, unchanged = 0, skipped = 0, aligned = 0, transfers = 0;
         var createdEntities = new List<EntryEntity>();
+        var suggested = new List<(EntryEntity Entry, long CategoryId)>();
         var changes = new List<string>();
         var matchedEntries = new HashSet<long>();
         foreach (var l in plan.Lines)
@@ -271,6 +273,9 @@ public sealed partial class Compta
                     };
                     ctx.Entries.Add(fresh);
                     createdEntities.Add(fresh);
+                    // Ventilation proposée et validée par l'utilisateur : posée après l'enregistrement (identifiant connu).
+                    if (categories is not null && categories.TryGetValue(i, out var catId))
+                        suggested.Add((fresh, catId));
                     created++;
                     break;
                 }
@@ -334,12 +339,28 @@ public sealed partial class Compta
             }
         }
         Save(ctx);
+        var ventilated = 0;
+        if (suggested.Count > 0)
+        {
+            var catsByYear = new Dictionary<long, List<Category>>();
+            foreach (var (en, catId) in suggested)
+            {
+                if (!catsByYear.TryGetValue(en.YearId, out var cats)) catsByYear[en.YearId] = cats = Categories(en.YearId);
+                var cat = cats.FirstOrDefault(c => c.Id == catId);
+                // Sens de l'argent cohérent avec le type : une entrée est un produit, une sortie une charge.
+                if (cat is null || cat.Kind != (en.Direction == "IN" ? CategoryKind.Product : CategoryKind.Charge)) continue;
+                ctx.Allocations.Add(new AllocationEntity { EntryId = en.Id, CategoryId = cat.Id, AmountCents = en.AmountCents });
+                ventilated++;
+            }
+            if (ventilated > 0) Save(ctx);
+        }
         // Détail pour la piste d'audit : numéros des écritures créées (numérotation continue) et intitulés remplacés.
         var detail = new System.Text.StringBuilder();
         detail.Append($"{Account(plan.AccountId)?.Name} : {created} créée(s), {updated} intitulé(s) mis à jour, {pointed} pointée(s)");
         if (aligned > 0) detail.Append($", {aligned} date(s) alignée(s)");
         if (transfers > 0) detail.Append($", {transfers} virement(s) entre comptes reconnu(s)");
         detail.Append($", {skipped} ignorée(s)");
+        if (ventilated > 0) detail.Append($", {ventilated} ventilation(s) proposée(s) validée(s) par l'utilisateur");
         foreach (var g in createdEntities.GroupBy(c => c.YearId))
         {
             var label = Year(g.Key)?.Label ?? g.Key.ToString();
