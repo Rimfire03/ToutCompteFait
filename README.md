@@ -201,7 +201,8 @@ stable, Dev = préversions), « Vérifier maintenant », « Télécharger et ins
 
 * **Deux formes de livraison**, publiées ensemble à chaque release : le `.zip` portable (exécutable à lancer depuis
   n'importe quel dossier) et l'**installateur `.msi`** (par poste : `C:\Program Files\Tout Compte Fait\<Version>`, raccourci du menu
-  Démarrer, dossiers `Donnees\` et `Sauvegardes\` inscriptibles par tous les utilisateurs du poste). Le logiciel détecte
+  Démarrer, raccourci sur le bureau créé seulement s'il est absent et jamais recréé par une mise à jour, dossiers
+  `Donnees\` et `Sauvegardes\` inscriptibles par tous les utilisateurs du poste). Le logiciel détecte
   son mode et télécharge le bon fichier : un poste installé se met à jour par le `.msi`, un poste portable par le `.zip`.
 * L'installation sauvegarde la base juste avant, télécharge le fichier signé, ferme le logiciel, remplace **uniquement
   les fichiers du programme** et relance. La base, les réglages et les sauvegardes ne sont jamais touchés ; le `.msi` ne
