@@ -1,6 +1,16 @@
 {
   "entries": [
     {
+      "version": "1.12.0",
+      "date": "2026-10-15",
+      "show": false,
+      "title": "Nouveautés de la version 1.12.0",
+      "items": [
+        "Autoentreprise : les produits (recettes) se créent librement, puis se rattachent à un type de déclaration URSSAF (bouton « Type URSSAF… »).",
+        "Autoentreprise : plus de création automatique des catégories d'après le code APE ; les ventilations en produits des exercices non validés sont remises à zéro."
+      ]
+    },
+    {
       "version": "1.11.1",
       "date": "2026-10-15",
       "show": false,
