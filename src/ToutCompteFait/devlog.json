@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.12.5",
+      "date": "2026-10-16",
+      "show": false,
+      "title": "Version 1.12.5",
+      "items": [
+        "Autoentreprise : un produit marqué « personnel » (apport de l'exploitant) n'a plus de type de déclaration URSSAF."
+      ]
+    },
+    {
       "version": "1.12.4",
       "date": "2026-10-16",
       "show": false,
