@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.12.7",
+      "date": "2026-10-16",
+      "show": false,
+      "title": "Version 1.12.7",
+      "items": [
+        "L'icône du logiciel (exécutable, raccourcis, installateur) affiche la pastille « ASSO » ou « EI » selon la version."
+      ]
+    },
+    {
       "version": "1.12.6",
       "date": "2026-10-16",
       "show": true,
