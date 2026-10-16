@@ -13,7 +13,7 @@
     <AssemblyName>ToutCompteFait$(EditionLabel)</AssemblyName>
     <RootNamespace>ToutCompteFait</RootNamespace>
     <InvariantGlobalization>false</InvariantGlobalization>
-    <Version>1.12.7</Version>
+    <Version>1.12.8</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- Icône de la version (pastille ASSO / EI, voir tools\Make-Icon.ps1) : Assets\app-<version>.ico si elle existe. -->
     <ApplicationIcon Condition="Exists('Assets\app-$(Edition).ico')">Assets\app-$(Edition).ico</ApplicationIcon>

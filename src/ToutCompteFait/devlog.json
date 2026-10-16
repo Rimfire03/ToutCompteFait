@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.12.8",
+      "date": "2026-10-16",
+      "show": false,
+      "title": "Version 1.12.8",
+      "items": [
+        "Icône Windows : pastille « ASSO » / « EI » plus grande et plus lisible."
+      ]
+    },
+    {
       "version": "1.12.7",
       "date": "2026-10-16",
       "show": false,
