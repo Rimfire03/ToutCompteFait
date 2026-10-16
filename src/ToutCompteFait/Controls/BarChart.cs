@@ -22,7 +22,7 @@ public sealed class BarChart : FrameworkElement
 
     public void SetData(string title, IReadOnlyList<string> categories, IReadOnlyList<Series> series)
     {
-        _title = title;
+        _title = ToutCompteFait.Core.Wording.Adapt(title);
         _categories = categories;
         _series = series;
         InvalidateVisual();

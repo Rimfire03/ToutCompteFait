@@ -21,7 +21,7 @@ public sealed class PieChart : FrameworkElement
 
     public void SetData(string title, IReadOnlyList<Slice> slices)
     {
-        _title = title;
+        _title = ToutCompteFait.Core.Wording.Adapt(title);
         _slices = slices.Where(s => s.Cents > 0).ToList();
         Height = 34 + 210 + _slices.Count * 18 + 28;
         InvalidateVisual();

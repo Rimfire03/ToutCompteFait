@@ -12,7 +12,7 @@ public sealed class MessageDialog : Window
 
     private static Style Sty(string key) => (Style)Application.Current.FindResource(key);
 
-    private MessageDialog(string text, string caption, MessageBoxButton buttons, MessageBoxImage icon, MessageBoxResult defaultResult)
+    internal MessageDialog(string text, string caption, MessageBoxButton buttons, MessageBoxImage icon, MessageBoxResult defaultResult)
     {
         Title = caption;
         Width = 480;
@@ -51,9 +51,9 @@ public sealed class MessageDialog : Window
         var list = buttons switch
         {
             MessageBoxButton.OK => new[] { MessageBoxResult.OK },
-            MessageBoxButton.OKCancel => new[] { MessageBoxResult.Cancel, MessageBoxResult.OK },
-            MessageBoxButton.YesNo => new[] { MessageBoxResult.No, MessageBoxResult.Yes },
-            _ => new[] { MessageBoxResult.Cancel, MessageBoxResult.No, MessageBoxResult.Yes }
+            MessageBoxButton.OKCancel => new[] { MessageBoxResult.OK, MessageBoxResult.Cancel },
+            MessageBoxButton.YesNo => new[] { MessageBoxResult.Yes, MessageBoxResult.No },
+            _ => new[] { MessageBoxResult.Yes, MessageBoxResult.No, MessageBoxResult.Cancel }
         };
         var cancelResult = buttons switch
         {
@@ -61,7 +61,7 @@ public sealed class MessageDialog : Window
             MessageBoxButton.YesNo => MessageBoxResult.No,
             _ => MessageBoxResult.Cancel
         };
-        var def = defaultResult != MessageBoxResult.None && list.Contains(defaultResult) ? defaultResult : list[^1];
+        var def = defaultResult != MessageBoxResult.None && list.Contains(defaultResult) ? defaultResult : list[0];
         _result = cancelResult;
 
         var bar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(22, 8, 22, 16) };

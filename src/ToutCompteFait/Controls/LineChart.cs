@@ -20,7 +20,7 @@ public sealed class LineChart : FrameworkElement
 
     public void SetData(string title, IReadOnlyList<string> categories, IReadOnlyList<BarChart.Series> series)
     {
-        _title = title;
+        _title = ToutCompteFait.Core.Wording.Adapt(title);
         _categories = categories;
         _series = series;
         InvalidateVisual();

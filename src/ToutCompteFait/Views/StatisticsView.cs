@@ -15,9 +15,18 @@ public sealed class StatisticsView : UserControl, IPage
 {
     private readonly List<StatKindPage> _pages = new();
 
+    private readonly TabControl _tabs = new();
+
+    /// <summary>Diagnostic (captures d'écran) : affiche le type d'élément, le mode et l'onglet voulus.</summary>
+    public void ShowForShot(int kindIndex, bool annual, int itemTab)
+    {
+        _tabs.SelectedIndex = kindIndex;
+        _pages[kindIndex].ShowForShot(annual, itemTab);
+    }
+
     public StatisticsView(FiscalYear year)
     {
-        var tabs = new TabControl();
+        var tabs = _tabs;
         foreach (var (kind, title) in new[]
                  {
                      (StatKind.Products, "Produits"), (StatKind.Charges, "Charges"), (StatKind.Operations, "Opérations")
@@ -86,6 +95,12 @@ internal sealed class StatKindPage : UserControl, IPage
         root.Children.Add(_tabs);
         Content = root;
         Reload();
+    }
+
+    public void ShowForShot(bool annual, int itemTab)
+    {
+        (annual ? _annualRadio : _monthlyRadio).IsChecked = true;
+        _tabs.SelectedIndex = Math.Clamp(itemTab, 0, _tabs.Items.Count - 1);
     }
 
     private void SetMode(bool monthly)
@@ -215,6 +230,7 @@ internal sealed class MonthlyStatsPanel : UserControl, IPage
     private readonly StatKind _kind;
     private readonly BarChart _chart = new() { Height = 340 };
     private readonly PieChart _pie = new();
+    private readonly Grid _charts = new();
     private readonly StackPanel _tables = new();
     private readonly TextBlock _empty = new()
     {
@@ -234,7 +250,8 @@ internal sealed class MonthlyStatsPanel : UserControl, IPage
     {
         _year = year;
         _kind = kind;
-        var charts = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+        var charts = _charts;
+        charts.Margin = new Thickness(0, 0, 0, 12);
         charts.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
         charts.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 300 });
         var barCard = ComparisonView.Card(_chart);
@@ -307,7 +324,10 @@ internal sealed class MonthlyStatsPanel : UserControl, IPage
             AddTable("Charges par opération", "Opération", months, s.OperationCharges);
         }
         else AddTable(title, _kind == StatKind.Products ? "Produit" : "Charge", months, chartLines);
-        _empty.Visibility = chartLines.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var none = chartLines.Count == 0 && pieLines.Count == 0;
+        _empty.Visibility = none ? Visibility.Visible : Visibility.Collapsed;
+        _charts.Visibility = none ? Visibility.Collapsed : Visibility.Visible;
+        _tables.Visibility = none ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void AddTable(string title, string firstColumn, string[] months, IReadOnlyList<ComparisonLine> lines)

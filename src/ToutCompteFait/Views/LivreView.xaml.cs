@@ -244,7 +244,7 @@ public partial class LivreView : UserControl, IPage
                 AttachText = attachCounts.TryGetValue(e.Id, out var attachN) ? "📎 " + attachN : "",
                 Problem = (!needs && gap != 0) || !_year.Contains(e.Date),
                 ToFill = needs,
-                ProblemTip = tips.Count > 0 ? string.Join("\n", tips) : null,
+                ProblemTip = tips.Count > 0 ? Wording.Adapt(string.Join("\n", tips)) : null,
                 CanAssign = needs && _canWrite,
                 Options = e.Direction == Direction.In ? inOptions : outOptions,
                 IsTransfer = e.Kind == EntryKind.Transfer, Source = r

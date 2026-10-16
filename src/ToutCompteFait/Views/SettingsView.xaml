@@ -34,9 +34,9 @@
                         <DataGrid x:Name="ProductsGrid">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Produit" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource LeftCell}"/>
-                                <DataGridTextColumn x:Name="PersonalProductColumn" Header="Personnelle" Binding="{Binding PersonalText}" Width="90" ElementStyle="{StaticResource LeftCell}" Visibility="Collapsed"/>
-                                <DataGridTextColumn Header="Opération" Binding="{Binding Operation}" Width="150" ElementStyle="{StaticResource LeftCell}"/>
-                                <DataGridTextColumn Header="Lignes" Binding="{Binding Uses}" Width="60" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                                <DataGridTextColumn x:Name="PersonalProductColumn" Header="Personnelle" Binding="{Binding PersonalText}" Width="96" ElementStyle="{StaticResource LeftCell}" Visibility="Collapsed"/>
+                                <DataGridTextColumn Header="Opération" Binding="{Binding Operation}" Width="100" ElementStyle="{StaticResource LeftCell}"/>
+                                <DataGridTextColumn Header="Lignes" Binding="{Binding Uses}" Width="62" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </DockPanel>
@@ -57,10 +57,10 @@
                         <DataGrid x:Name="ChargesGrid">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Charge" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource LeftCell}"/>
-                                <DataGridTextColumn Header="Investissement" Binding="{Binding InvestmentText}" Width="100" ElementStyle="{StaticResource LeftCell}"/>
-                                <DataGridTextColumn x:Name="PersonalColumn" Header="Personnelle" Binding="{Binding PersonalText}" Width="90" ElementStyle="{StaticResource LeftCell}"/>
-                                <DataGridTextColumn Header="Opération" Binding="{Binding Operation}" Width="150" ElementStyle="{StaticResource LeftCell}"/>
-                                <DataGridTextColumn Header="Lignes" Binding="{Binding Uses}" Width="60" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
+                                <DataGridTextColumn Header="Investissement" Binding="{Binding InvestmentText}" Width="128" ElementStyle="{StaticResource LeftCell}"/>
+                                <DataGridTextColumn x:Name="PersonalColumn" Header="Personnelle" Binding="{Binding PersonalText}" Width="96" ElementStyle="{StaticResource LeftCell}"/>
+                                <DataGridTextColumn Header="Opération" Binding="{Binding Operation}" Width="100" ElementStyle="{StaticResource LeftCell}"/>
+                                <DataGridTextColumn Header="Lignes" Binding="{Binding Uses}" Width="62" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </DockPanel>
@@ -282,7 +282,7 @@
                                            Text="Les mises à jour sont publiées sur GitHub (dépôt Rimfire03/ToutCompteFait). Seul le programme est remplacé : la base de données, les réglages et les sauvegardes ne sont jamais touchés, et une sauvegarde de la base est faite juste avant l'installation."/>
                             </StackPanel>
                         </Border>
-                        <CheckBox x:Name="AutoUpdateBox" Content="Vérifier automatiquement au démarrage (proposé aux administrateurs)" Margin="0,12,0,0" Click="AutoUpdate_Changed"/>
+                        <CheckBox x:Name="AutoUpdateBox" Content="Vérifier automatiquement au démarrage (proposé à tous les utilisateurs)" Margin="0,12,0,0" Click="AutoUpdate_Changed"/>
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                             <TextBlock Text="Canal :" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <ComboBox x:Name="ChannelBox" Width="150" SelectionChanged="Channel_Changed"

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:v="clr-namespace:ToutCompteFait.Views"
         xmlns:ctl="clr-namespace:ToutCompteFait.Controls"
-        Title="Importer un relevé bancaire" Width="900" Height="720" MinHeight="560"
+        Title="Importer un relevé bancaire" Width="1120" Height="720" MinWidth="900" MinHeight="560"
         WindowStartupLocation="CenterOwner" Background="{StaticResource BrushSurface}">
     <Window.Resources>
         <v:InvertBoolToVisibilityConverter x:Key="InvertBoolToVis"/>
@@ -58,9 +58,9 @@
             </DataGrid.RowStyle>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="90" ElementStyle="{StaticResource LeftCell}"/>
-                <DataGridTextColumn Header="Libellé de la banque" Binding="{Binding Label}" Width="*" ElementStyle="{StaticResource LeftCell}"/>
+                <DataGridTextColumn Header="Libellé de la banque" Binding="{Binding Label}" Width="*" MinWidth="200" ElementStyle="{StaticResource LeftCell}"/>
                 <DataGridTextColumn Header="Montant" Binding="{Binding AmountText}" Width="100" ElementStyle="{StaticResource RightCell}" HeaderStyle="{StaticResource HeaderRight}"/>
-                <DataGridTemplateColumn Header="Action" Width="420">
+                <DataGridTemplateColumn Header="Action" Width="380">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Grid>
@@ -80,7 +80,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Ventilation proposée (à valider)" Width="260">
+                <DataGridTemplateColumn Header="Ventilation proposée (à valider)" Width="250">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <CheckBox IsChecked="{Binding Accepted, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Content="{Binding SuggestionText}"

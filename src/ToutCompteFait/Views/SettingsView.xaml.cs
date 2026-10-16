@@ -125,6 +125,11 @@ public partial class SettingsView : UserControl, IPage
     }
 
     /// <summary>Sélectionne un onglet par son titre (mode diagnostic).</summary>
+    /// <summary>Diagnostic (captures d'écran) : nombre d'onglets affichés et sélection par position.</summary>
+    public int TabCount => Tabs.Items.Count;
+
+    public void SelectTabIndex(int index) => Tabs.SelectedIndex = index;
+
     public void SelectTab(string header)
     {
         foreach (var t in Tabs.Items.OfType<TabItem>())

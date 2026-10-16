@@ -20,7 +20,7 @@
             <!-- Contrôles avant validation -->
             <Border x:Name="IssuesCard" Style="{StaticResource Card}" Margin="0,14,0,0" Visibility="Collapsed">
                 <StackPanel>
-                    <TextBlock x:Name="IssuesTitle" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="IssuesTitle" FontWeight="SemiBold" TextWrapping="Wrap"/>
                     <ItemsControl x:Name="IssuesList" Margin="0,6,0,0">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>

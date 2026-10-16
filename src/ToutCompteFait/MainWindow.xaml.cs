@@ -511,7 +511,9 @@ public partial class MainWindow : Window
         {
             await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
             await Task.Delay(250);
+            // On capture la zone cliente entière (marges du contenu comprises), pas seulement l'élément racine.
             var root = (FrameworkElement)w.Content;
+            if (System.Windows.Media.VisualTreeHelper.GetParent(root) is FrameworkElement host && host.ActualWidth > 0) root = host;
             var width = (int)Math.Max(1, root.ActualWidth);
             var height = (int)Math.Max(1, root.ActualHeight);
             var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
@@ -596,6 +598,53 @@ public partial class MainWindow : Window
                 d2.Close();
             }
         }
+        // Tous les onglets des deux menus de paramétrage.
+        foreach (var scope in new[] { "dossier", "settings" })
+        {
+            ShowPage(scope);
+            var count = Host.Content is Views.SettingsView sv0 ? sv0.TabCount : 0;
+            for (var i = 0; i < count; i++)
+            {
+                ShowPage(scope);
+                if (Host.Content is Views.SettingsView sv1) sv1.SelectTabIndex(i);
+                await Shot(this, $"tab-{scope}-{i}");
+            }
+        }
+
+        // Statistiques : types d'élément, modes mensuel / annuel, tableau de bord et onglet d'un élément.
+        foreach (var (k, annual, tab) in new[]
+                 {
+                     (0, false, 0), (0, true, 0), (0, false, 1), (0, true, 1), (1, false, 0), (1, false, 1), (2, false, 0), (2, true, 0), (2, false, 1)
+                 })
+        {
+            ShowPage("compare");
+            if (Host.Content is Views.StatisticsView st)
+            {
+                st.ShowForShot(k, annual, tab);
+                await Shot(this, $"stat-{k}-{(annual ? "a" : "m")}-{tab}");
+            }
+        }
+
+        // Boîtes de dialogue communes.
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var periods = new[]
+        {
+            ToutCompteFait.Core.Business.UrssafPeriod.Quarterly(today.Year - 1, 4),
+            ToutCompteFait.Core.Business.UrssafPeriod.Quarterly(today.Year, 1),
+            ToutCompteFait.Core.Business.UrssafPeriod.Quarterly(today.Year, 2)
+        };
+        var ua = new Dialogs.UrssafAlertWindow(periods, today) { Owner = this };
+        ua.Show();
+        await Shot(ua, "dlg-urssaf");
+        ua.Close();
+        var md = new Dialogs.MessageDialog(
+            "Valider l'exercice 2025-2026 avec une clôture au 31/08/2026 ?\n\n • les écritures datées après la clôture passent dans l'exercice suivant ;\n" +
+            " • les soldes et les reports sont transmis automatiquement à l'exercice suivant ;\n • l'exercice devient verrouillé (modifiable seulement en le rouvrant).\n\n" +
+            "Vérifiez le bilan avant de continuer.", "Valider l'exercice", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) { Owner = this };
+        md.Show();
+        await Shot(md, "dlg-message");
+        md.Close();
+
         if (App.RunSelfTest) await SelfTestAsync(dir);
         Application.Current.Shutdown();
     }

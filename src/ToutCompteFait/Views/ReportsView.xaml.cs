@@ -51,7 +51,7 @@ public partial class ReportsView : UserControl, IPage
             Category = a.CategoryId is { } id && cats.TryGetValue(id, out var c) ? c.Name : "⚠ À affecter",
             TypeText = Labels.Of(a.Type),
             Effect = (a.Sign > 0 ? "+" : "−") + Money.Format(a.AmountCents),
-            Origin = a.SourceId is not null ? $"Reporté de {srcYears.GetValueOrDefault(a.Id, "l'exercice précédent")}" : "Saisi à la main"
+            Origin = a.SourceId is not null ? $"Reporté de {srcYears.GetValueOrDefault(a.Id, Wording.Adapt("l'exercice précédent"))}" : "Saisi à la main"
         }).ToList();
 
         Empty.Visibility = all.Count == 0 ? Visibility.Visible : Visibility.Collapsed;

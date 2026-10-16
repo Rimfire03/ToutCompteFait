@@ -105,10 +105,11 @@ public sealed class AssetsView : UserControl, IPage
         Col("Valeur", nameof(Row.Cost), 90, right: true);
         Col("Durée", nameof(Row.Duration), 70);
         Col("Prorata", nameof(Row.Mode), 70);
-        Col("Dotation de l'exercice", nameof(Row.Depreciation), 160, right: true);
-        Col("Amortissements cumulés", nameof(Row.Cumulative), 190, right: true);
-        Col("Valeur nette (clôture)", nameof(Row.Net), 180, right: true);
-        Col("État", nameof(Row.State), 150);
+        // Largeur prévue pour « Dotation de l'année fiscale » (libellé de l'Autoentreprise, plus long qu'« exercice »).
+        Col("Dotation de l'exercice", nameof(Row.Depreciation), 215, right: true);
+        Col("Amortissements cumulés", nameof(Row.Cumulative), 180, right: true);
+        Col("Valeur nette (clôture)", nameof(Row.Net), 150, right: true);
+        Col("État", nameof(Row.State), 130);
         var gridHost = new Grid();
         gridHost.Children.Add(_grid);
         gridHost.Children.Add(_empty);

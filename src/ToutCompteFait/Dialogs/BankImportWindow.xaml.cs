@@ -352,7 +352,7 @@ public partial class BankImportWindow : Window
             DateText = p.Line.Date.ToString("dd/MM/yyyy"),
             Label = p.Line.Label,
             AmountText = Money.Format(p.Line.AmountCents),
-            ActionText = p.Status switch
+            ActionText = Wording.Adapt(p.Status switch
             {
                 BankLineStatus.New => "➕ Nouvelle écriture, à ventiler",
                 BankLineStatus.LabelUpdated => $"✎ Intitulé mis à jour (avant : « {p.OldLabel} »)",
@@ -360,7 +360,7 @@ public partial class BankImportWindow : Window
                 BankLineStatus.YearValidated => "🔒 Exercice validé : ignorée",
                 BankLineStatus.ToConfirm => "❓ À valider",
                 _ => "⚠ Date hors de tout exercice : ignorée"
-            },
+            }),
             Tone = p.Status switch
             {
                 BankLineStatus.New => "New",
