@@ -156,6 +156,8 @@ public sealed partial class Compta
     {
         Require(Permission.ManageStructure);
         RequireWritable();
+        if (kind is not null && PersonalProductNames().Contains(categoryName))
+            throw new ComptaException($"« {categoryName} » est un produit personnel (apport de l'exploitant) : il n'a pas de type de déclaration URSSAF.");
         using var tx = Begin();
         var ctx = Open().Ctx;
         SetCategoryUrssafKind(ctx, categoryName, kind);

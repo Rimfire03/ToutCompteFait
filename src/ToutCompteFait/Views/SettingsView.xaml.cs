@@ -164,8 +164,10 @@ public partial class SettingsView : UserControl, IPage
             Cat = c,
             PersonalText = (c.Kind == CategoryKind.Charge ? personal : personalProducts).Contains(c.Name) ? "Oui" : "",
             InvestmentText = c.Kind == CategoryKind.Charge && investments.Contains(c.Name) ? "Oui" : "",
+            // Un produit personnel (apport) n'est pas du chiffre d'affaires : pas de type de déclaration.
             Type = urssafKinds is not null && c.Kind == CategoryKind.Product
-                ? (Compta.ResolveUrssafKind(urssafKinds, c.Name)?.Short() ?? "à classer") : "",
+                ? (personalProducts.Contains(c.Name) ? "—"
+                    : Compta.ResolveUrssafKind(urssafKinds, c.Name)?.Short() ?? "à classer") : "",
             Operation = c.OperationId is { } o && opName.TryGetValue(o, out var n) ? n : "",
             Uses = uses.GetValueOrDefault(c.Id)
         };
@@ -243,6 +245,12 @@ public partial class SettingsView : UserControl, IPage
     private void SetUrssafType_Click(object sender, RoutedEventArgs e)
     {
         if (ProductsGrid.SelectedItem is not CategoryRow row) { Ui.Info("Sélectionnez d'abord un produit."); return; }
+        if (row.PersonalText.Length > 0)
+        {
+            Ui.Info($"« {row.Cat.Name} » est un produit personnel (apport de l'exploitant) : il n'a pas de type de déclaration URSSAF.\n\n" +
+                    "Retirez d'abord le repère « personnelle » si c'est une vraie recette de l'activité.");
+            return;
+        }
         var suggested = ToutCompteFait.Core.Business.ApeMapper.AllKinds(_c.GetBusinessProfile().ApeCodes);
         var current = Compta.ResolveUrssafKind(_c.CategoryUrssafKinds(), row.Cat.Name);
         var choice = UrssafTypeWindow.Ask(Window.GetWindow(this), row.Cat.Name, suggested, current);

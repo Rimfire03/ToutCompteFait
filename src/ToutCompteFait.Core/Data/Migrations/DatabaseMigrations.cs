@@ -31,6 +31,7 @@ internal static class DatabaseMigrations
         (14, "Mode de règlement et référence de pièce des écritures (livre des recettes, registre des achats)", AddPaymentInfo),
         (15, "Autoentreprise : ventilations en produits remises à zéro (produits désormais libres, rattachés ensuite à un type URSSAF)", ResetProductAllocations),
         (16, "Autoentreprise : ventilations de sens contraire annulées (crédits en charges, débits en produits)", ResetWrongWayAllocations),
+        (17, "Autoentreprise : un produit personnel n'a plus de type de déclaration URSSAF", ClearPersonalProductUrssaf),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -57,6 +58,7 @@ internal static class DatabaseMigrations
         (14, "Mode de règlement et référence de pièce des écritures (livre des recettes, registre des achats)", AddPaymentInfo),
         (15, "Autoentreprise : ventilations en produits remises à zéro (produits désormais libres, rattachés ensuite à un type URSSAF)", ResetProductAllocations),
         (16, "Autoentreprise : ventilations de sens contraire annulées (crédits en charges, débits en produits)", ResetWrongWayAllocations),
+        (17, "Autoentreprise : un produit personnel n'a plus de type de déclaration URSSAF", ClearPersonalProductUrssaf),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -420,6 +422,23 @@ internal static class DatabaseMigrations
             $"DELETE FROM {q("allocations")} WHERE {q("category_id")} IN (" +
             $"SELECT c.{q("id")} FROM {q("categories")} c JOIN {q("fiscal_years")} y ON y.{q("id")} = c.{q("year_id")} " +
             $"WHERE c.{q("kind")} = 'P' AND y.{q("status")} <> 'VALIDATED')");
+    }
+
+    // ------------------------------------------------------------------ v17 : produit personnel sans type URSSAF
+
+    /// <summary>Un produit marqué « personnel » (apport de l'exploitant) n'est pas du chiffre d'affaires : son type URSSAF
+    /// est retiré. Paramétrage seul (table hors empreinte) : aucun montant, aucune ventilation n'est touché.</summary>
+    private static void ClearPersonalProductUrssaf(AppDbContext ctx)
+    {
+        if (!Editions.Current.IsBusiness) return;
+        var personal = ctx.CategoryPersonal.AsEnumerable()
+            .Where(c => c.Name.StartsWith("P:", StringComparison.Ordinal)).Select(c => c.Name[2..])
+            .ToHashSet(StringComparer.CurrentCultureIgnoreCase);
+        if (personal.Count == 0) return;
+        var rows = ctx.CategoryUrssaf.AsEnumerable().Where(c => personal.Contains(c.Name)).ToList();
+        if (rows.Count == 0) return;
+        ctx.CategoryUrssaf.RemoveRange(rows);
+        ctx.SaveChanges();
     }
 
     // ------------------------------------------------------------------ v16 : ventilation selon le sens (Autoentreprise)

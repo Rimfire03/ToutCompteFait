@@ -47,6 +47,13 @@ public sealed partial class Compta
         if (personal && existing is null) ctx.CategoryPersonal.Add(new CategoryPersonalEntity { Name = key });
         else if (!personal && existing is not null) ctx.CategoryPersonal.Remove(existing);
         else { tx.Commit(); return; }
+        // Un apport personnel n'est pas du chiffre d'affaires : il n'a pas de type de déclaration URSSAF.
+        if (personal && kind == CategoryKind.Product)
+        {
+            var urssaf = ctx.CategoryUrssaf.AsEnumerable()
+                .Where(c => string.Equals(c.Name, categoryName, StringComparison.CurrentCultureIgnoreCase)).ToList();
+            ctx.CategoryUrssaf.RemoveRange(urssaf);
+        }
         Save(ctx);
         if (kind == CategoryKind.Product)
             Log(ctx, "Produit classé en apport personnel", $"« {categoryName} » : {(personal ? "personnel (hors résultat)" : "recette de l'activité")}");

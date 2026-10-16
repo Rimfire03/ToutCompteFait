@@ -661,6 +661,12 @@ Console.WriteLine("Recettes personnelles (apports, hors résultat)");
         Eq(0L, b.BalanceDifference, "bilan équilibré");
         Check(c.PersonalCategoryNames().Count == 0, "le repère produit n'est pas une charge personnelle");
         Eq(1, c.BuildRegister(y.Id, RegisterKind.Recipes).Lines.Count, "livre des recettes : sans l'apport");
+        c.SetCategoryPersonal("Apport perso", false, CategoryKind.Product);
+        c.SetCategoryUrssafKind("Apport perso", UrssafKind.Sale);
+        Check(c.CategoryUrssafKinds().ContainsKey("Apport perso"), "produit normal : type URSSAF enregistré");
+        c.SetCategoryPersonal("Apport perso", true, CategoryKind.Product);
+        Check(!c.CategoryUrssafKinds().ContainsKey("Apport perso"), "produit passé en personnel : type URSSAF retiré");
+        Throws(() => c.SetCategoryUrssafKind("Apport perso", UrssafKind.Sale), "type URSSAF refusé sur un produit personnel", "personnel");
         c.RenameCategory(apport.Id, "Apport exploitant");
         Eq(50000L, c.ComputeBilan(y.Id).PersonalReceiptsTotal, "le repère suit le renommage");
     }
