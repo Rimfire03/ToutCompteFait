@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Genere src\ToutCompteFait\Assets\app.ico (logo « camembert » de Tout Compte Fait, assets\logos\logo-12-camembert.svg)
     et src\ToutCompteFait\Assets\logo.png (256 px) avec System.Drawing.
@@ -17,9 +17,9 @@ function Draw-Logo([int]$size, [string]$label = "") {
     $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
     $g.Clear([System.Drawing.Color]::Transparent)
     if ($label) {
-        # La pastille dépasse sous le carré (144 unités de haut au total) : le tout est mis à l'échelle et centré.
-        $g.ScaleTransform($size / 144.0, $size / 144.0)
-        $g.TranslateTransform(8, 0)
+        # La pastille dépasse sous le carré (152 unités de haut au total) : le tout est mis à l'échelle et centré.
+        $g.ScaleTransform($size / 152.0, $size / 152.0)
+        $g.TranslateTransform(12, 0)
     } else {
         $g.ScaleTransform($size / 128.0, $size / 128.0)
     }
@@ -57,17 +57,17 @@ function Draw-Logo([int]$size, [string]$label = "") {
 
     # pastille de version, bas centré (mêmes dimensions que le contrôle AppLogo de l'application)
     if ($label) {
-        $pw = if ($label -eq "EI") { 52.0 } else { 80.0 }; $ph = 34.0; $px = (128 - $pw) / 2; $py = 110.0
+        $pw = if ($label -eq "EI") { 70.0 } else { 108.0 }; $ph = 44.0; $px = (128 - $pw) / 2; $py = 108.0
         $fill = if ($label -eq "EI") { "#C2410C" } else { "#1E3A8A" }
         $pill = New-Object System.Drawing.Drawing2D.GraphicsPath
-        $rr = 11.0; $dd = $rr * 2
+        $rr = 14.0; $dd = $rr * 2
         $pill.AddArc($px, $py, $dd, $dd, 180, 90); $pill.AddArc($px + $pw - $dd, $py, $dd, $dd, 270, 90)
         $pill.AddArc($px + $pw - $dd, $py + $ph - $dd, $dd, $dd, 0, 90); $pill.AddArc($px, $py + $ph - $dd, $dd, $dd, 90, 90); $pill.CloseFigure()
         $g.FillPath((New-Object System.Drawing.SolidBrush (Col $fill)), $pill)
-        $g.DrawPath((New-Object System.Drawing.Pen ([System.Drawing.Color]::White), 2.5), $pill)
-        # Texte seulement quand la taille le permet (illisible sous 48 px : la couleur de la pastille suffit).
-        if ($size -ge 48) {
-            $font = New-Object System.Drawing.Font("Bahnschrift", 17, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+        $g.DrawPath((New-Object System.Drawing.Pen ([System.Drawing.Color]::White), 3.5), $pill)
+        # Texte seulement quand la taille le permet (illisible sous 32 px : la couleur de la pastille suffit).
+        if ($size -ge 32) {
+            $font = New-Object System.Drawing.Font("Bahnschrift", 32, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
             $sf = New-Object System.Drawing.StringFormat
             $sf.Alignment = [System.Drawing.StringAlignment]::Center; $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
             $g.DrawString($label, $font, [System.Drawing.Brushes]::White, (New-Object System.Drawing.RectangleF $px, $py, $pw, $ph), $sf)
