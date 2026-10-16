@@ -34,7 +34,8 @@ $ed = $editionsFile.editions | Where-Object { $_.id -eq $Edition }
 if (-not $ed) { throw "Version (edition) '$Edition' absente de editions.json." }
 $wixExe = Join-Path $env:USERPROFILE ".dotnet\tools\wix.exe"
 if (-not (Test-Path $wixExe)) { $wixExe = (Get-Command wix -ErrorAction Stop).Source }
-$ico = Join-Path $root "src\ToutCompteFait\Assets\app.ico"
+$ico = Join-Path $root "src\ToutCompteFait\Assets\app-$Edition.ico"
+if (-not (Test-Path $ico)) { $ico = Join-Path $root "src\ToutCompteFait\Assets\app.ico" }
 $exeName = "$($ed.exe).exe"
 if (-not (Test-Path (Join-Path $PublishDir $exeName))) { throw "$exeName introuvable dans $PublishDir." }
 

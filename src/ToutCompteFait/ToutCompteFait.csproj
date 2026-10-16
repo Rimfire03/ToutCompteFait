@@ -15,6 +15,8 @@
     <InvariantGlobalization>false</InvariantGlobalization>
     <Version>1.12.6</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- Icône de la version (pastille ASSO / EI, voir tools\Make-Icon.ps1) : Assets\app-<version>.ico si elle existe. -->
+    <ApplicationIcon Condition="Exists('Assets\app-$(Edition).ico')">Assets\app-$(Edition).ico</ApplicationIcon>
     <Company>TomLine prod&amp;co</Company>
     <Product>Tout Compte Fait $(EditionLabel)</Product>
     <Copyright>Â© TomLine prod&amp;co by Thomas Guidez</Copyright>

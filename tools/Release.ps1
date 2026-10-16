@@ -126,7 +126,7 @@ foreach ($ed in $all) {
         if (-not (Test-Path $csc)) { throw "csc.exe (.NET Framework 4) introuvable : $csc" }
         $launcher = Join-Path $work "ToutCompteFait.exe"
         if (Test-Path $launcher) { [IO.File]::Delete($launcher) }
-        & $csc /nologo /target:winexe /optimize+ "/out:$launcher" "/win32icon:$(Join-Path $root 'src\ToutCompteFait\Assets\app.ico')" `
+        & $csc /nologo /target:winexe /optimize+ "/out:$launcher" "/win32icon:$(Join-Path $root 'src\ToutCompteFait\Assets\app-asso.ico')" `
             /r:System.Windows.Forms.dll (Join-Path $PSScriptRoot "LegacyLauncher\ToutCompteFait.cs") | Out-Null
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $launcher)) { throw "Compilation du lanceur de compatibilite echouee." }
         & (Join-Path $PSScriptRoot "Sign-Release.ps1") -ExePath $launcher | Select-Object -Last 1 | ForEach-Object { Write-Host "  $_" }

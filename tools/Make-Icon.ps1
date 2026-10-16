@@ -9,12 +9,20 @@ $assets = Join-Path $root "src\ToutCompteFait\Assets"
 
 function Col([string]$hex) { [System.Drawing.ColorTranslator]::FromHtml($hex) }
 
-function Draw-Logo([int]$size) {
+# $label : « ASSO » / « EI » (pastille de version en bas centré, comme dans l'application) ; vide = logo seul.
+function Draw-Logo([int]$size, [string]$label = "") {
     $bmp = New-Object System.Drawing.Bitmap $size, $size, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+    $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
     $g.Clear([System.Drawing.Color]::Transparent)
-    $g.ScaleTransform($size / 128.0, $size / 128.0)
+    if ($label) {
+        # La pastille dépasse sous le carré (144 unités de haut au total) : le tout est mis à l'échelle et centré.
+        $g.ScaleTransform($size / 144.0, $size / 144.0)
+        $g.TranslateTransform(8, 0)
+    } else {
+        $g.ScaleTransform($size / 128.0, $size / 128.0)
+    }
 
     # fond arrondi (rx 28)
     $bg = New-Object System.Drawing.Drawing2D.GraphicsPath
@@ -46,32 +54,58 @@ function Draw-Logo([int]$size) {
         (New-Object System.Drawing.PointF 104, 38), (New-Object System.Drawing.PointF 101.5, 31.5),
         (New-Object System.Drawing.PointF 95, 29), (New-Object System.Drawing.PointF 101.5, 26.5))
     $g.FillPolygon((New-Object System.Drawing.SolidBrush (Col "#F59E0B")), $star)
+
+    # pastille de version, bas centré (mêmes dimensions que le contrôle AppLogo de l'application)
+    if ($label) {
+        $pw = if ($label -eq "EI") { 52.0 } else { 80.0 }; $ph = 34.0; $px = (128 - $pw) / 2; $py = 110.0
+        $fill = if ($label -eq "EI") { "#C2410C" } else { "#1E3A8A" }
+        $pill = New-Object System.Drawing.Drawing2D.GraphicsPath
+        $rr = 11.0; $dd = $rr * 2
+        $pill.AddArc($px, $py, $dd, $dd, 180, 90); $pill.AddArc($px + $pw - $dd, $py, $dd, $dd, 270, 90)
+        $pill.AddArc($px + $pw - $dd, $py + $ph - $dd, $dd, $dd, 0, 90); $pill.AddArc($px, $py + $ph - $dd, $dd, $dd, 90, 90); $pill.CloseFigure()
+        $g.FillPath((New-Object System.Drawing.SolidBrush (Col $fill)), $pill)
+        $g.DrawPath((New-Object System.Drawing.Pen ([System.Drawing.Color]::White), 2.5), $pill)
+        # Texte seulement quand la taille le permet (illisible sous 48 px : la couleur de la pastille suffit).
+        if ($size -ge 48) {
+            $font = New-Object System.Drawing.Font("Bahnschrift", 17, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+            $sf = New-Object System.Drawing.StringFormat
+            $sf.Alignment = [System.Drawing.StringAlignment]::Center; $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
+            $g.DrawString($label, $font, [System.Drawing.Brushes]::White, (New-Object System.Drawing.RectangleF $px, $py, $pw, $ph), $sf)
+        }
+    }
     $g.Dispose()
     return $bmp
 }
 
-$sizes = 16, 24, 32, 48, 64, 128, 256
-$pngs = @{}
-foreach ($s in $sizes) {
-    $bmp = Draw-Logo $s
-    $ms = New-Object System.IO.MemoryStream
-    $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
-    $pngs[$s] = $ms.ToArray()
-    if ($s -eq 256) { [IO.File]::WriteAllBytes((Join-Path $assets "logo.png"), $pngs[$s]) }
-    $bmp.Dispose()
+function Write-Ico([string]$path, [string]$label) {
+    $sizes = 16, 24, 32, 48, 64, 128, 256
+    $pngs = @{}
+    foreach ($s in $sizes) {
+        $bmp = Draw-Logo $s $label
+        $ms = New-Object System.IO.MemoryStream
+        $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+        $pngs[$s] = $ms.ToArray()
+        if ($s -eq 256 -and -not $label) { [IO.File]::WriteAllBytes((Join-Path $assets "logo.png"), $pngs[$s]) }
+        $bmp.Dispose()
+    }
+    $out = New-Object System.IO.MemoryStream
+    $w = New-Object System.IO.BinaryWriter $out
+    $w.Write([uint16]0); $w.Write([uint16]1); $w.Write([uint16]$sizes.Count)
+    $offset = 6 + 16 * $sizes.Count
+    foreach ($s in $sizes) {
+        $b = $pngs[$s]
+        $dim = if ($s -ge 256) { 0 } else { $s }
+        $w.Write([byte]$dim); $w.Write([byte]$dim); $w.Write([byte]0); $w.Write([byte]0)
+        $w.Write([uint16]1); $w.Write([uint16]32); $w.Write([uint32]$b.Length); $w.Write([uint32]$offset)
+        $offset += $b.Length
+    }
+    foreach ($s in $sizes) { $w.Write($pngs[$s]) }
+    [IO.File]::WriteAllBytes($path, $out.ToArray())
 }
 
-$out = New-Object System.IO.MemoryStream
-$w = New-Object System.IO.BinaryWriter $out
-$w.Write([uint16]0); $w.Write([uint16]1); $w.Write([uint16]$sizes.Count)
-$offset = 6 + 16 * $sizes.Count
-foreach ($s in $sizes) {
-    $b = $pngs[$s]
-    $dim = if ($s -ge 256) { 0 } else { $s }
-    $w.Write([byte]$dim); $w.Write([byte]$dim); $w.Write([byte]0); $w.Write([byte]0)
-    $w.Write([uint16]1); $w.Write([uint16]32); $w.Write([uint32]$b.Length); $w.Write([uint32]$offset)
-    $offset += $b.Length
-}
-foreach ($s in $sizes) { $w.Write($pngs[$s]) }
-[IO.File]::WriteAllBytes((Join-Path $assets "app.ico"), $out.ToArray())
-Write-Host "app.ico + logo.png ecrits dans $assets"
+# logo.png : logo seul. Icônes par version : app.ico (historique, ancienne icône sans pastille),
+# app-asso.ico et app-autoentreprise.ico (avec pastille « ASSO » / « EI »).
+Write-Ico (Join-Path $assets "app.ico") ""
+Write-Ico (Join-Path $assets "app-asso.ico") "ASSO"
+Write-Ico (Join-Path $assets "app-autoentreprise.ico") "EI"
+Write-Host "app.ico, app-asso.ico, app-autoentreprise.ico + logo.png ecrits dans $assets"
