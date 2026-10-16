@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.12.4",
+      "date": "2026-10-16",
+      "show": false,
+      "title": "Version 1.12.4",
+      "items": [
+        "Correctifs d'affichage : textes tronqués (bilan, import bancaire, immobilisations, listes) et vocabulaire « année fiscale » appliqué à tous les écrans de l'Autoentreprise."
+      ]
+    },
+    {
       "version": "1.12.3",
       "date": "2026-10-16",
       "show": true,
