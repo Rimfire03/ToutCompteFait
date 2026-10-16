@@ -1,6 +1,17 @@
 {
   "entries": [
     {
+      "version": "1.12.6",
+      "date": "2026-10-16",
+      "show": true,
+      "title": "Nouveautés de la version 1.12.6",
+      "items": [
+        "Le logo affiche la version du logiciel : une pastille « ASSO » (association) ou « EI » (Autoentreprise) en bas du logo.",
+        "Autoentreprise : un produit marqué « personnel » (apport de l'exploitant) n'a plus de type de déclaration URSSAF.",
+        "Autoentreprise : le vocabulaire « année fiscale » s'applique à tous les écrans, et plusieurs textes tronqués ont été corrigés (bilan, import bancaire, immobilisations, listes de produits et charges)."
+      ]
+    },
+    {
       "version": "1.12.5",
       "date": "2026-10-16",
       "show": false,
