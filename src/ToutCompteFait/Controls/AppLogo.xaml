@@ -4,7 +4,7 @@
              Width="64" Height="64" SnapsToDevicePixels="False" Focusable="False" IsHitTestVisible="False">
     <!-- Logo « camembert » (assets\logos\logo-12-camembert.svg) : anneau bleu / turquoise / ambre, € au centre. -->
     <Viewbox Stretch="Uniform">
-        <Canvas Width="128" Height="128">
+        <Canvas x:Name="Art" Width="128" Height="128">
             <Rectangle Width="128" Height="128" RadiusX="28" RadiusY="28" Fill="#EFF6FF"/>
             <Path Stroke="#2563EB" StrokeThickness="24" Data="M64,30 A34,34 0 0 1 85.1,90.6"/>
             <Path Stroke="#14B8A6" StrokeThickness="24" Data="M80.1,93.9 A34,34 0 0 1 34.7,81.3"/>
