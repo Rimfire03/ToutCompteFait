@@ -733,7 +733,13 @@ public static class Ui
     /// <summary>Exécute une action d'écriture : les erreurs métier sont affichées sans planter. Retourne true si OK.</summary>
     public static bool Try(Action action)
     {
-        try { action(); return true; }
+        try
+        {
+            action();
+            // Retour visuel : la modification a bien été prise en compte.
+            if (!App.ShotsMode && !App.RunSelfTest) ToutCompteFait.Dialogs.ToastWindow.Show("✔ Enregistré");
+            return true;
+        }
         catch (ComptaException ex) { Error(ex.Message); return false; }
         catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
         {

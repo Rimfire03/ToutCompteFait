@@ -14,7 +14,7 @@ public sealed class UrssafAlertWindow : Window
     public UrssafAlertWindow(IReadOnlyList<UrssafPeriod> pending, DateOnly today)
     {
         Title = "Déclaration URSSAF";
-        Width = 520;
+        Width = 640;
         MaxHeight = 640;
         SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -35,10 +35,12 @@ public sealed class UrssafAlertWindow : Window
         foreach (var p in pending)
         {
             var overdue = today > p.DueDate;
+            var days = Math.Abs(p.DueDate.DayNumber - today.DayNumber);
             var row = new DockPanel { Margin = new Thickness(0, 5, 0, 5) };
             var due = new TextBlock
             {
-                Text = (overdue ? "En retard · " : "") + $"avant le {p.DueDate:dd/MM/yyyy}", VerticalAlignment = VerticalAlignment.Center,
+                Text = (overdue ? $"En retard de {days} j · " : $"J-{days} · ") + $"avant le {p.DueDate:dd/MM/yyyy}",
+                VerticalAlignment = VerticalAlignment.Center,
                 FontWeight = overdue ? FontWeights.SemiBold : FontWeights.Normal
             };
             if (overdue) due.Foreground = late;
@@ -56,6 +58,8 @@ public sealed class UrssafAlertWindow : Window
                    "cette alerte ne s'affichera plus pour la période."
         });
 
+        var site = new Button { Content = "Ouvrir le site de l'URSSAF", Style = Sty("SecondaryButton"), ToolTip = ToutCompteFait.Services.UrssafSite.Address };
+        site.Click += (_, _) => ToutCompteFait.Services.UrssafSite.Open();
         var open = new Button { Content = "Ouvrir le Reporting URSSAF", IsDefault = true, Style = Sty("PrimaryButton") };
         open.Click += (_, _) => DialogResult = true;
         var later = new Button { Content = "Plus tard", IsCancel = true, Style = Sty("SecondaryButton") };
@@ -64,6 +68,7 @@ public sealed class UrssafAlertWindow : Window
         {
             Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(22, 4, 22, 16)
         };
+        buttons.Children.Add(site);
         buttons.Children.Add(later);
         buttons.Children.Add(open);
 

@@ -20,11 +20,24 @@ public sealed class BarChart : FrameworkElement
         SnapsToDevicePixels = true;
     }
 
+    private string? _ghost;
+
     public void SetData(string title, IReadOnlyList<string> categories, IReadOnlyList<Series> series)
     {
         _title = ToutCompteFait.Core.Wording.Adapt(title);
         _categories = categories;
         _series = series;
+        _ghost = null;
+        InvalidateVisual();
+    }
+
+    /// <summary>État vide : cadre, grille et colonnes pâles avec un message, plutôt qu'un espace blanc.</summary>
+    public void SetGhost(string title, IReadOnlyList<string> categories, string message)
+    {
+        _title = ToutCompteFait.Core.Wording.Adapt(title);
+        _categories = categories;
+        _series = Array.Empty<Series>();
+        _ghost = message;
         InvalidateVisual();
     }
 
@@ -46,6 +59,40 @@ public sealed class BarChart : FrameworkElement
         var f = raw / pow;
         var m = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
         return m * pow;
+    }
+
+    private void DrawGhost(DrawingContext dc, double w, double h, Brush muted, Pen grid, Brush dark)
+    {
+        if (w < 120 || h < 120) return;
+        const double left = 24, right = 12, top = 44, bottomPad = 34;
+        var plot = new Rect(left, top, Math.Max(10, w - left - right), Math.Max(10, h - top - bottomPad));
+        for (var i = 0; i <= 4; i++)
+        {
+            var y = plot.Bottom - plot.Height * i / 4;
+            dc.DrawLine(grid, new Point(plot.Left, y), new Point(plot.Right, y));
+        }
+        var n = Math.Max(1, _categories.Count);
+        var groupW = plot.Width / n;
+        var barW = Math.Min(40, groupW * 0.55);
+        double[] shape = { .35, .6, .45, .8, .55, .7, .4, .65, .5, .75, .45, .6 };
+        var pale = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0));
+        for (var c = 0; c < n; c++)
+        {
+            var bh = plot.Height * shape[c % shape.Length] * 0.8;
+            dc.DrawRoundedRectangle(pale, null, new Rect(plot.Left + c * groupW + (groupW - barW) / 2, plot.Bottom - bh, barW, bh), 4, 4);
+            if (c < _categories.Count)
+            {
+                var cat = Text(_categories[c], 11, muted);
+                cat.MaxTextWidth = Math.Max(10, groupW - 6);
+                cat.MaxLineCount = 1;
+                cat.Trimming = TextTrimming.CharacterEllipsis;
+                dc.DrawText(cat, new Point(plot.Left + c * groupW + groupW / 2 - cat.Width / 2, plot.Bottom + 8));
+            }
+        }
+        var msg = Text(ToutCompteFait.Core.Wording.Adapt(_ghost!), 14, dark, FontWeights.SemiBold);
+        var box = new Rect(plot.Left + plot.Width / 2 - msg.Width / 2 - 16, plot.Top + plot.Height / 2 - msg.Height / 2 - 9, msg.Width + 32, msg.Height + 18);
+        dc.DrawRoundedRectangle(Brushes.White, new Pen(new SolidColorBrush(Color.FromRgb(0xCB, 0xD5, 0xE1)), 1), box, 10, 10);
+        dc.DrawText(msg, new Point(box.X + 16, box.Y + 9));
     }
 
     protected override void OnRender(DrawingContext dc)
@@ -72,6 +119,11 @@ public sealed class BarChart : FrameworkElement
         }
         var legendBottom = ly + 16;
 
+        if (_ghost is not null)
+        {
+            DrawGhost(dc, w, h, muted, grid, dark);
+            return;
+        }
         if (_categories.Count == 0 || _series.Count == 0 || w < 120 || h < 120) return;
 
         var all = _series.SelectMany(s => s.Values).Select(v => v / 100.0).Concat(new[] { 0.0 }).ToList();

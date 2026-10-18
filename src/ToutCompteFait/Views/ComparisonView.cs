@@ -173,10 +173,23 @@ public sealed class ComparisonView : UserControl, IPage
             }
             BuildTables();
             var none = ops.Count == 0;
-            _empty.Visibility = none ? Visibility.Visible : Visibility.Collapsed;
+            // Sans donnée : graphiques « fantômes » (cadre, grille, message) à la place d'un écran blanc ; tableaux masqués.
+            if (none)
+            {
+                var titles = _kind switch
+                {
+                    StatKind.Products => new[] { "Produits par exercice" },
+                    StatKind.Charges => new[] { "Charges par exercice" },
+                    _ => new[] { "Résultat par opération (produits − charges)", "Produits par opération", "Charges par opération" }
+                };
+                var charts = Charts;
+                for (var i = 0; i < charts.Length && i < titles.Length; i++)
+                    charts[i].SetGhost(titles[i], Labels, "Aucune donnée pour l'instant");
+            }
+            _empty.Visibility = Visibility.Collapsed;
             _tables.Visibility = none ? Visibility.Collapsed : Visibility.Visible;
             foreach (var ch in Charts)
-                (ch.Parent is Border card ? card : (FrameworkElement)ch).Visibility = none ? Visibility.Collapsed : Visibility.Visible;
+                (ch.Parent is Border card ? card : (FrameworkElement)ch).Visibility = Visibility.Visible;
         }
         finally { _loading = false; }
     }

@@ -54,7 +54,7 @@ public sealed class AssetsView : UserControl, IPage
     }
     private readonly Button _add = new() { Content = "＋  Nouvelle immobilisation" };
     private readonly Button _edit = new() { Content = "Modifier" };
-    private readonly Button _dispose = new() { Content = "Sortie du bien…" };
+    private readonly Button _dispose = new() { Content = "Sortie du bien" };
     private readonly Button _undispose = new() { Content = "Annuler la sortie" };
     private readonly Button _delete = new() { Content = "Supprimer" };
 

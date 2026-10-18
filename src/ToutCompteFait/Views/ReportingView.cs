@@ -244,6 +244,9 @@ public sealed class ReportingView : UserControl, IPage
             catch (System.Runtime.InteropServices.ExternalException) { Ui.Error("Le presse-papiers est indisponible."); }
         };
         actions.Children.Add(copy);
+        var site = new Button { Content = "Ouvrir autoentrepreneur.urssaf.fr", Style = Sty("SecondaryButton"), ToolTip = ToutCompteFait.Services.UrssafSite.Address };
+        site.Click += (_, _) => ToutCompteFait.Services.UrssafSite.Open();
+        actions.Children.Add(site);
         var canMark = App.Can(Permission.WriteLedger);
         if (report.DeclaredAt is null)
         {

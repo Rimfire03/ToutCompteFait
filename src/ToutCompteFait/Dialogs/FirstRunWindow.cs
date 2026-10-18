@@ -19,7 +19,7 @@ public sealed class FirstRunWindow : Window
     public FirstRunWindow(string expectedPath)
     {
         Title = Editions.AppName + " — Première utilisation";
-        Width = 560;
+        Width = 620;
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -32,31 +32,32 @@ public sealed class FirstRunWindow : Window
         });
         root.Children.Add(new TextBlock
         {
-            Text = "Où se trouvent vos données ?",
+            Text = "Bienvenue ! Où garder vos données ?",
             Style = (Style)Application.Current.FindResource("TitleText")
         });
         root.Children.Add(new TextBlock
         {
-            Text = "Aucune base de données n'a été trouvée à l'emplacement habituel :\n" + expectedPath + "\n\n" +
-                   "Choisissez comment démarrer. Un serveur de base de données est conseillé dès que plusieurs personnes " +
-                   "utilisent le logiciel ; ce choix peut être modifié plus tard dans Paramétrage appli → Base de données.",
+            Text = "Pour une première utilisation seul(e) sur cet ordinateur, le premier choix convient : il suffit de cliquer dessus. " +
+                   "Le logiciel vous demandera ensuite de créer votre compte administrateur, puis votre première période comptable " +
+                   "(l'exercice), et vous pourrez saisir vos comptes bancaires.\n\n" +
+                   "Ce choix pourra être modifié plus tard dans Paramétrage appli → Base de données. Emplacement prévu :\n" + expectedPath,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 6, 0, 16),
             Style = (Style)Application.Current.FindResource("MutedText")
         });
 
-        root.Children.Add(MakeChoice("Se connecter à une base distante (serveur)",
-            "PostgreSQL, MariaDB / MySQL ou SQL Server : les données sont sur le serveur, partagées entre les postes.",
-            FirstRunChoice.ConnectServer, primary: true));
-        root.Children.Add(MakeChoice("Charger un fichier de configuration…",
-            "Fichier .tcfconfig remis par l'administrateur : il contient les informations du serveur.",
-            FirstRunChoice.LoadConfig, primary: false));
-        root.Children.Add(MakeChoice("Créer une nouvelle base vide sur ce poste",
-            "Fichier SQLite local à l'emplacement ci-dessus ; vous créerez ensuite le compte administrateur.",
-            FirstRunChoice.CreateLocal, primary: false));
-        root.Children.Add(MakeChoice("Ouvrir un fichier de base existant (.db)…",
-            "Un fichier SQLite déjà utilisé (copie, sauvegarde ou partage réseau).",
+        root.Children.Add(MakeChoice("Je démarre : créer mes données sur cet ordinateur (recommandé)",
+            "Une base vide est créée ici, sans rien à installer. Vous créerez ensuite votre compte administrateur.",
+            FirstRunChoice.CreateLocal, primary: true));
+        root.Children.Add(MakeChoice("J'ai déjà des données : ouvrir un fichier existant",
+            "Un fichier .db déjà utilisé : copie, sauvegarde ou dossier partagé sur le réseau.",
             FirstRunChoice.OpenFile, primary: false));
+        root.Children.Add(MakeChoice("Nous sommes plusieurs : me connecter à un serveur partagé",
+            "Les données sont sur un serveur (PostgreSQL, MariaDB / MySQL ou SQL Server) partagé entre les postes. Réservé à un usage à plusieurs.",
+            FirstRunChoice.ConnectServer, primary: false));
+        root.Children.Add(MakeChoice("J'ai reçu un fichier de configuration",
+            "Fichier .tcfconfig remis par l'administrateur : il contient les informations du serveur. Vous pouvez aussi le glisser dans cette fenêtre.",
+            FirstRunChoice.LoadConfig, primary: false));
 
         var quit = new Button
         {
@@ -84,7 +85,7 @@ public sealed class FirstRunWindow : Window
 
     private UIElement MakeChoice(string title, string description, FirstRunChoice choice, bool primary)
     {
-        var text = new StackPanel { MinWidth = 470 };
+        var text = new StackPanel { MinWidth = 530 };
         text.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, FontSize = 14 });
         text.Children.Add(new TextBlock { Text = description, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0), Opacity = 0.8 });
         var button = new Button

@@ -28,12 +28,12 @@
                         ToolTip="Un virement entre deux comptes apparaît deux fois (une sortie et une entrée) quand les deux relevés ont été importés : ce bouton les fusionne en un seul virement."/>
                 <Button x:Name="ResetButton" Content="Retirer la ventilation" Style="{StaticResource SecondaryButton}" Click="Reset_Click"
                         ToolTip="Retire toute la ventilation de la ligne sélectionnée (clic droit sur la ligne possible) : elle redevient « à ventiler » (le montant, la date et le libellé ne changent pas)."/>
-                <Button x:Name="AssetButton" Content="Immobiliser…" Style="{StaticResource SecondaryButton}" Click="Asset_Click" Visibility="Collapsed"
+                <Button x:Name="AssetButton" Content="Immobiliser" Style="{StaticResource SecondaryButton}" Click="Asset_Click" Visibility="Collapsed"
                         ToolTip="Transforme cette dépense en immobilisation : sa valeur est étalée en charges sur sa durée d'utilisation (amortissement) au lieu de peser en une fois sur l'exercice."/>
                 <Button x:Name="DeleteButton" Content="Annuler l'écriture" Style="{StaticResource DangerButton}" Click="Delete_Click"
                         ToolTip="Une écriture ne se supprime jamais : elle est annulée par une écriture inverse (contre-passation). L'original reste visible avec « Annulations »."/>
-                <Button x:Name="BankButton" Content="🏦  Importer un relevé bancaire…" Style="{StaticResource SecondaryButton}" Click="BankImport_Click"/>
-                <Button x:Name="FecImportButton" Content="Importer un FEC…" Style="{StaticResource SecondaryButton}" Click="FecImport_Click"
+                <Button x:Name="BankButton" Content="🏦  Importer un relevé bancaire" Style="{StaticResource SecondaryButton}" Click="BankImport_Click"/>
+                <Button x:Name="FecImportButton" Content="Importer un FEC" Style="{StaticResource SecondaryButton}" Click="FecImport_Click"
                         ToolTip="Reprend dans l'exercice affiché les écritures d'un Fichier des Écritures Comptables (FEC) qui touchent la banque ou la caisse, avec leurs produits et charges, et les soldes d'ouverture. Les achats et ventes sans règlement sont ignorés."/>
                 <Button x:Name="ExportButton" Content="Exporter ▾" Style="{StaticResource SecondaryButton}" Click="Export_Click"
                         ToolTip="Livre-journal en PDF ou CSV, Fichier des Écritures Comptables (FEC) pour un contrôle fiscal ou un expert-comptable."/>

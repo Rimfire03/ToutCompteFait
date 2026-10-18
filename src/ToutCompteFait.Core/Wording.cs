@@ -35,6 +35,14 @@ public static class Wording
     private static readonly Regex Noun = new(@"\bexercices?\b", Opt);
     private static readonly Regex NounPlural = new(@"\bexercices\b", Opt);
 
+    // « Paramétrage du dossier » devient « Gestion de l'entreprise » (rubrique où l'on retrouve le statut et les informations).
+    private static readonly Regex Folder = new(@"paramétrage du dossier", Opt);
+
+    /// <summary>Vrai si le texte contient un mot ou une expression à adapter (test rapide avant tout remplacement).</summary>
+    public static bool Needs(string? s) =>
+        s is not null && (s.IndexOf("xercice", StringComparison.OrdinalIgnoreCase) >= 0
+                          || s.IndexOf("paramétrage du dossier", StringComparison.OrdinalIgnoreCase) >= 0);
+
     /// <summary>Texte adapté à la version courante (inchangé hors Autoentreprise).</summary>
     public static string Adapt(string? text)
     {
@@ -46,6 +54,8 @@ public static class Wording
     /// <summary>Remplacement et accords, sans tenir compte de la version (testable).</summary>
     public static string Apply(string text)
     {
+        if (!Needs(text)) return text;
+        text = Folder.Replace(text, m => MatchCase(m.Value, "gestion de l'entreprise"));
         if (text.IndexOf("xercice", StringComparison.OrdinalIgnoreCase) < 0) return text;
 
         // 1. Déterminant (+ adjectif antéposé) : genre féminin.

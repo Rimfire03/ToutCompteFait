@@ -37,7 +37,7 @@ public static class WordingHook
         timer.Start();
     }
 
-    private static bool Has(string? s) => s is not null && s.IndexOf("xercice", StringComparison.OrdinalIgnoreCase) >= 0;
+    private static bool Has(string? s) => Wording.Needs(s);
 
     private static void OnLoaded(object sender, RoutedEventArgs e)
     {

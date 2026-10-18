@@ -45,7 +45,15 @@ public sealed class PieChart : FrameworkElement
         var total = _slices.Sum(s => s.Cents);
         if (total <= 0 || w < 120 || h < 120)
         {
-            if (total <= 0) dc.DrawText(Text("Aucun montant à répartir.", 11, muted), new Point(10, 34));
+            if (total <= 0 && w >= 120 && h >= 120)
+            {
+                // État vide : anneau pâle et message, plutôt qu'un cadre blanc.
+                var d = Math.Max(60, Math.Min(w - 48, h - 90));
+                var c = new Point(w / 2, 44 + d / 2);
+                dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0)), d * 0.18), c, d / 2 - d * 0.09, d / 2 - d * 0.09);
+                var msg = Text("Aucun montant à répartir", 12, muted);
+                dc.DrawText(msg, new Point(c.X - msg.Width / 2, c.Y - msg.Height / 2));
+            }
             return;
         }
 

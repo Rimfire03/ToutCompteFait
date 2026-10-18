@@ -299,7 +299,8 @@ internal sealed class MonthlyStatsPanel : UserControl, IPage
                 for (var i = 0; i < others.Length; i++) others[i] += l.Values[i];
             series.Add(new BarChart.Series("Autres", ComparisonView.PaletteBrush(TopItems), others));
         }
-        _chart.SetData(title, months, series);
+        if (chartLines.Count == 0) _chart.SetGhost(title, months, "Aucune donnée pour l'instant");
+        else _chart.SetData(title, months, series);
 
         // Camembert : revenus (produits, ou produits liés à chaque opération) ou, pour les charges, leur répartition.
         var (pieTitle, pieLines) = _kind switch
@@ -324,9 +325,10 @@ internal sealed class MonthlyStatsPanel : UserControl, IPage
             AddTable("Charges par opération", "Opération", months, s.OperationCharges);
         }
         else AddTable(title, _kind == StatKind.Products ? "Produit" : "Charge", months, chartLines);
+        // Sans donnée : les graphiques restent affichés en « fantôme » (cadre, grille, message) ; seul le tableau est masqué.
         var none = chartLines.Count == 0 && pieLines.Count == 0;
-        _empty.Visibility = none ? Visibility.Visible : Visibility.Collapsed;
-        _charts.Visibility = none ? Visibility.Collapsed : Visibility.Visible;
+        _empty.Visibility = Visibility.Collapsed;
+        _charts.Visibility = Visibility.Visible;
         _tables.Visibility = none ? Visibility.Collapsed : Visibility.Visible;
     }
 

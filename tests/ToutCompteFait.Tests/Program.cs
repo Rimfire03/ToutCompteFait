@@ -684,6 +684,9 @@ Console.WriteLine("Vocabulaire année fiscale");
     Eq("Année fiscale 2025", Wording.Apply("Exercice 2025"), "nom seul");
     Eq("de la dernière année fiscale", Wording.Apply("du dernier exercice"), "du → de la");
     Eq("sans changement", Wording.Apply("sans changement"), "texte sans le mot");
+    Eq("Gestion de l'entreprise", Wording.Apply("Paramétrage du dossier"), "rubrique renommée");
+    Eq("dans Gestion de l'entreprise › Entreprise", Wording.Apply("dans Paramétrage du dossier › Entreprise"), "renvoi renommé");
+    Eq("Gestion de l'entreprise — année fiscale 2025-2026", Wording.Apply("Paramétrage du dossier — exercice 2025-2026"), "titre de page");
     Eq("Exercice validé", Wording.Adapt("Exercice validé"), "autres versions : inchangé");
 }
 
