@@ -364,6 +364,26 @@ public partial class LivreView : UserControl, IPage
                                 Selected is { IsFrozen: false, Source.Entry: { Kind: EntryKind.Normal, Direction: Direction.Out } };
     }
 
+    /// <summary>Clic droit : la ligne sous le curseur est sélectionnée avant l'ouverture du menu.</summary>
+    private void Grid_RightClick(object sender, MouseButtonEventArgs e)
+    {
+        var d = e.OriginalSource as DependencyObject;
+        while (d is not null and not DataGridRow) d = VisualTreeHelper.GetParent(d);
+        if (d is DataGridRow row) { row.IsSelected = true; row.Focus(); }
+    }
+
+    private void RowMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        var live = Selected is { IsFrozen: false };
+        foreach (var item in ((ContextMenu)sender).Items.OfType<MenuItem>())
+            item.IsEnabled = item.Tag as string switch
+            {
+                "edit" => _canWrite && live,
+                "reset" => ResetButton.IsEnabled,
+                _ => item.IsEnabled
+            };
+    }
+
     /// <summary>Transforme une dépense en immobilisation amortie (bouton visible si la fonction est activée).</summary>
     private void Asset_Click(object sender, RoutedEventArgs e)
     {
@@ -448,9 +468,9 @@ public partial class LivreView : UserControl, IPage
     {
         if (Selected is not { } row || row.Source.Allocations.Count == 0) return;
         var en = row.Source.Entry;
-        if (!Ui.Confirm($"Réinitialiser la ventilation de cette écriture ?\n\n{en.Date:dd/MM/yyyy} — {en.Label}\n{Money.Format(en.AmountCents)} €\n\n" +
+        if (!Ui.Confirm($"Retirer la ventilation de cette écriture ?\n\n{en.Date:dd/MM/yyyy} — {en.Label}\n{Money.Format(en.AmountCents)} €\n\n" +
                         "Toutes ses lignes de ventilation sont retirées : l'écriture redevient « à ventiler » (en jaune). " +
-                        "Le montant, la date et le libellé ne changent pas.", "Réinitialiser la ventilation")) return;
+                        "Le montant, la date et le libellé ne changent pas.", "Retirer la ventilation")) return;
         if (Ui.Try(() => _c.ClearAllocations(en.Id))) Reload();
     }
 

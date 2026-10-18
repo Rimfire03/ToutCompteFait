@@ -26,8 +26,8 @@
                 <Button x:Name="EditButton" Content="Modifier" Style="{StaticResource SecondaryButton}" Click="Edit_Click"/>
                 <Button x:Name="MergeTransfersButton" Content="Fusionner les virements en double" Style="{StaticResource SecondaryButton}" Click="MergeTransfers_Click"
                         ToolTip="Un virement entre deux comptes apparaît deux fois (une sortie et une entrée) quand les deux relevés ont été importés : ce bouton les fusionne en un seul virement."/>
-                <Button x:Name="ResetButton" Content="Réinitialiser la ventilation" Style="{StaticResource SecondaryButton}" Click="Reset_Click"
-                        ToolTip="Retire toute la ventilation de la ligne sélectionnée : elle redevient « à ventiler » (le montant, la date et le libellé ne changent pas)."/>
+                <Button x:Name="ResetButton" Content="Retirer la ventilation" Style="{StaticResource SecondaryButton}" Click="Reset_Click"
+                        ToolTip="Retire toute la ventilation de la ligne sélectionnée (clic droit sur la ligne possible) : elle redevient « à ventiler » (le montant, la date et le libellé ne changent pas)."/>
                 <Button x:Name="AssetButton" Content="Immobiliser…" Style="{StaticResource SecondaryButton}" Click="Asset_Click" Visibility="Collapsed"
                         ToolTip="Transforme cette dépense en immobilisation : sa valeur est étalée en charges sur sa durée d'utilisation (amortissement) au lieu de peser en une fois sur l'exercice."/>
                 <Button x:Name="DeleteButton" Content="Annuler l'écriture" Style="{StaticResource DangerButton}" Click="Delete_Click"
@@ -79,7 +79,14 @@
                 <TextBlock x:Name="EmptyStateText" Style="{StaticResource MutedText}" TextAlignment="Center" Margin="0,6,0,0"
                            Text="Saisissez une écriture ou importez un relevé bancaire pour commencer."/>
             </StackPanel>
-            <DataGrid x:Name="EntriesGrid" CanUserSortColumns="False" HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="Grid_DoubleClick" SelectionChanged="Grid_SelectionChanged">
+            <DataGrid x:Name="EntriesGrid" CanUserSortColumns="False" HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="Grid_DoubleClick" SelectionChanged="Grid_SelectionChanged"
+                      PreviewMouseRightButtonDown="Grid_RightClick">
+                <DataGrid.ContextMenu>
+                    <ContextMenu Opened="RowMenu_Opened">
+                        <MenuItem Header="Modifier…" Tag="edit" Click="Edit_Click"/>
+                        <MenuItem Header="Retirer la ventilation" Tag="reset" Click="Reset_Click"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow">
                         <Setter Property="Background" Value="White"/>
