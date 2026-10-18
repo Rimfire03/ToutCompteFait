@@ -64,6 +64,11 @@ public partial class MainWindow : Window
         navCompare.Checked += Nav_Checked;
         if (NavMembers.Parent is Panel comparePanel)
             comparePanel.Children.Insert(comparePanel.Children.IndexOf(NavMembers) + 1, navCompare);
+        // Centre de notifications : la cloche est dans le XAML ; le comptage est mis à jour régulièrement.
+        _navNotif = NavNotif;
+        var notifTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(45) };
+        notifTimer.Tick += (_, _) => RefreshNotificationCount();
+        notifTimer.Start();
         FillConfigurations();
         CoreVersionText.Text = $"v{App.DisplayVersion} · {Editions.Current.VersionMention}";
         CopyrightText.Text = "© TomLine prod&co by Thomas Guidez  ·  " + Editions.AppName;
@@ -459,6 +464,33 @@ public partial class MainWindow : Window
     }
 
     private RadioButton? _navAssets;
+    private RadioButton? _navNotif;
+
+    /// <summary>Met à jour le nombre d'alertes affiché sur « Notifications » (silencieux si la base est indisponible).</summary>
+    public void RefreshNotificationCount()
+    {
+        if (_navNotif is null) return;
+        try
+        {
+            var count = CurrentYear is { } y
+                ? App.Compta.BuildNotifications(DateOnly.FromDateTime(DateTime.Today), y.Id).Count
+                : 0;
+            _navNotif.Content = count > 0 ? $"🔔 {count}" : "🔔";
+            if (count > 0 && _navNotif.IsChecked != true) _navNotif.Foreground = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24));
+            else _navNotif.ClearValue(System.Windows.Controls.Control.ForegroundProperty);
+        }
+        catch
+        {
+            // Base momentanément indisponible : le comptage est ignoré.
+        }
+    }
+
+    /// <summary>Ouvre la page demandée (menu de gauche) à partir d'une alerte.</summary>
+    private void OpenPageFromNotification(string tag)
+    {
+        if (NavMembers.Parent is Panel panel)
+            foreach (var b in panel.Children.OfType<RadioButton>().Where(b => b.Tag as string == tag)) b.IsChecked = true;
+    }
 
     /// <summary>Affiche ou masque l'onglet Immobilisations selon le réglage de la base.</summary>
     public void RefreshAssetsNav()
@@ -492,12 +524,14 @@ public partial class MainWindow : Window
                 "reports" => new ReportsView(y),
                 "members" => new MembersView(y),
                 "reporting" => new ReportingView(),
+                "notifs" => new NotificationsView(y, OpenPageFromNotification),
                 "assets" => new AssetsView(y),
                 "settings" => new SettingsView(y, SettingsScope.Application),
                 "dossier" => new SettingsView(y, SettingsScope.Dossier),
                 _ => new LivreView(y)
             };
         Host.Content = view;
+        RefreshNotificationCount();
     }
 
     /// <summary>Mode diagnostic (--shots dossier) : enregistre une capture de chaque écran puis quitte.</summary>
@@ -529,7 +563,7 @@ public partial class MainWindow : Window
             enc.Save(fs);
         }
 
-        foreach (var page in new[] { "livre", "bilan", "compare", "reports", "members", "dossier", "settings", "help" }
+        foreach (var page in new[] { "livre", "notifs", "bilan", "compare", "reports", "members", "dossier", "settings", "help" }
             .Concat(Editions.Current.IsBusiness ? new[] { "reporting" } : Array.Empty<string>())
             .Concat(App.Compta.AssetsEnabled() ? new[] { "assets" } : Array.Empty<string>()))
         {

@@ -744,6 +744,24 @@ Console.WriteLine("Ventilation proposée d'après l'historique");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ centre de notifications
+Console.WriteLine("Centre de notifications");
+{
+    var path = TempDb();
+    {
+        var c = NewCompta(NewFactory(path));
+        var y = c.CreateYear(Dt(2025, 1, 1), Dt(2025, 12, 31));
+        var banque = c.Accounts().First(a => a.Name == "Banque");
+        c.SaveEntry(new Entry(0, y.Id, Dt(2025, 3, 3), "Achat à classer", false, EntryKind.Normal, banque.Id, Direction.Out, null, 4200, null, null), Array.Empty<Allocation>(), strict: false);
+        var n = c.BuildNotifications(Dt(2026, 2, 1), y.Id);
+        Check(n.Any(x => x.Id == "fill:" + y.Id && x.Title.StartsWith("1 écriture")), "écriture à ventiler signalée");
+        Check(n.Any(x => x.Id == "close:" + y.Id && x.Target == "bilan"), "exercice terminé non clôturé signalé");
+        Eq(0, c.BuildNotifications(Dt(2025, 6, 1), null).Count, "sans exercice : aucune alerte");
+        Eq(1, c.BuildNotifications(Dt(2025, 6, 1), y.Id).Count, "exercice en cours : seule l'écriture à ventiler");
+    }
+    Cleanup(path);
+}
+
 // ------------------------------------------------------------------ statistique mensuelle
 Console.WriteLine("Statistique mensuelle (sans les éléments personnels)");
 {

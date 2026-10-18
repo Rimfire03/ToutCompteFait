@@ -23,12 +23,14 @@
 
         <Grid Grid.Row="1" Margin="0,14,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="200"/><ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Button Content="Choisir le fichier…" Style="{StaticResource PrimaryButton}" Click="Browse_Click"/>
             <TextBlock x:Name="FileText" Grid.Column="1" VerticalAlignment="Center" Margin="4,0,12,0" TextTrimming="CharacterEllipsis"/>
             <TextBlock Grid.Column="2" Text="Compte du relevé :" VerticalAlignment="Center" Margin="0,0,8,0"/>
             <ComboBox x:Name="AccountCombo" Grid.Column="3" DisplayMemberPath="Name" SelectionChanged="Settings_Changed"/>
+            <Button x:Name="NewAccountButton" Grid.Column="4" Content="＋" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Padding="10,4" Click="NewAccount_Click"
+                    ToolTip="Nouveau compte : ajoute un compte bancaire, un livret ou une caisse sans quitter l'import."/>
         </Grid>
 
         <!-- Colonnes (CSV) -->

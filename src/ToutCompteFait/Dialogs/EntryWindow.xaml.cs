@@ -28,7 +28,7 @@ public partial class EntryWindow : Window
     private readonly Compta _c = App.Compta;
     private readonly FiscalYear _year;
     private readonly EntryRow? _existing;
-    private readonly List<Account> _accounts;
+    private List<Account> _accounts;
     private readonly List<Category> _cats;
     private readonly List<AllocRow> _rows = new();
     private readonly List<AttachItem> _atts = new();
@@ -79,6 +79,7 @@ public partial class EntryWindow : Window
         PaymentModeBox.SelectedIndex = 0;
         AccountCombo.ItemsSource = _accounts;
         ToAccountCombo.ItemsSource = _accounts;
+        NewAccountButton.Visibility = App.Can(ToutCompteFait.Core.Security.Permission.ManageStructure) && !App.IsReadOnly ? Visibility.Visible : Visibility.Collapsed;
         AccountCombo.SelectedIndex = _accounts.Count > 0 ? 0 : -1;
         ToAccountCombo.SelectedIndex = _accounts.Count > 1 ? 1 : -1;
 
@@ -325,6 +326,20 @@ public partial class EntryWindow : Window
         return m is Mode.Income ? products.Concat(charges)
              : m is Mode.NoCash ? products.Concat(charges)
              : charges.Concat(products);
+    }
+
+    /// <summary>Création d'un compte depuis la saisie (sans passer par le paramétrage) : le nouveau compte est sélectionné.</summary>
+    private void NewAccount_Click(object sender, RoutedEventArgs e)
+    {
+        var before = _accounts.Select(a => a.Id).ToHashSet();
+        var dlg = new AccountWindow(null) { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+        var keepTo = (ToAccountCombo.SelectedItem as Account)?.Id;
+        _accounts = _c.Accounts();
+        AccountCombo.ItemsSource = _accounts;
+        ToAccountCombo.ItemsSource = _accounts;
+        AccountCombo.SelectedItem = _accounts.FirstOrDefault(a => !before.Contains(a.Id)) ?? _accounts.FirstOrDefault();
+        ToAccountCombo.SelectedItem = _accounts.FirstOrDefault(a => a.Id == keepTo) ?? (_accounts.Count > 1 ? _accounts[1] : null);
     }
 
     private bool _filtering;

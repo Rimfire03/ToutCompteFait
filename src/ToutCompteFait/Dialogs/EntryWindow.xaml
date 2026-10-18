@@ -48,6 +48,9 @@
                 <StackPanel x:Name="AccountPanel">
                     <TextBlock x:Name="AccountLabel" Text="Compte" Margin="0,0,0,4"/>
                     <ComboBox x:Name="AccountCombo" DisplayMemberPath="Name"/>
+                    <Button x:Name="NewAccountButton" Content="＋  Nouveau compte" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left"
+                            Margin="0,6,0,0" Padding="10,4" FontSize="12" Click="NewAccount_Click" Visibility="Collapsed"
+                            ToolTip="Ajoute un compte bancaire, un livret ou une caisse sans quitter la saisie."/>
                 </StackPanel>
                 <StackPanel x:Name="ToAccountPanel" Grid.Column="2" Visibility="Collapsed">
                     <TextBlock Text="Vers le compte" Margin="0,0,0,4"/>

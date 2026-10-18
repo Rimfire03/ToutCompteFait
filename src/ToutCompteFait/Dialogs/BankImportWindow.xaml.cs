@@ -54,6 +54,7 @@ public partial class BankImportWindow : Window
         var accounts = _c.Accounts();
         AccountCombo.ItemsSource = accounts;
         AccountCombo.SelectedItem = accounts.FirstOrDefault(a => a.Kind == AccountKind.Bank) ?? accounts.FirstOrDefault();
+        NewAccountButton.Visibility = App.Can(ToutCompteFait.Core.Security.Permission.ManageStructure) && !App.IsReadOnly ? Visibility.Visible : Visibility.Collapsed;
 
         // Glisser-déposer d'un relevé (CSV, OFX, PDF ou image) depuis l'Explorateur.
         ImportDrop.Hint = "Formats acceptés : CSV, OFX, PDF, images · plusieurs fichiers possibles (un par compte)";
@@ -141,6 +142,20 @@ public partial class BankImportWindow : Window
     }
 
     private void Skip_Click(object sender, RoutedEventArgs e) => NextInQueue();
+
+    /// <summary>Création d'un compte depuis l'import : le nouveau compte est sélectionné et l'aperçu recalculé.</summary>
+    private void NewAccount_Click(object sender, RoutedEventArgs e)
+    {
+        var before = (AccountCombo.ItemsSource as IEnumerable<Account>)?.Select(a => a.Id).ToHashSet() ?? new HashSet<long>();
+        var dlg = new AccountWindow(null) { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+        var accounts = _c.Accounts();
+        _loading = true;
+        AccountCombo.ItemsSource = accounts;
+        AccountCombo.SelectedItem = accounts.FirstOrDefault(a => !before.Contains(a.Id)) ?? accounts.FirstOrDefault();
+        _loading = false;
+        Recompute();
+    }
 
     private void Browse_Click(object sender, RoutedEventArgs e)
     {
