@@ -15,7 +15,7 @@ Effort : **S** (≤ ½ jour), **M** (1 à 3 jours), **L** (plus d'une semaine). 
 - **1 point à reproduire** avant tout développement : ventilation des recettes (§3.3).
 - Plusieurs remarques sont **déjà partiellement traitées** par les versions 1.12.x (voir colonne « Déjà fait »).
 
-## Avancement du lot 1 (branche `beta`, 18/10/2026) — lot terminé
+## Avancement du lot 1 (18/10/2026) — lot terminé
 
 | # | Statut | Détail |
 |---|---|---|
@@ -32,7 +32,7 @@ Effort : **S** (≤ ½ jour), **M** (1 à 3 jours), **L** (plus d'une semaine). 
 
 > **Points 3.1a, 3.3 et 3.4a : mis de côté pour le moment** (décision du 18/10/2026). Aucun travail supplémentaire n'est prévu dessus avant nouvel ordre.
 
-## Avancement du lot 3 (branche `beta`, 18/10/2026)
+## Avancement du lot 3 (18/10/2026)
 
 | # | Statut | Détail |
 |---|---|---|
@@ -40,7 +40,7 @@ Effort : **S** (≤ ½ jour), **M** (1 à 3 jours), **L** (plus d'une semaine). 
 | 3.4c | Fait | Onglet « Comptes comptables » dans Gestion de l'entreprise / Paramétrage du dossier : rappel des 8 classes du plan comptable et vos produits / charges rangés par classe (lecture seule, aucun changement de modèle) |
 | 8 | Fait | Mode démonstration : dossier SQLite séparé, entièrement fictif, créé au besoin (Aide → « Essayer avec des données de démonstration » ou choix au premier lancement) ; bandeau violet permanent « MODE DÉMONSTRATION » avec « Revenir à mes données » ; la base d'origine (fichier ou serveur) est retrouvée au retour. Jeux de données Asso et Autoentreprise |
 | 3.1b | Non fait (recommandation retenue) | Connexion directe aux banques : nécessite un agrégateur (DSP2), un contrat, un coût par utilisateur et une analyse RGPD ; à décider séparément |
-## Avancement du lot 2 (branche `beta`, 18/10/2026) — lot terminé
+## Avancement du lot 2 (18/10/2026) — lot terminé
 
 | # | Statut | Détail |
 |---|---|---|
@@ -105,8 +105,8 @@ Autres corrections liées : libellés d'axe des graphiques mensuels affichés un
 - Schéma : uniquement par migrations idempotentes (une pour les déclarations conservées) ; exercices validés intacts.
 - Aucun texte tronqué : vérifier par captures d'écran (mode `--shots`) dans les deux versions.
 - Une version = un numéro commun ; question du devlog à chaque release.
-- **Travail uniquement sur la branche `beta`** (décision du 18/10/2026) : pas de commit sur `main` ni `dev` pour ces
-  chantiers ; la fusion vers `main` et la release se font sur demande explicite.
+- **Travail sur la branche `dev`** (décision du 18/10/2026) : pas de commit sur `main` pour ces chantiers ; la fusion
+  vers `main` et la release stable se font sur demande explicite.
 
 ## Questions pour le testeur
 

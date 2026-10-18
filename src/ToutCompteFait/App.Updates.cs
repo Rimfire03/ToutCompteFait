@@ -17,15 +17,12 @@ public partial class App
 
     public static bool IsDevBuild => TomLine.AppInfo.AppVersion.IsDev(BuildChannel);
 
-    /// <summary>Build du canal Beta (préversion de test publiée depuis la branche beta).</summary>
-    public static bool IsBetaBuild => string.Equals(BuildChannel, "beta", StringComparison.OrdinalIgnoreCase);
-
-    public static string AppVersionText => IsBetaBuild ? CurrentVersion + "-beta" : TomLine.AppInfo.AppVersion.Text(CurrentVersion, BuildChannel);
+    public static string AppVersionText => TomLine.AppInfo.AppVersion.Text(CurrentVersion, BuildChannel);
 
     /// <summary>Vérification selon le canal choisi dans les réglages ; depuis une build Dev, un retour sur Main est
     /// proposé si la dernière version Main partage la version de base de données du logiciel.</summary>
     public static Task<UpdateInfo?> CheckForUpdateAsync() =>
-        Updater.CheckForUpdateAsync(CurrentVersion, Settings.UpdateChannel, IsDevBuild || IsBetaBuild, DbContextFactory.LatestVersion);
+        Updater.CheckForUpdateAsync(CurrentVersion, Settings.UpdateChannel, IsDevBuild, DbContextFactory.LatestVersion);
 
     /// <summary>La base a été mise à jour par une version plus récente du logiciel : propose de l'installer. La base
     /// n'est pas touchée. Renvoie true si l'installation a été lancée (le logiciel quitte alors sans autre message).</summary>

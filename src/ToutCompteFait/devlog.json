@@ -4,7 +4,7 @@
       "version": "1.13.4",
       "date": "2026-10-18",
       "show": false,
-      "title": "Version 1.13.4 (bêta)",
+      "title": "Version 1.13.4 (dev)",
       "items": [
         "Autoentreprise : le suivi des déclarations URSSAF commence à la création du dossier ; les périodes passées sont « non suivies » (saisie possible) et ne sont plus en retard."
       ]
@@ -13,7 +13,7 @@
       "version": "1.13.3",
       "date": "2026-10-18",
       "show": false,
-      "title": "Version 1.13.3 (bêta)",
+      "title": "Version 1.13.3 (dev)",
       "items": [
         "Première utilisation : un assistant pas à pas (compte, activité, première période, soldes de départ) remplace la succession de fenêtres."
       ]
@@ -22,7 +22,7 @@
       "version": "1.13.2",
       "date": "2026-10-18",
       "show": false,
-      "title": "Version 1.13.2 (bêta)",
+      "title": "Version 1.13.2 (dev)",
       "items": [
         "Mode démonstration : connexion automatique aussi lorsqu'il est activé depuis l'écran de premier lancement."
       ]
@@ -31,7 +31,7 @@
       "version": "1.13.1",
       "date": "2026-10-18",
       "show": false,
-      "title": "Version 1.13.1 (bêta)",
+      "title": "Version 1.13.1 (dev)",
       "items": [
         "Mode démonstration : connexion automatique, sans identifiant ni mot de passe."
       ]
@@ -40,7 +40,7 @@
       "version": "1.13.0",
       "date": "2026-10-18",
       "show": false,
-      "title": "Nouveautés de la version 1.13.0 (bêta)",
+      "title": "Nouveautés de la version 1.13.0 (dev)",
       "items": [
         "Centre de notifications (cloche), page « Premiers pas » avec visite guidée, profil court à la première ouverture et mode démonstration avec données fictives.",
         "Reporting URSSAF : calendrier des échéances, montant réellement déclaré conservé avec l'écart, jours restants et lien vers le site de l'URSSAF.",

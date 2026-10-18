@@ -27,7 +27,7 @@ param(
     [string]$Notes,
     [string]$NotesFile,
     [switch]$NoPublish,
-    [ValidateSet("main","beta","dev")][string]$Channel = "main",
+    [ValidateSet("main","dev")][string]$Channel = "main",
     [string]$Repo = "Rimfire03/ToutCompteFait",
     [string[]]$Edition
 )
@@ -45,7 +45,7 @@ function DropDir([string]$p) { if (Test-Path $p) { [IO.Directory]::Delete($p, $t
 $m = [regex]::Match([IO.File]::ReadAllText($csproj), '<Version>(\d+\.\d+\.\d+)</Version>')
 if (-not $m.Success) { throw "Balise <Version> introuvable dans $csproj" }
 $version = $m.Groups[1].Value
-$dev = ($Channel -ne "main")   # préversion : canal dev ou beta
+$dev = ($Channel -ne "main")   # préversion : canal dev
 $suffix = if ($Channel -eq "main") { "" } else { "-$Channel" }
 $tag = "v$version$suffix"
 Step "version $version"
