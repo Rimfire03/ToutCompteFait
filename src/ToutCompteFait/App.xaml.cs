@@ -248,6 +248,13 @@ public partial class App : Application
             // Installation par MSI dans la nouvelle arborescence : reprend les données de l'ancien dossier (copie, jamais de suppression).
             LegacyInstallMigration.RunIfInstalled();
             Settings = AppSettings.Load();
+            // Mode démonstration : connexion automatique au compte fictif (pas d'identifiant ni de mot de passe à saisir).
+            if (Settings.DemoMode && cliUser is null && CliDatabase is null && !Settings.UseDatabaseServer
+                && string.Equals(Settings.DatabasePath, DemoFilePath, StringComparison.OrdinalIgnoreCase))
+            {
+                cliUser = DemoDatabase.UserName;
+                cliPassword = DemoDatabase.Password;
+            }
             if (CliDatabase is not null)
             {
                 Settings.UseDatabaseServer = false;
@@ -456,7 +463,7 @@ public partial class App : Application
 
                 case FirstRunChoice.Demo:
                     if (!PrepareDemoSettings()) continue;
-                    Ui.Info($"Dossier de démonstration prêt (données fictives).\n\nIdentifiant : {DemoDatabase.UserName}\nMot de passe : {DemoDatabase.Password}\n\n" +
+                    Ui.Info("Dossier de démonstration prêt (données fictives) : vous êtes connecté automatiquement.\n\n" +
                             "Un bandeau « Mode démonstration » reste affiché ; « Revenir à mes données » le quitte à tout moment.", "Démonstration");
                     return true;
 
@@ -722,7 +729,7 @@ public partial class App : Application
         if (!Ui.Confirm("Ouvrir un dossier de démonstration ?\n\nDes données entièrement fictives remplacent l'affichage de vos données le temps de la démonstration ; " +
                         "vos vraies données ne sont ni modifiées ni mélangées. Le logiciel va redémarrer.", "Mode démonstration")) return;
         if (!PrepareDemoSettings()) return;
-        Restart($"--user {DemoDatabase.UserName} --password {DemoDatabase.Password}");
+        Restart();   // la connexion au compte fictif est automatique en mode démonstration
     }
 
     /// <summary>Quitte la démonstration et retrouve la base précédente (le logiciel redémarre).</summary>

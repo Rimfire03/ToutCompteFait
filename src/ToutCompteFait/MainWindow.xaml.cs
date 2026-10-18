@@ -67,6 +67,8 @@ public partial class MainWindow : Window
         // Centre de notifications : la cloche est dans le XAML ; le comptage est mis à jour régulièrement.
         _navNotif = NavNotif;
         DemoBanner.Visibility = App.Settings.DemoMode ? Visibility.Visible : Visibility.Collapsed;
+        // En démonstration la connexion est automatique : ni mot de passe à changer, ni déconnexion.
+        if (App.Settings.DemoMode) PasswordButton.Visibility = LogoutButton.Visibility = Visibility.Collapsed;
         var notifTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(45) };
         notifTimer.Tick += (_, _) => RefreshNotificationCount();
         notifTimer.Start();
