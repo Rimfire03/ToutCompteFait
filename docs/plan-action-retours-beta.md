@@ -26,9 +26,11 @@ Effort : **S** (≤ ½ jour), **M** (1 à 3 jours), **L** (plus d'une semaine). 
 | 7.2 | Fait | Charges en ambre (Bilan, immobilisations, variations) ; statistiques en palettes par sens (produits verts, charges ambre, opérations bleus) ; le rouge reste réservé aux alertes, erreurs et résultats négatifs |
 | 5a | Fait | « J-N » ou « en retard de N j » dans l'alerte, bouton « Ouvrir le site de l'URSSAF » (alerte et Reporting) |
 | 1.1 | Fait | Écran d'accueil réécrit en langage simple, premier choix recommandé et message de bienvenue intégré |
-| 3.4a | Fait | Champ « Rechercher une catégorie » dans la saisie d'écriture (listes de plus de 12 lignes) ; dans la liste d'affectation rapide du Livre et dans la saisie, taper les premières lettres du nom place la sélection. Listes de comptes non modifiées (peu de lignes) |
-| 3.3 | Clarifié | Non reproduit : en mode Recette, « Ajouter une ligne de ventilation » fonctionne (3 lignes ajoutées en capture). Message d'aide réécrit (retour à la ligne, indique d'abord le montant puis le bouton). À confirmer avec le testeur |
-| 3.1a | Fait (version générique) | Page d'aide « Récupérer le fichier de votre banque » ; pas de pas-à-pas par banque (menus non vérifiables) |
+| 3.4a | Reporté (décision du 18/10/2026) ; acquis conservés :| Champ « Rechercher une catégorie » dans la saisie d'écriture (listes de plus de 12 lignes) ; dans la liste d'affectation rapide du Livre et dans la saisie, taper les premières lettres du nom place la sélection. Listes de comptes non modifiées (peu de lignes) |
+| 3.3 | Reporté (décision du 18/10/2026) ; acquis conservés :| Non reproduit : en mode Recette, « Ajouter une ligne de ventilation » fonctionne (3 lignes ajoutées en capture). Message d'aide réécrit (retour à la ligne, indique d'abord le montant puis le bouton). À confirmer avec le testeur |
+| 3.1a | Reporté (décision du 18/10/2026) ; acquis conservé : version générique ;| Page d'aide « Récupérer le fichier de votre banque » ; pas de pas-à-pas par banque (menus non vérifiables) |
+
+> **Points 3.1a, 3.3 et 3.4a : mis de côté pour le moment** (décision du 18/10/2026). Aucun travail supplémentaire n'est prévu dessus avant nouvel ordre.
 
 ## Lot 1 — Corrections rapides (version 1.13)
 
