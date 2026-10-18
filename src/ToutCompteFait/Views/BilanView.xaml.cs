@@ -438,7 +438,7 @@ public partial class BilanView : UserControl, IPage
 
     // ------------------------------------------------------------------ graphiques
 
-    private readonly BarChart _monthsChart = new() { Height = 300 };
+    private readonly BarChart _monthsChart = new() { Height = 300, ThinLabels = true };
     private readonly PieChart _chargesPie = new();
     private readonly PieChart _productsPie = new();
     private bool _chartsBuilt;

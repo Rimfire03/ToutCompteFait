@@ -32,6 +32,20 @@ Effort : **S** (≤ ½ jour), **M** (1 à 3 jours), **L** (plus d'une semaine). 
 
 > **Points 3.1a, 3.3 et 3.4a : mis de côté pour le moment** (décision du 18/10/2026). Aucun travail supplémentaire n'est prévu dessus avant nouvel ordre.
 
+## Avancement du lot 2 (branche `beta`, 18/10/2026) — lot terminé
+
+| # | Statut | Détail |
+|---|---|---|
+| 2 | Fait | Cloche à côté du logo (compteur en ambre) et page « Notifications » : déclarations URSSAF à faire (Autoentreprise), écritures à ventiler, exercice terminé non clôturé ; bouton « Ouvrir » vers l'écran concerné ; rafraîchi toutes les 45 s |
+| 5b | Fait | Calendrier des échéances dans le Reporting URSSAF : pastilles par période (déclarée, en retard, J-N, en cours, à venir), clic pour sélectionner |
+| 5c | Fait | « Marquer comme déclarée » demande le montant réellement déclaré et une note ; « Modifier la déclaration » ; historique avec calculé / déclaré / écart. Migration v18 (colonne `declared_cents`) |
+| 7.3 | Fait | Bouton « ＋ Nouveau compte » dans la saisie d'écriture et dans l'import bancaire, le nouveau compte est sélectionné. Catégories et opérations : non faites |
+| 7.1 | Fait | Paramétrage appli → onglet « Affichage » : ordre du menu (▲▼), page d'accueil, rétablir l'ordre d'origine ; réglages propres au poste |
+| 6.2 | Fait | Bilan : graphique produits / charges par mois, camembert des charges, camembert des produits (hors éléments personnels) |
+| 3.4b | Fait | « Modèles de catégories » (Autoentreprise) : vente, fabrication, prestation, profession libérale ; numéros de compte usuels ; seules les catégories absentes sont ajoutées |
+| 1.3a | Fait | Profil court à la première ouverture d'un dossier neuf (activité, déclaration, matériel) : applique le modèle, le mode URSSAF et les immobilisations ; « Plus tard » / « Ne plus demander » |
+
+Autres corrections liées : libellés d'axe des graphiques mensuels affichés un sur k quand la place manque (plus de « … » sur les mois).
 ## Lot 1 — Corrections rapides (version 1.13)
 
 | # | Remarque | Action | Effort | Déjà fait / notes |

@@ -189,6 +189,43 @@ public sealed partial class Compta
         return cat;
     }
 
+    // ------------------------------------------------------------------ profil court de première ouverture
+
+    private const string OnboardedKey = "profile.onboarded";
+
+    /// <summary>Faut-il proposer le profil court (3 questions) ? Seulement pour un dossier neuf : entreprise non renseignée,
+    /// aucune écriture dans l'exercice, question pas encore posée ni écartée.</summary>
+    public bool ShouldOfferBusinessOnboarding(long yearId)
+    {
+        using (var l = Open())
+            if (l.Ctx.BusinessSettings.AsNoTracking().Any(s => s.Key == OnboardedKey)) return false;
+        return string.IsNullOrWhiteSpace(GetBusinessProfile().Name) && Entries(yearId).Count == 0;
+    }
+
+    /// <summary>Applique le profil : modèle de catégories de l'activité, mode de déclaration URSSAF, gestion des
+    /// immobilisations ; la question n'est plus posée ensuite. <paramref name="templateId"/> null = aucun modèle.</summary>
+    public void CompleteBusinessOnboarding(long yearId, string? templateId, DeclarationMode mode, bool useAssets)
+    {
+        Require(Permission.ManageStructure);
+        RequireWritable();
+        if (templateId is not null && CategoryTemplates.Find(templateId) is { } t) ApplyCategoryTemplate(yearId, t.Items);
+        SaveBusinessProfile(GetBusinessProfile() with { Mode = mode });
+        if (useAssets) SaveAssetSettings(true, AssetThresholdCents());
+        SkipBusinessOnboarding();
+    }
+
+    /// <summary>Ne plus proposer le profil court.</summary>
+    public void SkipBusinessOnboarding()
+    {
+        Require(Permission.ManageStructure);
+        RequireWritable();
+        using var tx = Begin();
+        var ctx = Open().Ctx;
+        WriteBusinessSettings(ctx, new Dictionary<string, string?> { [OnboardedKey] = "1" });
+        Save(ctx);
+        tx.Commit();
+    }
+
     /// <summary>Ajoute à l'exercice les catégories d'un modèle d'activité qui n'existent pas encore (comparaison du nom sans
     /// tenir compte de la casse), avec leur numéro de compte usuel et, pour un produit, son type URSSAF. Renvoie le nombre de
     /// catégories ajoutées ; les catégories déjà présentes ne sont jamais modifiées.</summary>

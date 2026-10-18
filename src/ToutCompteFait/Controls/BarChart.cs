@@ -22,6 +22,9 @@ public sealed class BarChart : FrameworkElement
 
     private string? _ghost;
 
+    /// <summary>Libellés courts d'axe (mois) : si la place manque, on n'en affiche qu'un sur k au lieu de les couper.</summary>
+    public bool ThinLabels { get; set; }
+
     public void SetData(string title, IReadOnlyList<string> categories, IReadOnlyList<Series> series)
     {
         _title = ToutCompteFait.Core.Wording.Adapt(title);
@@ -74,6 +77,7 @@ public sealed class BarChart : FrameworkElement
         var n = Math.Max(1, _categories.Count);
         var groupW = plot.Width / n;
         var barW = Math.Min(40, groupW * 0.55);
+        var ghostEvery = _categories.Count == 0 ? 1 : Math.Max(1, (int)Math.Ceiling((_categories.Max(cn => Text(cn, 11, muted).Width) + 8) / Math.Max(1, groupW)));
         double[] shape = { .35, .6, .45, .8, .55, .7, .4, .65, .5, .75, .45, .6 };
         var pale = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0));
         for (var c = 0; c < n; c++)
@@ -82,11 +86,11 @@ public sealed class BarChart : FrameworkElement
             dc.DrawRoundedRectangle(pale, null, new Rect(plot.Left + c * groupW + (groupW - barW) / 2, plot.Bottom - bh, barW, bh), 4, 4);
             if (c < _categories.Count)
             {
-                var cat = Text(_categories[c], 11, muted);
-                cat.MaxTextWidth = Math.Max(10, groupW - 6);
-                cat.MaxLineCount = 1;
-                cat.Trimming = TextTrimming.CharacterEllipsis;
-                dc.DrawText(cat, new Point(plot.Left + c * groupW + groupW / 2 - cat.Width / 2, plot.Bottom + 8));
+                if (c % ghostEvery == 0)
+                {
+                    var cat = Text(_categories[c], 11, muted);
+                    dc.DrawText(cat, new Point(Math.Clamp(plot.Left + c * groupW + groupW / 2 - cat.Width / 2, 0, Math.Max(0, w - cat.Width)), plot.Bottom + 8));
+                }
             }
         }
         var msg = Text(ToutCompteFait.Core.Wording.Adapt(_ghost!), 14, dark, FontWeights.SemiBold);
@@ -148,6 +152,8 @@ public sealed class BarChart : FrameworkElement
         }
 
         var groupW = plot.Width / _categories.Count;
+        var widest = _categories.Max(cn => Text(cn, 11, dark).Width) + 8;
+        var labelEvery = Math.Max(1, (int)Math.Ceiling(widest / Math.Max(1, groupW)));
         var barW = Math.Min(56, groupW * 0.8 / _series.Count);
         var zero = Y(0);
         for (var c = 0; c < _categories.Count; c++)
@@ -166,11 +172,19 @@ public sealed class BarChart : FrameworkElement
                     dc.DrawText(t, new Point(rect.Left + rect.Width / 2 - t.Width / 2, ty));
                 }
             }
-            var cat = Text(_categories[c], 11, dark);
-            cat.MaxTextWidth = Math.Max(10, groupW - 6);
-            cat.MaxLineCount = 1;
-            cat.Trimming = TextTrimming.CharacterEllipsis;
-            dc.DrawText(cat, new Point(plot.Left + c * groupW + groupW / 2 - cat.Width / 2, plot.Bottom + 8));
+            // Libellés d'axe : si la place manque, on n'en affiche qu'un sur k (jamais de texte coupé par « … »).
+            if (!ThinLabels || c % labelEvery == 0)
+            {
+                var cat = Text(_categories[c], 11, dark);
+                if (!ThinLabels)
+                {
+                    // Noms d'éléments (souvent longs) : tous affichés, tronqués par « … » s'ils dépassent leur colonne.
+                    cat.MaxTextWidth = Math.Max(10, groupW - 6);
+                    cat.MaxLineCount = 1;
+                    cat.Trimming = TextTrimming.CharacterEllipsis;
+                }
+                dc.DrawText(cat, new Point(Math.Clamp(plot.Left + c * groupW + groupW / 2 - cat.Width / 2, 0, Math.Max(0, w - cat.Width)), plot.Bottom + 8));
+            }
         }
     }
 }

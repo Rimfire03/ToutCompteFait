@@ -228,7 +228,7 @@ internal sealed class MonthlyStatsPanel : UserControl, IPage
 
     private readonly FiscalYear _year;
     private readonly StatKind _kind;
-    private readonly BarChart _chart = new() { Height = 340 };
+    private readonly BarChart _chart = new() { Height = 340, ThinLabels = true };
     private readonly PieChart _pie = new();
     private readonly Grid _charts = new();
     private readonly StackPanel _tables = new();

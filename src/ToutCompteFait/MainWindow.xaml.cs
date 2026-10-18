@@ -84,6 +84,7 @@ public partial class MainWindow : Window
             OpenStartPage();
             if (CurrentYear is null && App.Can(Permission.ManageStructure)) PromptFirstYear();
             Dispatcher.BeginInvoke(new Action(ShowDevLogIfNeeded), DispatcherPriority.ApplicationIdle);
+            Dispatcher.BeginInvoke(new Action(ShowBusinessOnboardingIfNeeded), DispatcherPriority.ApplicationIdle);
             Dispatcher.BeginInvoke(new Action(ShowUrssafAlertIfNeeded), DispatcherPriority.ApplicationIdle);
         };
 
@@ -397,6 +398,28 @@ public partial class MainWindow : Window
         App.Settings.LastDevLogVersion = current;
         try { App.Settings.Save(); } catch { /* confort : sera représenté au prochain lancement */ }
         if (pending.Count > 0) new DevLogWindow(pending) { Owner = this }.ShowDialog();
+    }
+
+    /// <summary>Autoentreprise, dossier neuf : propose le profil court (activité, déclaration, matériel) qui prépare les
+    /// catégories et les réglages. Une seule fois ; « Plus tard » la repropose au prochain lancement.</summary>
+    private void ShowBusinessOnboardingIfNeeded()
+    {
+        if (!Editions.Current.IsBusiness || App.ShotsMode || App.RunSelfTest || CurrentYear is not { Open: true } y) return;
+        if (!App.Can(Permission.ManageStructure) || App.IsReadOnly) return;
+        try { if (!App.Compta.ShouldOfferBusinessOnboarding(y.Id)) return; }
+        catch { return; }
+        var dlg = new ProfileWindow { Owner = this };
+        var yes = dlg.ShowDialog() == true;
+        if (yes)
+        {
+            if (Ui.Try(() => App.Compta.CompleteBusinessOnboarding(y.Id, dlg.TemplateId, dlg.Mode, dlg.UseAssets)))
+            {
+                RefreshAssetsNav();
+                ShowPage(_page);
+                Ui.Info("Votre dossier est préparé : produits et charges habituels ajoutés. Ils se modifient dans « Gestion de l'entreprise » → Produits et charges.");
+            }
+        }
+        else if (dlg.NeverAskAgain) Ui.Try(() => App.Compta.SkipBusinessOnboarding());
     }
 
     /// <summary>Autoentreprise : à l'ouverture, alerte si une déclaration URSSAF (mensuelle ou trimestrielle) est à faire,
@@ -721,6 +744,14 @@ public partial class MainWindow : Window
         ua.Show();
         await Shot(ua, "dlg-urssaf");
         ua.Close();
+        var pw = new Dialogs.ProfileWindow { Owner = this };
+        pw.Show();
+        await Shot(pw, "dlg-profil");
+        pw.Close();
+        var ct = new Dialogs.CategoryTemplateWindow(App.Compta.Categories(CurrentYear?.Id ?? 0)) { Owner = this };
+        ct.Show();
+        await Shot(ct, "dlg-modeles");
+        ct.Close();
         var md = new Dialogs.MessageDialog(
             "Valider l'exercice 2025-2026 avec une clôture au 31/08/2026 ?\n\n • les écritures datées après la clôture passent dans l'exercice suivant ;\n" +
             " • les soldes et les reports sont transmis automatiquement à l'exercice suivant ;\n • l'exercice devient verrouillé (modifiable seulement en le rouvrant).\n\n" +

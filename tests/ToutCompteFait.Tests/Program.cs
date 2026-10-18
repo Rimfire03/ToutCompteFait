@@ -761,6 +761,13 @@ Console.WriteLine("Modèles de catégories");
         var row = c.CategoryAccountNumbers().First(r => r.Name == "Matières premières");
         Eq("601000", row.Number, "numéro de compte usuel posé");
         Eq(UrssafKind.Sale, c.CategoryUrssafKinds()["Ventes de produits fabriqués"], "type URSSAF du produit posé");
+        // Profil court : proposé sur un dossier neuf, appliqué une fois, plus proposé ensuite.
+        Check(c.ShouldOfferBusinessOnboarding(y.Id), "dossier neuf : profil court proposé");
+        c.CompleteBusinessOnboarding(y.Id, "prestation", DeclarationMode.Monthly, useAssets: true);
+        Eq(DeclarationMode.Monthly, c.GetBusinessProfile().Mode, "mode de déclaration enregistré");
+        Check(c.AssetsEnabled(), "immobilisations activées par le profil");
+        Check(c.Categories(y.Id).Any(k => k.Name == "Prestations de services"), "catégories de l'activité ajoutées");
+        Check(!c.ShouldOfferBusinessOnboarding(y.Id), "profil appliqué : plus proposé");
         c.ValidateYear(y.Id);
         Throws(() => c.ApplyCategoryTemplate(y.Id, tpl.Items), "exercice validé : modèle refusé", "validé");
     }
