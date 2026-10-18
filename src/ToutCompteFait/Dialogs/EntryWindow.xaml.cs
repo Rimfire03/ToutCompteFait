@@ -12,6 +12,9 @@ public partial class EntryWindow : Window
     private sealed record CatItem(Category Cat, string Display)
     {
         public override string ToString() => Display;
+
+        /// <summary>Nom sans le préfixe « Charge · » / « Produit · » : recherche au clavier dans la liste ouverte.</summary>
+        public string SearchName => Cat.Name;
     }
 
     private sealed class AllocRow
@@ -358,7 +361,8 @@ public partial class EntryWindow : Window
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
 
-        var combo = new ComboBox { IsEditable = false };
+        var combo = new ComboBox { IsEditable = false, IsTextSearchEnabled = true };
+        TextSearch.SetTextPath(combo, nameof(CatItem.SearchName));   // taper les premières lettres du nom dans la liste ouverte
         FillCombo(combo);
         if (cat is not null) combo.SelectedItem = combo.Items.OfType<CatItem>().FirstOrDefault(i => i.Cat.Id == cat.Id);
         var amount = new TextBox { HorizontalContentAlignment = HorizontalAlignment.Right };
@@ -555,7 +559,7 @@ public partial class EntryWindow : Window
         {
             BalanceBox.Background = new SolidColorBrush(Color.FromRgb(0xF1, 0xF5, 0xF9));
             BalanceText.Foreground = new SolidColorBrush(Color.FromRgb(0x47, 0x55, 0x69));
-            BalanceText.Text = AmountBox.Text.Trim().Length == 0 ? "Saisissez le montant pour ventiler." : (err ?? "");
+            BalanceText.Text = AmountBox.Text.Trim().Length == 0 ? "Saisissez d'abord le montant en haut : la ventilation se calcule ensuite, et « Ajouter une ligne de ventilation » permet de répartir sur plusieurs catégories." : (err ?? "");
             OperationBox.Visibility = Visibility.Collapsed;
             return;
         }

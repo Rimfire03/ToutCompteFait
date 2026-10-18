@@ -127,6 +127,24 @@ public sealed class ComparisonView : UserControl, IPage
 
     internal static Brush PaletteBrush(int i) => Palette[i % Palette.Length];
 
+    // Couleurs par sens : produits en verts / turquoises, charges en ambres / orangés, opérations en bleus / violets.
+    // La même couleur garde la même signification d'un écran à l'autre (le rouge reste réservé aux alertes).
+    private static readonly Brush[] ProductPalette = Hex("16A34A", "0E9F6E", "65A30D", "0E7490", "15803D", "34D399", "84CC16", "0D9488");
+    private static readonly Brush[] ChargePalette = Hex("D97706", "B45309", "F59E0B", "C2410C", "92400E", "FBBF24", "EA580C", "A16207");
+    private static readonly Brush[] OperationPalette = Hex("2563EB", "7C3AED", "0284C7", "4F46E5", "6D28D9", "38BDF8", "1D4ED8", "8B5CF6");
+
+    private static Brush[] Hex(params string[] hex) =>
+        hex.Select(h => (Brush)new SolidColorBrush(Color.FromRgb(Convert.ToByte(h[..2], 16), Convert.ToByte(h[2..4], 16), Convert.ToByte(h[4..], 16)))).ToArray();
+
+    /// <summary>Gris neutre du regroupement « Autres ».</summary>
+    internal static readonly Brush OthersBrush = new SolidColorBrush(Color.FromRgb(0x64, 0x74, 0x8B));
+
+    internal static Brush KindBrush(StatKind kind, int i)
+    {
+        var p = kind switch { StatKind.Products => ProductPalette, StatKind.Charges => ChargePalette, _ => OperationPalette };
+        return p[i % p.Length];
+    }
+
     internal static Border Card(UIElement child) => new()
     {
         BorderBrush = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0)), BorderThickness = new Thickness(1),

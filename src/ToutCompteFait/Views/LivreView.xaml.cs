@@ -15,6 +15,10 @@ namespace ToutCompteFait.Views;
 public sealed record CategoryOption(long CategoryId, string Display)
 {
     public override string ToString() => Display;
+
+    /// <summary>Nom sans le préfixe « Charge · » / « Produit · » : sert à la recherche au clavier dans la liste (taper
+    /// « Ass » place la sélection sur « Assurance »).</summary>
+    public string SearchName => Display.Contains(" · ", StringComparison.Ordinal) ? Display[(Display.IndexOf(" · ", StringComparison.Ordinal) + 3)..] : Display;
 }
 
 public sealed class LivreRow

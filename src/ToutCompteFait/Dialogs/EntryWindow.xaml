@@ -82,7 +82,7 @@
                             ToolTip="Efface toutes les lignes de ventilation pour recommencer (le montant et le libellé sont conservés)."/>
                 </WrapPanel>
                 <Border x:Name="BalanceBox" Margin="0,10,0,0" Padding="10,7" CornerRadius="6" Background="#ECFDF5">
-                    <TextBlock x:Name="BalanceText" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="BalanceText" FontWeight="SemiBold" TextWrapping="Wrap"/>
                 </Border>
                 <Border x:Name="OperationBox" Margin="0,8,0,0" Padding="10,8" CornerRadius="6" Background="#EFF6FF" Visibility="Collapsed">
                     <TextBlock x:Name="OperationText" TextWrapping="Wrap" Foreground="#1E3A8A"/>

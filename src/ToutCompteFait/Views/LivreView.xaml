@@ -139,8 +139,9 @@
                                         </TextBlock.Visibility>
                                     </TextBlock>
                                     <ComboBox ItemsSource="{Binding Options}" SelectedIndex="0" DropDownClosed="Assign_DropDownClosed"
-                                              Margin="6,2,2,2" FontSize="12.5"
-                                              ToolTip="Choisissez le produit ou la charge : toute l'écriture y est classée. Pour répartir sur plusieurs catégories, utilisez « Modifier ».">
+                                              Margin="6,2,2,2" FontSize="12.5" IsTextSearchEnabled="True" TextSearch.TextPath="SearchName"
+                                              ToolTip="Choisissez le produit ou la charge : toute l'écriture y est classée (liste ouverte : tapez les premières lettres du nom pour y aller). Pour répartir sur plusieurs catégories, utilisez « Modifier ».">
+
                                         <ComboBox.Visibility>
                                             <Binding Path="CanAssign" Converter="{StaticResource BoolToVis}"/>
                                         </ComboBox.Visibility>

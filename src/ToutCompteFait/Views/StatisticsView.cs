@@ -204,7 +204,7 @@ internal sealed class ItemLinePanel : UserControl
     {
         var (labels, values, scope) = _monthly ? (_months, _monthValues, "par mois") : (_years, _yearValues, "par exercice");
         var kindWord = _kind switch { StatKind.Products => "Produit", StatKind.Charges => "Charge", _ => "Résultat" };
-        var color = ComparisonView.PaletteBrush(_kind == StatKind.Charges ? 2 : _kind == StatKind.Operations ? 3 : 1);
+        var color = ComparisonView.KindBrush(_kind, 0);
         _chart.SetData($"{kindWord} « {_name} » {scope}", labels,
             new[] { new BarChart.Series(_name, color, values.ToArray()) });
         if (values.Count == 0)
@@ -291,13 +291,13 @@ internal sealed class MonthlyStatsPanel : UserControl, IPage
         var ranked = chartLines.OrderByDescending(l => l.Values.Sum(Math.Abs)).ToList();
         var series = new List<BarChart.Series>();
         for (var i = 0; i < ranked.Count && i < TopItems; i++)
-            series.Add(new BarChart.Series(ranked[i].Name, ComparisonView.PaletteBrush(i), ranked[i].Values));
+            series.Add(new BarChart.Series(ranked[i].Name, ComparisonView.KindBrush(_kind, i), ranked[i].Values));
         if (ranked.Count > TopItems)
         {
             var others = new long[months.Length];
             foreach (var l in ranked.Skip(TopItems))
                 for (var i = 0; i < others.Length; i++) others[i] += l.Values[i];
-            series.Add(new BarChart.Series("Autres", ComparisonView.PaletteBrush(TopItems), others));
+            series.Add(new BarChart.Series("Autres", ComparisonView.OthersBrush, others));
         }
         if (chartLines.Count == 0) _chart.SetGhost(title, months, "Aucune donnée pour l'instant");
         else _chart.SetData(title, months, series);
@@ -312,9 +312,9 @@ internal sealed class MonthlyStatsPanel : UserControl, IPage
         var pieRanked = pieLines.Select(l => (l.Name, Total: l.Values.Sum())).Where(x => x.Total > 0).OrderByDescending(x => x.Total).ToList();
         var slices = new List<PieChart.Slice>();
         for (var i = 0; i < pieRanked.Count && i < TopItems; i++)
-            slices.Add(new PieChart.Slice(pieRanked[i].Name, ComparisonView.PaletteBrush(i), pieRanked[i].Total));
+            slices.Add(new PieChart.Slice(pieRanked[i].Name, ComparisonView.KindBrush(_kind, i), pieRanked[i].Total));
         if (pieRanked.Count > TopItems)
-            slices.Add(new PieChart.Slice("Autres", ComparisonView.PaletteBrush(TopItems), pieRanked.Skip(TopItems).Sum(x => x.Total)));
+            slices.Add(new PieChart.Slice("Autres", ComparisonView.OthersBrush, pieRanked.Skip(TopItems).Sum(x => x.Total)));
         _pie.SetData(pieTitle, slices);
 
         _tables.Children.Clear();
