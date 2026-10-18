@@ -15,6 +15,21 @@ Effort : **S** (≤ ½ jour), **M** (1 à 3 jours), **L** (plus d'une semaine). 
 - **1 point à reproduire** avant tout développement : ventilation des recettes (§3.3).
 - Plusieurs remarques sont **déjà partiellement traitées** par les versions 1.12.x (voir colonne « Déjà fait »).
 
+## Avancement du lot 1 (branche `beta`, 18/10/2026)
+
+| # | Statut | Détail |
+|---|---|---|
+| 4.1 | Fait | « Gestion de l'entreprise » (Autoentreprise) partout : menu, titre, aide, messages. L'Asso garde « Paramétrage du dossier » |
+| 4.2 | Fait | Message « ✔ Enregistré » (2 s, sans prendre le focus) après chaque modification réussie |
+| 3.2 | Fait | « … » retirés des boutons de la barre du Livre et des immobilisations |
+| 6.1 | Fait | Graphiques « fantômes » (grille, colonnes pâles, anneau, message) quand il n'y a pas de donnée |
+| 7.2 | Fait en partie | Charges en ambre (Bilan, immobilisations, variations) ; le rouge reste réservé aux alertes et erreurs. À généraliser : écrans restants à auditer |
+| 5a | Fait | « J-N » ou « en retard de N j » dans l'alerte, bouton « Ouvrir le site de l'URSSAF » (alerte et Reporting) |
+| 1.1 | Fait | Écran d'accueil réécrit en langage simple, premier choix recommandé et message de bienvenue intégré |
+| 3.4a | Fait en partie | Champ « Rechercher une catégorie » dans la saisie d'écriture (listes de plus de 12 lignes). Non fait : liste d'affectation rapide du Livre et listes de comptes |
+| 3.3 | Non reproduit | Capture de contrôle : en mode Recette, « Ajouter une ligne de ventilation » fonctionne (3 lignes ajoutées). Cause probable : bouton situé sous la ligne, hors de la zone visible ; message « Saisissez le montant pour ventiler » peu clair. À confirmer avec le testeur |
+| 3.1a | Fait (version générique) | Page d'aide « Récupérer le fichier de votre banque » ; pas de pas-à-pas par banque (menus non vérifiables) |
+
 ## Lot 1 — Corrections rapides (version 1.13)
 
 | # | Remarque | Action | Effort | Déjà fait / notes |

@@ -34,6 +34,19 @@
 
             <Border Style="{StaticResource Card}" Margin="0,0,0,10">
                 <StackPanel>
+                    <TextBlock Text="Récupérer le fichier de votre banque (CSV ou OFX)" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Text="Le logiciel lit les fichiers CSV et OFX (ou QFX), ainsi que les relevés PDF ou images (lus par reconnaissance de texte puis contrôlés par les soldes). Il n&apos;existe pas de connexion directe aux banques : on télécharge un fichier depuis le site ou l&apos;application de la banque, puis on le dépose dans « Importer un relevé bancaire »."/>
+                    <TextBlock TextWrapping="Wrap" Margin="0,8,0,0" Text="1. Connectez-vous à l&apos;espace en ligne de votre banque (ordinateur recommandé : le téléchargement est rarement proposé dans l&apos;application mobile)."/>
+                    <TextBlock TextWrapping="Wrap" Text="2. Ouvrez le compte, puis la liste des opérations (menus « Mes comptes », « Opérations », « Historique »)."/>
+                    <TextBlock TextWrapping="Wrap" Text="3. Choisissez la période, puis cherchez « Exporter », « Télécharger » ou « Imprimer / Enregistrer » les opérations."/>
+                    <TextBlock TextWrapping="Wrap" Text="4. Prenez le format « CSV » (tableur) ou « OFX » (échange bancaire) ; à défaut, le relevé PDF."/>
+                    <TextBlock TextWrapping="Wrap" Text="5. Déposez le fichier dans la fenêtre d&apos;import : le logiciel détecte les colonnes (date, libellé, débit / crédit) et vous laisse les corriger."/>
+                    <TextBlock TextWrapping="Wrap" Margin="0,8,0,0" Style="{StaticResource MutedText}" Text="Les intitulés exacts des menus varient d&apos;une banque à l&apos;autre et changent parfois. Si vous ne trouvez pas l&apos;export, cherchez « export CSV » ou « télécharger mes opérations » dans l&apos;aide en ligne de votre banque. Un compte par fichier : importez un fichier pour chaque compte bancaire."/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
                     <TextBlock Text="Importer un relevé bancaire" Style="{StaticResource SectionText}" Margin="0,0,0,6"/>
                     <TextBlock TextWrapping="Wrap" Text="Importez votre relevé bancaire téléchargé directement depuis le menu Opérations bancaires. Les nouvelles lignes apparaissent en jaune et vous permettent de choisir le produit ou la charge immédiatement. Le logiciel contrôle le solde du relevé et ne recrée pas les lignes déjà importées lors d&apos;un nouvel import."/>
                 </StackPanel>

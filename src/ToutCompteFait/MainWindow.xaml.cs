@@ -587,6 +587,13 @@ public partial class MainWindow : Window
             var dlg = new Dialogs.EntryWindow(y) { Owner = this };
             dlg.Show();
             await Shot(dlg, "entry-new");
+            // Recette ventilée sur plusieurs lignes : on coche « Recette », saisit un montant puis ajoute deux lignes.
+            dlg.ModeIncome.IsChecked = true;
+            dlg.AmountBox.Text = "300";
+            var add = typeof(Dialogs.EntryWindow).GetMethod("AddAlloc_Click", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            add?.Invoke(dlg, new object[] { dlg, new RoutedEventArgs() });
+            add?.Invoke(dlg, new object[] { dlg, new RoutedEventArgs() });
+            await Shot(dlg, "entry-income-lines");
             dlg.Close();
             var rows = App.Compta.Entries(y.Id);
             var sample = rows.FirstOrDefault(r => r.Allocations.Count > 1) ?? rows.FirstOrDefault();
