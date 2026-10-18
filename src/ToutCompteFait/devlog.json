@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.13.4",
+      "date": "2026-10-18",
+      "show": false,
+      "title": "Version 1.13.4 (bêta)",
+      "items": [
+        "Autoentreprise : le suivi des déclarations URSSAF commence à la création du dossier ; les périodes passées sont « non suivies » (saisie possible) et ne sont plus en retard."
+      ]
+    },
+    {
       "version": "1.13.3",
       "date": "2026-10-18",
       "show": false,
