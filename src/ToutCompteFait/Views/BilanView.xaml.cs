@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using ToutCompteFait.Controls;
 using ToutCompteFait.Core;
 using ToutCompteFait.Core.Security;
 using ToutCompteFait.Dialogs;
@@ -194,6 +195,7 @@ public partial class BilanView : UserControl, IPage
             ? new SolidColorBrush(Color.FromRgb(0x04, 0x78, 0x57))
             : new SolidColorBrush(Color.FromRgb(0xB9, 0x1C, 0x1C));
         ShowDeltas(b);
+        BuildCharts(b);
 
         // Résultat négatif : précise la part d'investissement (achats d'immobilisations), qui explique souvent la baisse
         // de trésorerie sans peser sur le résultat (porté à l'actif, seule la dotation aux amortissements est une charge).
@@ -433,5 +435,61 @@ public partial class BilanView : UserControl, IPage
         }
         catch (IOException ex) { Ui.Error("Export impossible : " + ex.Message); }
     }
-}
 
+    // ------------------------------------------------------------------ graphiques
+
+    private readonly BarChart _monthsChart = new() { Height = 300 };
+    private readonly PieChart _chargesPie = new();
+    private readonly PieChart _productsPie = new();
+    private bool _chartsBuilt;
+
+    /// <summary>Graphiques du bilan : produits et charges mois par mois, et répartition des charges et des produits (hors
+    /// éléments « personnels »). Mêmes contrôles que l'écran Statistiques.</summary>
+    private void BuildCharts(Bilan b)
+    {
+        if (!_chartsBuilt)
+        {
+            _chartsBuilt = true;
+            // Trois cartes côte à côte (graphique des mois, répartition des charges, répartition des produits).
+            Border Wrap(UIElement chart, Thickness margin) => new Border
+            {
+                Style = (Style)FindResource("Card"), Padding = new Thickness(0), Margin = margin, VerticalAlignment = VerticalAlignment.Top, Child = chart
+            };
+            ChartsHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+            ChartsHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 250 });
+            ChartsHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 250 });
+            var left = Wrap(_monthsChart, new Thickness(0, 0, 10, 0));
+            var mid = Wrap(_chargesPie, new Thickness(0, 0, 10, 0));
+            var right = Wrap(_productsPie, new Thickness(0));
+            Grid.SetColumn(mid, 1);
+            Grid.SetColumn(right, 2);
+            ChartsHost.Children.Add(left);
+            ChartsHost.Children.Add(mid);
+            ChartsHost.Children.Add(right);
+        }
+        var stats = _c.ComputeMonthlyStatistics(_year.Id);
+        var months = stats.Months.Select(m => m.ToString("MMM yy", System.Globalization.CultureInfo.GetCultureInfo("fr-FR"))).ToArray();
+        long[] Sum(IReadOnlyList<ComparisonLine> lines) =>
+            Enumerable.Range(0, months.Length).Select(i => lines.Sum(l => l.Values[i])).ToArray();
+        var products = Sum(stats.Products);
+        var charges = Sum(stats.Charges);
+        if (products.All(v => v == 0) && charges.All(v => v == 0))
+            _monthsChart.SetGhost("Produits et charges par mois", months, "Aucune donnée pour l'instant");
+        else
+            _monthsChart.SetData("Produits et charges par mois", months, new[]
+            {
+                new BarChart.Series("Produits", ComparisonView.KindBrush(StatKind.Products, 0), products),
+                new BarChart.Series("Charges", ComparisonView.KindBrush(StatKind.Charges, 0), charges)
+            });
+
+        PieChart.Slice[] Slices(IEnumerable<CategoryResult> cats, StatKind kind)
+        {
+            var ranked = cats.Where(c => !c.Personal && c.Total > 0).OrderByDescending(c => c.Total).ToList();
+            var slices = ranked.Take(7).Select((c, i) => new PieChart.Slice(c.Name, ComparisonView.KindBrush(kind, i), c.Total)).ToList();
+            if (ranked.Count > 7) slices.Add(new PieChart.Slice("Autres", ComparisonView.OthersBrush, ranked.Skip(7).Sum(c => c.Total)));
+            return slices.ToArray();
+        }
+        _chargesPie.SetData("Répartition des charges", Slices(b.Charges, StatKind.Charges));
+        _productsPie.SetData("Répartition des produits", Slices(b.Products, StatKind.Products));
+    }
+}

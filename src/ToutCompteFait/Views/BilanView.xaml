@@ -83,6 +83,9 @@
                 </Border>
             </UniformGrid>
 
+            <!-- Graphiques : produits et charges mois par mois, répartition des charges et des produits -->
+            <Grid x:Name="ChartsHost" Margin="0,16,0,0"/>
+
             <!-- Compte de fonctionnement -->
             <TextBlock Text="Compte de fonctionnement" Style="{StaticResource SectionText}" Margin="0,18,0,6"/>
             <Grid>

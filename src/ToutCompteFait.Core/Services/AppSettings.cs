@@ -40,6 +40,12 @@ public sealed class AppSettings
     /// <summary>Nombre d'exercices affichés dans l'onglet Comparaison (exercice courant compris), de 2 à 10.</summary>
     public int ComparisonYears { get; set; } = 3;
 
+    /// <summary>Page ouverte au lancement (étiquette du menu : « livre », « bilan », « compare »…) ; vide = Opérations bancaires.</summary>
+    public string? StartPage { get; set; }
+
+    /// <summary>Ordre personnalisé des entrées du menu de gauche (étiquettes) ; vide = ordre d'origine.</summary>
+    public List<string> NavOrder { get; set; } = new();
+
     /// <summary>Dernier nom d'utilisateur saisi à la connexion (confort : jamais le mot de passe).</summary>
     public string? LastUserName { get; set; }
 

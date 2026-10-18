@@ -25,6 +25,8 @@
                             <Button x:Name="AddProduct" Content="＋ Ajouter" Style="{StaticResource PrimaryButton}" Tag="P" Click="AddCategory_Click"/>
                             <Button x:Name="RenameProduct" Content="Renommer" Style="{StaticResource SecondaryButton}" Tag="P" Click="RenameCategory_Click"/>
                             <Button x:Name="TypeProduct" Content="Type URSSAF…" Style="{StaticResource SecondaryButton}" Visibility="Collapsed" Click="SetUrssafType_Click"/>
+                            <Button x:Name="TemplateButton" Content="Modèles de catégories" Style="{StaticResource SecondaryButton}" Visibility="Collapsed" Click="Templates_Click"
+                                    ToolTip="Ajoute les produits et charges courants de votre activité (vente, fabrication, prestation, profession libérale), avec un numéro de compte usuel."/>
                             <Button x:Name="PersonalProduct" Content="Personnelle ↔ activité" Style="{StaticResource SecondaryButton}" Visibility="Collapsed" Click="TogglePersonalProduct_Click"
                                     ToolTip="Somme personnelle de l'exploitant encaissée sur le compte de l'activité (apport) : elle reste dans le livre et le solde bancaire, mais sort du résultat et du chiffre d'affaires (portée au passif en apports de l'exploitant)."/>
                             <Button x:Name="UpProduct" Content="↑" Style="{StaticResource SecondaryButton}" Tag="P" Click="UpCategory_Click"/>

@@ -744,6 +744,29 @@ Console.WriteLine("Ventilation proposée d'après l'historique");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ modèles de catégories par activité
+Console.WriteLine("Modèles de catégories");
+{
+    var path = TempDb();
+    {
+        var c = NewCompta(NewFactory(path));
+        var y = c.CreateYear(Dt(2025, 1, 1), Dt(2025, 12, 31));
+        var tpl = CategoryTemplates.Find("fabrication")!;
+        var before = c.Categories(y.Id).Count;
+        var already = tpl.Items.Count(i => c.Categories(y.Id).Any(k => k.Kind == i.Kind && string.Equals(k.Name, i.Name, StringComparison.OrdinalIgnoreCase)));
+        var added = c.ApplyCategoryTemplate(y.Id, tpl.Items);
+        Eq(tpl.Items.Count - already, added, "seules les catégories absentes du modèle sont ajoutées");
+        Eq(before + added, c.Categories(y.Id).Count, "nombre de catégories de l'exercice");
+        Eq(0, c.ApplyCategoryTemplate(y.Id, tpl.Items), "ré-application : rien d'ajouté (idempotent)");
+        var row = c.CategoryAccountNumbers().First(r => r.Name == "Matières premières");
+        Eq("601000", row.Number, "numéro de compte usuel posé");
+        Eq(UrssafKind.Sale, c.CategoryUrssafKinds()["Ventes de produits fabriqués"], "type URSSAF du produit posé");
+        c.ValidateYear(y.Id);
+        Throws(() => c.ApplyCategoryTemplate(y.Id, tpl.Items), "exercice validé : modèle refusé", "validé");
+    }
+    Cleanup(path);
+}
+
 // ------------------------------------------------------------------ centre de notifications
 Console.WriteLine("Centre de notifications");
 {

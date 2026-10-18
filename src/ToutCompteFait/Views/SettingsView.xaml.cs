@@ -75,6 +75,7 @@ public partial class SettingsView : UserControl, IPage
         Tabs.SelectedIndex = 0;
 
         InitUpdates();
+        InitDisplay();
         InitLicense();
         _year = year;
         _canEdit = App.Can(Permission.ManageStructure) && year.Open;

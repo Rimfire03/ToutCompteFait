@@ -80,6 +80,8 @@ public partial class MainWindow : Window
         {
             UpdateFooter();
             LoadYears(App.Settings.LastYear);
+            ApplyNavigationPreferences();
+            OpenStartPage();
             if (CurrentYear is null && App.Can(Permission.ManageStructure)) PromptFirstYear();
             Dispatcher.BeginInvoke(new Action(ShowDevLogIfNeeded), DispatcherPriority.ApplicationIdle);
             Dispatcher.BeginInvoke(new Action(ShowUrssafAlertIfNeeded), DispatcherPriority.ApplicationIdle);
@@ -463,6 +465,47 @@ public partial class MainWindow : Window
         }
     }
 
+    // ------------------------------------------------------------------ préférences de navigation
+
+    /// <summary>Entrées du menu de gauche (étiquette interne, libellé sans icône, visible ou non), dans l'ordre affiché.</summary>
+    public List<(string Tag, string Label, bool Visible)> NavigationItems()
+    {
+        if (NavMembers.Parent is not Panel panel) return new();
+        return panel.Children.OfType<RadioButton>().Where(b => b.Tag is string)
+            .Select(b => ((string)b.Tag, NavLabel(b), b.Visibility == Visibility.Visible)).ToList();
+    }
+
+    private static string NavLabel(RadioButton b)
+    {
+        var s = (b.Content as string ?? "").Trim();
+        // Retire l'icône (émoji) et les espaces qui la suivent.
+        var i = s.IndexOf("   ", StringComparison.Ordinal);
+        return i >= 0 ? s[(i + 3)..].Trim() : s;
+    }
+
+    /// <summary>Applique l'ordre du menu choisi dans Paramétrage appli → Affichage (les entrées inconnues restent à leur place).</summary>
+    public void ApplyNavigationPreferences()
+    {
+        if (NavMembers.Parent is not Panel panel) return;
+        var buttons = panel.Children.OfType<RadioButton>().ToList();
+        if (buttons.Count == 0) return;
+        _defaultNavOrder ??= buttons.Select(b => b.Tag as string ?? "").ToList();
+        var wanted = App.Settings.NavOrder.Count > 0 ? App.Settings.NavOrder : _defaultNavOrder;
+        var ordered = wanted.Select(t => buttons.FirstOrDefault(b => b.Tag as string == t)).Where(b => b is not null).Cast<RadioButton>()
+            .Concat(buttons.Where(b => !wanted.Contains(b.Tag as string ?? ""))).ToList();
+        foreach (var b in buttons) panel.Children.Remove(b);
+        for (var i = 0; i < ordered.Count; i++) panel.Children.Insert(i, ordered[i]);
+    }
+
+    /// <summary>Ouvre la page choisie comme écran d'accueil (si elle existe et est visible).</summary>
+    private void OpenStartPage()
+    {
+        var tag = App.Settings.StartPage;
+        if (string.IsNullOrEmpty(tag) || tag == "livre" || NavMembers.Parent is not Panel panel) return;
+        var b = panel.Children.OfType<RadioButton>().FirstOrDefault(x => x.Tag as string == tag && x.Visibility == Visibility.Visible);
+        if (b is not null) b.IsChecked = true;
+    }
+    private List<string>? _defaultNavOrder;
     private RadioButton? _navAssets;
     private RadioButton? _navNotif;
 

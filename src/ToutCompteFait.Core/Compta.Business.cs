@@ -189,6 +189,26 @@ public sealed partial class Compta
         return cat;
     }
 
+    /// <summary>Ajoute à l'exercice les catégories d'un modèle d'activité qui n'existent pas encore (comparaison du nom sans
+    /// tenir compte de la casse), avec leur numéro de compte usuel et, pour un produit, son type URSSAF. Renvoie le nombre de
+    /// catégories ajoutées ; les catégories déjà présentes ne sont jamais modifiées.</summary>
+    public int ApplyCategoryTemplate(long yearId, IEnumerable<TemplateItem> items)
+    {
+        RequireOpen(yearId, Permission.ManageStructure);
+        var existing = Categories(yearId).Select(c => (c.Kind, c.Name.ToLowerInvariant())).ToHashSet();
+        var personalProducts = PersonalProductNames();
+        var added = 0;
+        foreach (var it in items)
+        {
+            if (existing.Contains((it.Kind, it.Name.ToLowerInvariant()))) continue;
+            AddCategory(yearId, it.Kind, it.Name);
+            SetCategoryAccountNumber(it.Kind, it.Name, it.AccountNumber);
+            if (it.Kind == CategoryKind.Product && it.Urssaf is { } k && !personalProducts.Contains(it.Name)) SetCategoryUrssafKind(it.Name, k);
+            added++;
+        }
+        return added;
+    }
+
     /// <summary>Un renommage de catégorie emporte son type URSSAF (clé = nom).</summary>
     private static void MoveCategoryUrssaf(AppDbContext ctx, string oldName, string newName)
     {

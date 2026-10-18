@@ -70,6 +70,7 @@ public partial class SettingsView
         }
         // Colonne « Type URSSAF » dans la liste des produits.
         TypeProduct.Visibility = Visibility.Visible;
+        TemplateButton.Visibility = Visibility.Visible;
         ProductsGrid.Columns.Insert(1, new DataGridTextColumn
         {
             Header = "Type URSSAF", Binding = new System.Windows.Data.Binding("Type"), Width = 130,
@@ -502,6 +503,19 @@ public partial class SettingsView
             _bizLoaded = _c.GetBusinessProfile();
             Ui.Info("Informations de l'entreprise enregistrées.");
             MainWindow.Current?.RefreshBusinessNav();
+        }
+    }
+
+    /// <summary>Modèles de catégories par activité : ajoute les produits et charges courants absents de l'exercice.</summary>
+    private void Templates_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Dialogs.CategoryTemplateWindow(_c.Categories(_year.Id)) { Owner = Window.GetWindow(this) };
+        if (dlg.ShowDialog() != true || dlg.Selected.Count == 0) return;
+        var added = 0;
+        if (Ui.Try(() => added = _c.ApplyCategoryTemplate(_year.Id, dlg.Selected)))
+        {
+            Reload();
+            Ui.Info($"{added} catégorie(s) ajoutée(s). Vous pouvez les renommer ou les compléter à tout moment ; leurs numéros de compte se modifient depuis le Paramétrage.");
         }
     }
 }
