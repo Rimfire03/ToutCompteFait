@@ -357,7 +357,9 @@ public sealed partial class Compta
         var years = Years();
         if (years.Count > 0) starts.Add(years.Min(y => y.Start));
         if (starts.Count == 0) return new List<UrssafPeriod>();   // aucune activité connue : rien à déclarer
-        var from = starts.Min() > earliest ? starts.Min() : earliest;
+        var start = starts.Min();
+        if (UrssafTrackingStart() is { } tracking && tracking > start) start = tracking;   // suivi commencé à la création du dossier
+        var from = start > earliest ? start : earliest;
         var done = Declarations().Select(d => d.PeriodKey).ToHashSet();
         var result = new List<UrssafPeriod>();
         var p = UrssafPeriod.ForDate(today, profile.Mode);
@@ -398,7 +400,31 @@ public sealed partial class Compta
     }
 
     /// <summary>État d'une période dans le calendrier des échéances.</summary>
-    public enum UrssafPeriodState { Declared, Late, Due, Running, Upcoming }
+    public enum UrssafPeriodState { Declared, Late, Due, Running, Upcoming, NotTracked }
+
+    private const string TrackingKey = "urssaf.tracking";
+
+    /// <summary>Date de début du suivi des déclarations URSSAF (création du dossier dans le logiciel) ; null = suivi depuis le
+    /// début de l'activité. Les périodes terminées avant cette date ne sont jamais « en retard » : elles sont « non suivies »,
+    /// mais restent saisissables.</summary>
+    public DateOnly? UrssafTrackingStart()
+    {
+        using var l = Open();
+        return ReadBusinessSettings(l.Ctx).TryGetValue(TrackingKey, out var v)
+            && DateOnly.TryParseExact(v, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+    }
+
+    public void SetUrssafTrackingStart(DateOnly? date)
+    {
+        Require(Permission.ManageStructure);
+        RequireWritable();
+        using var tx = Begin();
+        var ctx = Open().Ctx;
+        WriteBusinessSettings(ctx, new Dictionary<string, string?> { [TrackingKey] = date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) });
+        Save(ctx);
+        Log(ctx, "Suivi des déclarations URSSAF", date is { } d ? $"début du suivi : {d:dd/MM/yyyy}" : "suivi depuis le début de l'activité");
+        tx.Commit();
+    }
 
     /// <summary>Une ligne du calendrier : période, état et, si déclarée, montants calculé et déclaré.</summary>
     public sealed record UrssafCalendarEntry(UrssafPeriod Period, UrssafPeriodState State, UrssafDeclaration? Declaration);
@@ -409,11 +435,13 @@ public sealed partial class Compta
     {
         var mode = GetBusinessProfile().Mode;
         var declared = Declarations().ToDictionary(d => d.PeriodKey);
+        var tracking = UrssafTrackingStart();
         return UrssafPeriod.OfYear(calendarYear, mode).Select(p =>
         {
             declared.TryGetValue(p.Key, out var d);
             var state = d is not null ? UrssafPeriodState.Declared
                 : today <= p.End ? (today >= p.Start ? UrssafPeriodState.Running : UrssafPeriodState.Upcoming)
+                : tracking is { } t && p.End < t ? UrssafPeriodState.NotTracked
                 : today > p.DueDate ? UrssafPeriodState.Late : UrssafPeriodState.Due;
             return new UrssafCalendarEntry(p, state, d);
         }).ToList();

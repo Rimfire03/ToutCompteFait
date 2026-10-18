@@ -869,6 +869,16 @@ Console.WriteLine("Alerte déclaration URSSAF");
         Eq(3, after.Count, "période marquée déclarée : plus d'alerte pour elle");
         Check(after.All(p => p.Key != "2026-T1"), "1er trimestre 2026 retiré de l'alerte");
         Eq(0, c.PendingUrssafDeclarations(new DateOnly(2024, 6, 1)).Count, "avant le début de l'activité : rien");
+        // Suivi commencé à la création du dossier : les périodes passées ne sont ni en retard ni à traiter.
+        var tracked = NewCompta(NewFactory(path + ".t.db"));
+        tracked.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
+        tracked.SetUrssafTrackingStart(new DateOnly(2026, 10, 18));
+        var todayT = new DateOnly(2026, 10, 18);
+        Eq(0, tracked.PendingUrssafDeclarations(todayT).Count, "dossier créé aujourd'hui : aucun retard");
+        Eq(1, tracked.PendingUrssafDeclarations(new DateOnly(2027, 1, 5)).Count, "après le 4e trimestre : seule cette période est à faire");
+        var calT = tracked.UrssafCalendar(2026, todayT);
+        Eq(Compta.UrssafPeriodState.NotTracked, calT[0].State, "trimestre passé : non suivi");
+        Eq(Compta.UrssafPeriodState.Running, calT[3].State, "4e trimestre : en cours");
         c.MarkUrssafDeclared(UrssafPeriod.Quarterly(2026, 1), "réf. 123", 123400);
         var decl = c.Declarations().First(x => x.PeriodKey == "2026-T1");
         Eq(123400L, decl.DeclaredCents, "montant déclaré conservé");

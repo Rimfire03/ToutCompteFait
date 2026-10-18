@@ -339,6 +339,7 @@ public sealed class ReportingView : UserControl, IPage
                 Compta.UrssafPeriodState.Late => ("#FEE2E2", "#FCA5A5", "#991B1B", "En retard"),
                 Compta.UrssafPeriodState.Due => ("#FEF3C7", "#FCD34D", "#92400E", $"J-{Math.Max(0, e.Period.DueDate.DayNumber - today.DayNumber)}"),
                 Compta.UrssafPeriodState.Running => ("#DBEAFE", "#93C5FD", "#1E3A8A", "En cours"),
+                Compta.UrssafPeriodState.NotTracked => ("#F1F5F9", "#CBD5E1", "#475569", "Non suivie"),
                 _ => ("#F1F5F9", "#CBD5E1", "#475569", "À venir")
             };
             var conv = new System.Windows.Media.BrushConverter();

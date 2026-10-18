@@ -396,6 +396,7 @@ public sealed class SetupWizardWindow : Window
                 if (_business)
                 {
                     var name = _companyName.Text.Trim();
+                    _compta.SetUrssafTrackingStart(DateOnly.FromDateTime(DateTime.Today));
                     if (name.Length > 0) _compta.SaveBusinessProfile(_compta.GetBusinessProfile() with { Name = name });
                     _compta.CompleteBusinessOnboarding(_createdYear.Id, Template,
                         _monthly.IsChecked == true ? DeclarationMode.Monthly : DeclarationMode.Quarterly, _assetsYes.IsChecked == true);
