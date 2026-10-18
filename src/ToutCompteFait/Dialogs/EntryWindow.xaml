@@ -70,6 +70,11 @@
             <StackPanel x:Name="AllocSection">
                 <TextBlock x:Name="AllocTitle" Text="Ventilation (produit ou charge concerné)" Style="{StaticResource SectionText}"/>
                 <TextBlock x:Name="AllocHelp" Style="{StaticResource MutedText}" Margin="0,-4,0,8"/>
+                <!-- Recherche : visible quand les listes sont longues ; ne garde dans les listes que les lignes contenant le texte. -->
+                <StackPanel x:Name="CatFilterBox" Visibility="Collapsed" Margin="0,0,0,8">
+                    <TextBlock Text="🔍  Rechercher une catégorie : tapez quelques lettres, les listes ne gardent que les lignes correspondantes" Style="{StaticResource MutedText}"/>
+                    <TextBox x:Name="CatFilter" TextChanged="CatFilter_TextChanged"/>
+                </StackPanel>
                 <StackPanel x:Name="AllocPanel"/>
                 <WrapPanel Margin="0,6,0,0">
                     <Button Content="＋  Ajouter une ligne de ventilation" Style="{StaticResource SecondaryButton}" Click="AddAlloc_Click"/>

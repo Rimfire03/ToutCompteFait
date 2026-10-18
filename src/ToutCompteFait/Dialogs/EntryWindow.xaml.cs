@@ -324,9 +324,30 @@ public partial class EntryWindow : Window
              : charges.Concat(products);
     }
 
+    private bool _filtering;
+
     private void FillCombo(ComboBox combo)
     {
-        combo.ItemsSource = ItemsForMode().ToList();
+        var all = ItemsForMode().ToList();
+        // Recherche : seules les lignes contenant le texte tapé (la ligne déjà choisie reste toujours proposée).
+        var filter = CatFilter?.Text.Trim() ?? "";
+        var selected = (combo.SelectedItem as CatItem)?.Cat.Id;
+        var shown = filter.Length == 0
+            ? all
+            : all.Where(i => i.Cat.Id == selected || i.Display.Contains(filter, StringComparison.CurrentCultureIgnoreCase)).ToList();
+        combo.ItemsSource = shown;
+        if (selected is { } id) combo.SelectedItem = shown.FirstOrDefault(i => i.Cat.Id == id);
+        // Le champ de recherche n'apparaît que pour les longues listes.
+        if (CatFilterBox is not null) CatFilterBox.Visibility = all.Count > 12 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void CatFilter_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_init) return;
+        _filtering = true;
+        try { foreach (var r in _rows) FillCombo(r.Combo); }
+        finally { _filtering = false; }
+        RefreshStatus();
     }
 
     private AllocRow AddAllocRow(Category? cat = null, long shownCents = 0, bool hasAmount = false)
@@ -355,7 +376,7 @@ public partial class EntryWindow : Window
         root.Children.Add(remove);
 
         var row = new AllocRow { Combo = combo, Amount = amount, Root = root, AmountTouched = hasAmount };
-        combo.SelectionChanged += (_, _) => { SyncSingleRow(); RefreshStatus(); };
+        combo.SelectionChanged += (_, _) => { if (_filtering) return; SyncSingleRow(); RefreshStatus(); };
         amount.TextChanged += (_, _) =>
         {
             if (amount.IsKeyboardFocused) row.AmountTouched = true;

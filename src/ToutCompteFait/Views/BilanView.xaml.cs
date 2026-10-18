@@ -80,8 +80,8 @@ public partial class BilanView : UserControl, IPage
             var good = higherIsBetter ? pct >= 0 : pct <= 0;
             text.Text = (pct > 0 ? "▲ +" : pct < 0 ? "▼ " : "= ") + pct.ToString("0.#", System.Globalization.CultureInfo.GetCultureInfo("fr-FR")) +
                         " % vs " + prevYear!.Label;
-            text.Foreground = new SolidColorBrush(good ? Color.FromRgb(0x15, 0x80, 0x3D) : Color.FromRgb(0xB9, 0x1C, 0x1C));
-            pill.Background = new SolidColorBrush(good ? Color.FromRgb(0xDC, 0xFC, 0xE7) : Color.FromRgb(0xFE, 0xE2, 0xE2));
+            text.Foreground = new SolidColorBrush(good ? Color.FromRgb(0x15, 0x80, 0x3D) : Color.FromRgb(0xB4, 0x53, 0x09));
+            pill.Background = new SolidColorBrush(good ? Color.FromRgb(0xDC, 0xFC, 0xE7) : Color.FromRgb(0xFE, 0xF3, 0xC7));
             pill.Visibility = Visibility.Visible;
         }
         Pill(ProductsPill, ProductsDelta, b.ProductsTotal, prev?.ProductsTotal ?? 0, higherIsBetter: true);
@@ -189,7 +189,7 @@ public partial class BilanView : UserControl, IPage
         ChargesTotal.Text = Money.Format(b.ChargesTotal) + " €";
         ResultTotal.Text = (b.Result > 0 ? "+" : "") + Money.Format(b.Result) + " €";
         ProductsTotal.Foreground = new SolidColorBrush(Color.FromRgb(0x15, 0x80, 0x3D));
-        ChargesTotal.Foreground = new SolidColorBrush(Color.FromRgb(0xB9, 0x1C, 0x1C));
+        ChargesTotal.Foreground = new SolidColorBrush(Color.FromRgb(0xB4, 0x53, 0x09));   // charge : ambre (pas une alerte)
         ResultTotal.Foreground = b.Result >= 0
             ? new SolidColorBrush(Color.FromRgb(0x04, 0x78, 0x57))
             : new SolidColorBrush(Color.FromRgb(0xB9, 0x1C, 0x1C));
@@ -205,7 +205,7 @@ public partial class BilanView : UserControl, IPage
         {
             var positive = src.Where(c => c.Total > 0).Sum(c => c.Total);
             var isCharges = ReferenceEquals(src, b.Charges) || (src.Count > 0 && src[0].Kind == CategoryKind.Charge);
-            var barBrush = new SolidColorBrush(isCharges ? Color.FromRgb(0xEF, 0x44, 0x44) : Color.FromRgb(0x16, 0xA3, 0x4A));
+            var barBrush = new SolidColorBrush(isCharges ? Color.FromRgb(0xF5, 0x9E, 0x0B) : Color.FromRgb(0x16, 0xA3, 0x4A));
             var l = src.Select(c => new BilanLine
             {
                 Name = c.Name,

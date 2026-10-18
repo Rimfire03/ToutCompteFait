@@ -79,7 +79,7 @@ public sealed class AssetsView : UserControl, IPage
         bar.Children.Add(_delete);
         head.Children.Add(bar);
         var tiles = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3, Margin = new Thickness(0, 4, 0, 14) };
-        tiles.Children.Add(Tile("Dotations aux amortissements de l'exercice", _tileDep, "↘", "#FEE2E2", "#B91C1C", new Thickness(0, 0, 10, 0)));
+        tiles.Children.Add(Tile("Dotations aux amortissements de l'exercice", _tileDep, "↘", "#FEF3C7", "#B45309", new Thickness(0, 0, 10, 0)));
         tiles.Children.Add(Tile("Valeur nette à la clôture", _tileNet, "＝", "#DBEAFE", "#1D4ED8", new Thickness(5, 0, 5, 0)));
         tiles.Children.Add(Tile("Achats immobilisés (hors charges)", _tileBuy, "↗", "#DCFCE7", "#15803D", new Thickness(10, 0, 0, 0)));
         head.Children.Add(tiles);
