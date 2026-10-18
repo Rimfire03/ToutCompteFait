@@ -24,8 +24,14 @@ public record UpdateInfo(string Version, string ReleaseUrl, string ReleaseNotes,
 public static class UpdateChannels
 {
     public const string Main = "Main";
+    public const string Beta = "Beta";
     public const string Dev = "Dev";
-    public static readonly string[] All = [Main, Dev];
+    public static readonly string[] All = [Main, Beta, Dev];
+
+    /// <summary>Suffixe du tag des préversions du canal (« -beta », « -dev »), vide pour Main.</summary>
+    public static string TagSuffix(string channel) =>
+        string.Equals(channel, Beta, StringComparison.OrdinalIgnoreCase) ? "-beta"
+        : string.Equals(channel, Dev, StringComparison.OrdinalIgnoreCase) ? "-dev" : "";
 }
 
 public class UpdateService
@@ -65,7 +71,9 @@ public class UpdateService
         LastCheckNote = null;
         // Main : dernière release stable (branche main). Dev : release la plus récente de la branche dev, dont le
         // tag se termine par "-dev" (publiée en pré-version, donc jamais vue par /releases/latest).
-        var dev = string.Equals(channel, UpdateChannels.Dev, StringComparison.OrdinalIgnoreCase);
+        // Beta : même principe avec le suffixe « -beta ».
+        var suffix = UpdateChannels.TagSuffix(channel);
+        var dev = suffix.Length > 0;
         var url = dev
             ? $"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases?per_page=30"
             : $"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/latest";
@@ -86,7 +94,7 @@ public class UpdateService
             var first = root.EnumerateArray().FirstOrDefault(r =>
                 !(r.TryGetProperty("draft", out var d) && d.ValueKind == JsonValueKind.True)
                 && r.TryGetProperty("tag_name", out var tn)
-                && (tn.GetString() ?? "").EndsWith("-dev", StringComparison.OrdinalIgnoreCase));
+                && (tn.GetString() ?? "").EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
             if (first.ValueKind != JsonValueKind.Object) return null;
             root = first;
         }
@@ -302,5 +310,9 @@ public class UpdateService
     }
 
     // Comparaison de versions commune (suffixe de canal « -dev » ignoré) : voir TomLine.AppInfo.
-    private static bool IsNewer(string candidate, string current) => TomLine.AppInfo.AppVersion.IsNewer(candidate, current);
+    // Le suffixe « -beta » est retiré avant la comparaison : le composant commun ne connaît que « -dev ».
+    private static bool IsNewer(string candidate, string current) =>
+        TomLine.AppInfo.AppVersion.IsNewer(StripBeta(candidate), StripBeta(current));
+
+    private static string StripBeta(string v) => v.EndsWith("-beta", StringComparison.OrdinalIgnoreCase) ? v[..^5] : v;
 }

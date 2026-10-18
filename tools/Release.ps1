@@ -27,7 +27,7 @@ param(
     [string]$Notes,
     [string]$NotesFile,
     [switch]$NoPublish,
-    [ValidateSet("main","dev")][string]$Channel = "main",
+    [ValidateSet("main","beta","dev")][string]$Channel = "main",
     [string]$Repo = "Rimfire03/ToutCompteFait",
     [string[]]$Edition
 )
@@ -45,8 +45,9 @@ function DropDir([string]$p) { if (Test-Path $p) { [IO.Directory]::Delete($p, $t
 $m = [regex]::Match([IO.File]::ReadAllText($csproj), '<Version>(\d+\.\d+\.\d+)</Version>')
 if (-not $m.Success) { throw "Balise <Version> introuvable dans $csproj" }
 $version = $m.Groups[1].Value
-$dev = ($Channel -eq "dev")
-$tag = if ($dev) { "v$version-dev" } else { "v$version" }
+$dev = ($Channel -ne "main")   # préversion : canal dev ou beta
+$suffix = if ($Channel -eq "main") { "" } else { "-$Channel" }
+$tag = "v$version$suffix"
 Step "version $version"
 # Devlog (nouveautes affichees apres la mise a jour) : rappel si la version n'a pas d'entree ou si show vaut false.
 $devlogPath = Join-Path $root "src\ToutCompteFait\devlog.json"
@@ -99,7 +100,7 @@ foreach ($ed in $all) {
     Step "[$id] dotnet publish"
     & dotnet publish $csproj -c Release -r win-x64 -p:Edition=$id `
         --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
-        -p:PublishReadyToRun=false -p:EnableCompressionInSingleFile=true -p:DebugType=None $(if ($dev) { "-p:ReleaseChannel=dev" }) `
+        -p:PublishReadyToRun=false -p:EnableCompressionInSingleFile=true -p:DebugType=None $(if ($dev) { "-p:ReleaseChannel=$Channel" }) `
         -o $publishDir --nologo -v quiet | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "dotnet publish ($id) a echoue (code $LASTEXITCODE)." }
 
@@ -203,7 +204,7 @@ if ($NoPublish) {
 # des autres versions sont ajoutes UN PAR UN (ordre garanti : les anciennes installations prennent le premier .msi/.zip).
 Step "gh release create $tag"
 $sha = (Git rev-parse HEAD | Select-Object -First 1).Trim()
-& gh.exe release create $tag $groups[0].Files --repo $Repo --target $sha --title "Version $version$(if ($dev) { ' (dev)' })" --notes-file $notesPath $(if ($dev) { "--prerelease" } else { "--latest" })
+& gh.exe release create $tag $groups[0].Files --repo $Repo --target $sha --title "Version $version$(if ($dev) { " ($Channel)" })" --notes-file $notesPath $(if ($dev) { "--prerelease" } else { "--latest" })
 if ($LASTEXITCODE -ne 0) { throw "gh release create a echoue (code $LASTEXITCODE)." }
 foreach ($g in ($groups | Select-Object -Skip 1)) {
     foreach ($f in $g.Files) {

@@ -1,6 +1,18 @@
 {
   "entries": [
     {
+      "version": "1.13.0",
+      "date": "2026-10-18",
+      "show": false,
+      "title": "Nouveautés de la version 1.13.0 (bêta)",
+      "items": [
+        "Centre de notifications (cloche), page « Premiers pas » avec visite guidée, profil court à la première ouverture et mode démonstration avec données fictives.",
+        "Reporting URSSAF : calendrier des échéances, montant réellement déclaré conservé avec l'écart, jours restants et lien vers le site de l'URSSAF.",
+        "Bilan : graphiques (produits et charges par mois, répartition). Statistiques : graphiques vides plutôt qu'un écran blanc, couleurs par sens (produits verts, charges ambre).",
+        "Menu personnalisable (ordre et page d'accueil), création de compte depuis la saisie et l'import, modèles de catégories par activité, onglet « Comptes comptables »."
+      ]
+    },
+    {
       "version": "1.12.9",
       "date": "2026-10-18",
       "show": false,
