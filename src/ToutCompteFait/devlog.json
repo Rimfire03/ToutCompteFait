@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.13.2",
+      "date": "2026-10-18",
+      "show": false,
+      "title": "Version 1.13.2 (bêta)",
+      "items": [
+        "Mode démonstration : connexion automatique aussi lorsqu'il est activé depuis l'écran de premier lancement."
+      ]
+    },
+    {
       "version": "1.13.1",
       "date": "2026-10-18",
       "show": false,
