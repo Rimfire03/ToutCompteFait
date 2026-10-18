@@ -192,6 +192,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.DeclaredBy).HasColumnName("declared_by").HasMaxLength(200);
             e.Property(x => x.TurnoverCents).HasColumnName("turnover_cents");
             e.Property(x => x.Note).HasColumnName("note").HasMaxLength(500);
+            e.Property(x => x.DeclaredCents).HasColumnName("declared_cents");
         });
 
         b.Entity<YearEntity>(e =>

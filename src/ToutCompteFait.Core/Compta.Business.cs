@@ -284,7 +284,7 @@ public sealed partial class Compta
             .Select(d => new UrssafDeclaration(d.PeriodKey,
                 DateOnly.ParseExact(d.PeriodStart, "yyyy-MM-dd", CultureInfo.InvariantCulture),
                 DateOnly.ParseExact(d.PeriodEnd, "yyyy-MM-dd", CultureInfo.InvariantCulture),
-                DateTime.Parse(d.DeclaredAt, CultureInfo.InvariantCulture), d.DeclaredBy, d.TurnoverCents, d.Note))
+                DateTime.Parse(d.DeclaredAt, CultureInfo.InvariantCulture), d.DeclaredBy, d.TurnoverCents, d.Note, d.DeclaredCents))
             .OrderByDescending(d => d.Start).ToList();
     }
 
@@ -314,7 +314,7 @@ public sealed partial class Compta
     }
 
     /// <summary>Marque la période comme déclarée à l'URSSAF (trace : date, auteur, montant du chiffre d'affaires).</summary>
-    public void MarkUrssafDeclared(UrssafPeriod period, string? note = null)
+    public void MarkUrssafDeclared(UrssafPeriod period, string? note = null, long? declaredCents = null)
     {
         Require(Permission.WriteLedger);
         RequireWritable();
@@ -333,9 +333,33 @@ public sealed partial class Compta
         row.DeclaredBy = Session?.DisplayName;
         row.TurnoverCents = report.TotalTurnoverCents;
         row.Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        row.DeclaredCents = declaredCents;
         Save(ctx);
-        Log(ctx, "Déclaration URSSAF marquée comme faite", $"{period.Label} : chiffre d'affaires {Money.Format(report.TotalTurnoverCents)} €");
+        Log(ctx, "Déclaration URSSAF marquée comme faite", $"{period.Label} : chiffre d'affaires calculé {Money.Format(report.TotalTurnoverCents)} €" +
+            (declaredCents is { } dc ? $", montant déclaré {Money.Format(dc)} €" : ""));
         tx.Commit();
+    }
+
+    /// <summary>État d'une période dans le calendrier des échéances.</summary>
+    public enum UrssafPeriodState { Declared, Late, Due, Running, Upcoming }
+
+    /// <summary>Une ligne du calendrier : période, état et, si déclarée, montants calculé et déclaré.</summary>
+    public sealed record UrssafCalendarEntry(UrssafPeriod Period, UrssafPeriodState State, UrssafDeclaration? Declaration);
+
+    /// <summary>Périodes de déclaration d'une année civile avec leur état : déclarée, en retard (échéance dépassée), à faire
+    /// (période terminée), en cours ou à venir.</summary>
+    public List<UrssafCalendarEntry> UrssafCalendar(int calendarYear, DateOnly today)
+    {
+        var mode = GetBusinessProfile().Mode;
+        var declared = Declarations().ToDictionary(d => d.PeriodKey);
+        return UrssafPeriod.OfYear(calendarYear, mode).Select(p =>
+        {
+            declared.TryGetValue(p.Key, out var d);
+            var state = d is not null ? UrssafPeriodState.Declared
+                : today <= p.End ? (today >= p.Start ? UrssafPeriodState.Running : UrssafPeriodState.Upcoming)
+                : today > p.DueDate ? UrssafPeriodState.Late : UrssafPeriodState.Due;
+            return new UrssafCalendarEntry(p, state, d);
+        }).ToList();
     }
 
     public void UnmarkUrssafDeclared(string periodKey)

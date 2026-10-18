@@ -293,4 +293,4 @@ public sealed record UrssafCeilings(int Year, long TotalCents, long ServicesCent
 }
 
 public sealed record UrssafDeclaration(string PeriodKey, DateOnly Start, DateOnly End, DateTime DeclaredAt, string? DeclaredBy,
-    long TurnoverCents, string? Note);
+    long TurnoverCents, string? Note, long? DeclaredCents = null);

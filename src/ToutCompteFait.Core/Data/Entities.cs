@@ -92,6 +92,8 @@ public sealed class UrssafDeclarationEntity
     public string? DeclaredBy { get; set; }
     public long TurnoverCents { get; set; }
     public string? Note { get; set; }
+    /// <summary>Montant réellement déclaré sur le site de l'URSSAF (saisi par l'utilisateur) ; null = non renseigné.</summary>
+    public long? DeclaredCents { get; set; }
 }
 
 public sealed class YearEntity

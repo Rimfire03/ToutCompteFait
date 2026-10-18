@@ -167,6 +167,9 @@ public sealed class ReportingView : UserControl, IPage
             Margin = new Thickness(0, 14, 0, 0), TextWrapping = TextWrapping.Wrap
         });
 
+        // --- Calendrier des échéances de l'année
+        BuildCalendar(period, today);
+
         // --- À saisir sur le site
         Card("À saisir sur autoentrepreneur.urssaf.fr");
         var grid = new Grid { MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };
@@ -253,14 +256,23 @@ public sealed class ReportingView : UserControl, IPage
             var mark = new Button { Content = "Marquer comme déclarée", Style = Sty("PrimaryButton"), IsEnabled = canMark };
             mark.Click += (_, _) =>
             {
-                var note = PromptWindowAsk("Déclaration faite", $"Période : {period.Label}\nNote (facultatif : n° de déclaration, montant payé…) :");
-                if (note is null) return;
-                if (Ui.Try(() => _c.MarkUrssafDeclared(period, note))) Render();
+                var dlg = new Dialogs.DeclarationWindow(period.Label, report.TotalTurnoverCents, null, null) { Owner = Window.GetWindow(this) };
+                if (dlg.ShowDialog() != true) return;
+                if (Ui.Try(() => _c.MarkUrssafDeclared(period, dlg.Note, dlg.DeclaredCents))) Render();
             };
             actions.Children.Add(mark);
         }
         else
         {
+            var existing = _c.Declarations().FirstOrDefault(d => d.PeriodKey == period.Key);
+            var edit = new Button { Content = "Modifier la déclaration", Style = Sty("SecondaryButton"), IsEnabled = canMark };
+            edit.Click += (_, _) =>
+            {
+                var dlg = new Dialogs.DeclarationWindow(period.Label, report.TotalTurnoverCents, existing?.DeclaredCents, existing?.Note) { Owner = Window.GetWindow(this) };
+                if (dlg.ShowDialog() != true) return;
+                if (Ui.Try(() => _c.MarkUrssafDeclared(period, dlg.Note, dlg.DeclaredCents))) Render();
+            };
+            actions.Children.Add(edit);
             var unmark = new Button { Content = "Retirer la marque « déclarée »", Style = Sty("SecondaryButton"), IsEnabled = canMark };
             unmark.Click += (_, _) => { if (Ui.Try(() => _c.UnmarkUrssafDeclared(period.Key))) Render(); };
             actions.Children.Add(unmark);
@@ -294,17 +306,65 @@ public sealed class ReportingView : UserControl, IPage
             var list = new DataGrid { MaxHeight = 260, MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };
             list.Columns.Add(new DataGridTextColumn { Header = "Période", Binding = new System.Windows.Data.Binding("Label"), Width = 200 });
             list.Columns.Add(new DataGridTextColumn { Header = "Déclarée le", Binding = new System.Windows.Data.Binding("At"), Width = 130 });
-            list.Columns.Add(new DataGridTextColumn { Header = "Chiffre d'affaires", Binding = new System.Windows.Data.Binding("Turnover"), Width = 140 });
+            list.Columns.Add(new DataGridTextColumn { Header = "Calculé", Binding = new System.Windows.Data.Binding("Turnover"), Width = 120 });
+            list.Columns.Add(new DataGridTextColumn { Header = "Déclaré", Binding = new System.Windows.Data.Binding("Declared"), Width = 120 });
+            list.Columns.Add(new DataGridTextColumn { Header = "Écart", Binding = new System.Windows.Data.Binding("Gap"), Width = 110 });
             list.Columns.Add(new DataGridTextColumn { Header = "Note", Binding = new System.Windows.Data.Binding("Note"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             list.ItemsSource = history.Select(h => new
             {
                 Label = $"{h.Start:dd/MM/yyyy} → {h.End:dd/MM/yyyy}",
                 At = h.DeclaredAt.ToString("dd/MM/yyyy"),
                 Turnover = Eur(h.TurnoverCents),
+                Declared = h.DeclaredCents is { } d ? Eur(d) : "—",
+                Gap = h.DeclaredCents is { } d2 ? (d2 - h.TurnoverCents == 0 ? "aucun" : (d2 - h.TurnoverCents > 0 ? "+" : "") + Eur(d2 - h.TurnoverCents)) : "",
                 Note = h.Note ?? ""
             }).ToList();
+            list.MaxWidth = 1000;
             Put(list);
         }
+    }
+
+    /// <summary>Calendrier de l'année : une pastille par période (déclarée, en retard, à faire, en cours, à venir) ; un clic
+    /// sélectionne la période.</summary>
+    private void BuildCalendar(UrssafPeriod selected, DateOnly today)
+    {
+        Card($"Calendrier des échéances — {selected.Start.Year}");
+        var entries = _c.UrssafCalendar(selected.Start.Year, today);
+        var wrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+        foreach (var e in entries)
+        {
+            var (fill, edge, ink, tag) = e.State switch
+            {
+                Compta.UrssafPeriodState.Declared => ("#DCFCE7", "#86EFAC", "#166534", "✔ Déclarée"),
+                Compta.UrssafPeriodState.Late => ("#FEE2E2", "#FCA5A5", "#991B1B", "En retard"),
+                Compta.UrssafPeriodState.Due => ("#FEF3C7", "#FCD34D", "#92400E", $"J-{Math.Max(0, e.Period.DueDate.DayNumber - today.DayNumber)}"),
+                Compta.UrssafPeriodState.Running => ("#DBEAFE", "#93C5FD", "#1E3A8A", "En cours"),
+                _ => ("#F1F5F9", "#CBD5E1", "#475569", "À venir")
+            };
+            var conv = new System.Windows.Media.BrushConverter();
+            var chip = new Border
+            {
+                Background = (System.Windows.Media.Brush)conv.ConvertFromString(fill)!,
+                BorderBrush = (System.Windows.Media.Brush)conv.ConvertFromString(edge)!,
+                BorderThickness = new Thickness(e.Period.Key == selected.Key ? 3 : 1), CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(12, 8, 12, 8), Margin = new Thickness(0, 0, 8, 8), MinWidth = 138, Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = $"{e.Period.Label} · à déclarer avant le {e.Period.DueDate:dd/MM/yyyy}"
+            };
+            var stack = new StackPanel();
+            var ink2 = (System.Windows.Media.Brush)conv.ConvertFromString(ink)!;
+            stack.Children.Add(new TextBlock { Text = e.Period.Label, FontWeight = FontWeights.SemiBold, Foreground = ink2 });
+            stack.Children.Add(new TextBlock { Text = tag, Foreground = ink2, FontSize = 12.5 });
+            stack.Children.Add(new TextBlock { Text = $"avant le {e.Period.DueDate:dd/MM/yyyy}", Foreground = ink2, FontSize = 11.5, Opacity = .8 });
+            chip.Child = stack;
+            var key = e.Period.Key;
+            chip.MouseLeftButtonUp += (_, _) =>
+            {
+                var item = (_periodBox.ItemsSource as IEnumerable<PeriodItem>)?.FirstOrDefault(i => i.Period.Key == key);
+                if (item is not null) _periodBox.SelectedItem = item;
+            };
+            wrap.Children.Add(chip);
+        }
+        Put(wrap);
     }
 
     private static string? PromptWindowAsk(string title, string message) =>

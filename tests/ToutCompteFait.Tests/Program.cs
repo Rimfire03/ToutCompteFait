@@ -798,6 +798,16 @@ Console.WriteLine("Alerte déclaration URSSAF");
         Eq(3, after.Count, "période marquée déclarée : plus d'alerte pour elle");
         Check(after.All(p => p.Key != "2026-T1"), "1er trimestre 2026 retiré de l'alerte");
         Eq(0, c.PendingUrssafDeclarations(new DateOnly(2024, 6, 1)).Count, "avant le début de l'activité : rien");
+        c.MarkUrssafDeclared(UrssafPeriod.Quarterly(2026, 1), "réf. 123", 123400);
+        var decl = c.Declarations().First(x => x.PeriodKey == "2026-T1");
+        Eq(123400L, decl.DeclaredCents, "montant déclaré conservé");
+        Eq("réf. 123", decl.Note, "note conservée");
+        var cal = c.UrssafCalendar(2026, today);
+        Eq(4, cal.Count, "calendrier trimestriel : 4 périodes");
+        Eq(Compta.UrssafPeriodState.Declared, cal[0].State, "1er trimestre : déclaré");
+        Eq(Compta.UrssafPeriodState.Running, cal[1].State, "2e trimestre : en cours");
+        Eq(Compta.UrssafPeriodState.Upcoming, cal[2].State, "3e trimestre : à venir");
+        Eq(Compta.UrssafPeriodState.Late, c.UrssafCalendar(2025, today)[0].State, "1er trimestre 2025 non déclaré : en retard");
     }
     Cleanup(path);
 }

@@ -32,6 +32,7 @@ internal static class DatabaseMigrations
         (15, "Autoentreprise : ventilations en produits remises à zéro (produits désormais libres, rattachés ensuite à un type URSSAF)", ResetProductAllocations),
         (16, "Autoentreprise : ventilations de sens contraire annulées (crédits en charges, débits en produits)", ResetWrongWayAllocations),
         (17, "Autoentreprise : un produit personnel n'a plus de type de déclaration URSSAF", ClearPersonalProductUrssaf),
+        (18, "Déclarations URSSAF : montant réellement déclaré (saisi par l'utilisateur)", AddUrssafDeclaredAmount),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -59,6 +60,7 @@ internal static class DatabaseMigrations
         (15, "Autoentreprise : ventilations en produits remises à zéro (produits désormais libres, rattachés ensuite à un type URSSAF)", ResetProductAllocations),
         (16, "Autoentreprise : ventilations de sens contraire annulées (crédits en charges, débits en produits)", ResetWrongWayAllocations),
         (17, "Autoentreprise : un produit personnel n'a plus de type de déclaration URSSAF", ClearPersonalProductUrssaf),
+        (18, "Déclarations URSSAF : montant réellement déclaré (saisi par l'utilisateur)", AddUrssafDeclaredAmount),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -424,6 +426,23 @@ internal static class DatabaseMigrations
             $"WHERE c.{q("kind")} = 'P' AND y.{q("status")} <> 'VALIDATED')");
     }
 
+    // ------------------------------------------------------------------ v18 : montant déclaré à l'URSSAF
+
+    /// <summary>Ajoute le montant réellement déclaré sur le site de l'URSSAF à chaque déclaration conservée (paramétrage
+    /// hors empreinte : aucun montant d'écriture n'est touché).</summary>
+    private static void AddUrssafDeclaredAmount(AppDbContext ctx)
+    {
+        if (!ServerSql.TableExists(ctx, "urssaf_declarations") || ServerSql.ColumnExists(ctx, "urssaf_declarations", "declared_cents")) return;
+        var sql = ctx.Provider switch
+        {
+            DatabaseProvider.Sqlite => "ALTER TABLE \"urssaf_declarations\" ADD COLUMN \"declared_cents\" INTEGER NULL;",
+            DatabaseProvider.PostgreSql => "ALTER TABLE \"urssaf_declarations\" ADD COLUMN \"declared_cents\" bigint NULL;",
+            DatabaseProvider.MariaDb => "ALTER TABLE `urssaf_declarations` ADD COLUMN `declared_cents` bigint NULL;",
+            DatabaseProvider.SqlServer => "ALTER TABLE [urssaf_declarations] ADD [declared_cents] bigint NULL;",
+            _ => throw new NotSupportedException()
+        };
+        ctx.Database.ExecuteSqlRaw(sql);
+    }
     // ------------------------------------------------------------------ v17 : produit personnel sans type URSSAF
 
     /// <summary>Un produit marqué « personnel » (apport de l'exploitant) n'est pas du chiffre d'affaires : son type URSSAF
