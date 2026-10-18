@@ -744,6 +744,25 @@ Console.WriteLine("Ventilation proposée d'après l'historique");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ dossier de démonstration
+Console.WriteLine("Dossier de démonstration");
+foreach (var business in new[] { false, true })
+{
+    var path = TempDb();
+    {
+        DemoDatabase.Create(path, business, "test", Dt(2026, 10, 18));
+        var f = new DbContextFactory(path);
+        Check(new AuthService(f).TryLogin(DemoDatabase.UserName, DemoDatabase.Password, out _) is not null, (business ? "Autoentreprise" : "Asso") + " : connexion de démonstration");
+        var c = NewCompta(f);
+        var y = c.Years().Single();
+        Check(c.Entries(y.Id).Count >= 12, (business ? "Autoentreprise" : "Asso") + " : écritures de démonstration créées");
+        Check(!y.Validated, "exercice de démonstration ouvert");
+        Check(c.Entries(y.Id).Any(r => r.Allocations.Count == 0), "au moins une écriture à ventiler (saisie rapide)");
+        Eq(0L, c.ComputeBilan(y.Id).BalanceDifference, "bilan de démonstration équilibré");
+    }
+    Cleanup(path);
+}
+
 // ------------------------------------------------------------------ modèles de catégories par activité
 Console.WriteLine("Modèles de catégories");
 {
@@ -787,7 +806,11 @@ Console.WriteLine("Centre de notifications");
         Check(n.Any(x => x.Id == "fill:" + y.Id && x.Title.StartsWith("1 écriture")), "écriture à ventiler signalée");
         Check(n.Any(x => x.Id == "close:" + y.Id && x.Target == "bilan"), "exercice terminé non clôturé signalé");
         Eq(0, c.BuildNotifications(Dt(2025, 6, 1), null).Count, "sans exercice : aucune alerte");
-        Eq(1, c.BuildNotifications(Dt(2025, 6, 1), y.Id).Count, "exercice en cours : seule l'écriture à ventiler");
+        Eq(2, c.BuildNotifications(Dt(2025, 6, 1), y.Id).Count, "exercice en cours : écriture à ventiler et premiers pas");
+        var gs = c.BuildGettingStarted(y.Id);
+        Check(gs.First(s => s.Id == "year").Done && gs.First(s => s.Id == "entries").Done, "premiers pas : période et écritures faites");
+        Check(!gs.First(s => s.Id == "allocate").Done, "premiers pas : écriture non classée = étape à faire");
+        Check(c.BuildGettingStarted(null).Count(s => s.Done) == 0, "sans exercice : aucune étape faite");
     }
     Cleanup(path);
 }

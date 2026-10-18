@@ -187,6 +187,12 @@
 
             <!-- Contenu -->
             <DockPanel Grid.Column="1">
+                <Border x:Name="DemoBanner" DockPanel.Dock="Top" Background="#EDE9FE" BorderBrush="#7C3AED" BorderThickness="0,0,0,2" Padding="18,8" Visibility="Collapsed">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Revenir à mes données" Style="{StaticResource SecondaryButton}" Margin="12,0,0,0" Click="LeaveDemo_Click"/>
+                        <TextBlock Text="🎭  MODE DÉMONSTRATION — données entièrement fictives, séparées de vos vraies données." Foreground="#5B21B6" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </DockPanel>
+                </Border>
                 <Border x:Name="TestDbBanner" DockPanel.Dock="Top" Background="#FEF2F2" BorderBrush="#DC2626"
                         BorderThickness="0,0,0,2" Padding="18,10" Visibility="Collapsed">
                     <StackPanel Orientation="Horizontal">

@@ -36,6 +36,11 @@ public sealed partial class Compta
                     $"{toFill} écriture(s) à ventiler",
                     "Classez-les en produit ou en charge : elles empêchent la validation de l'exercice et faussent les statistiques.",
                     "livre"));
+            var steps = BuildGettingStarted(id);
+            if (steps.Any(s => !s.Done) && Entries(id).Count < 10)
+                list.Add(new AppNotification("start", NotificationLevel.Info,
+                    $"Premiers pas : {steps.Count(s => !s.Done)} étape(s) restante(s) sur {steps.Count}",
+                    "Une courte liste pour bien démarrer, avec une visite guidée du logiciel.", "start"));
             if (!year.Validated && year.End < today)
                 list.Add(new AppNotification("close:" + id, NotificationLevel.Info,
                     $"Exercice {year.Label} terminé, non clôturé",

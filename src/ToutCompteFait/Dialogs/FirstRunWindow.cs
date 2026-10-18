@@ -4,7 +4,7 @@ using ToutCompteFait.Core;
 
 namespace ToutCompteFait.Dialogs;
 
-public enum FirstRunChoice { Cancel, CreateLocal, OpenFile, ConnectServer, LoadConfig }
+public enum FirstRunChoice { Cancel, CreateLocal, OpenFile, ConnectServer, LoadConfig, Demo }
 
 /// <summary>Premier lancement (aucune base trouvée) : créer une base locale vide, ouvrir un fichier existant ou se
 /// connecter à une base distante (serveur PostgreSQL, MariaDB / MySQL, SQL Server).</summary>
@@ -58,6 +58,9 @@ public sealed class FirstRunWindow : Window
         root.Children.Add(MakeChoice("J'ai reçu un fichier de configuration",
             "Fichier .tcfconfig remis par l'administrateur : il contient les informations du serveur. Vous pouvez aussi le glisser dans cette fenêtre.",
             FirstRunChoice.LoadConfig, primary: false));
+        root.Children.Add(MakeChoice("Je veux d'abord essayer : ouvrir un dossier de démonstration",
+            "Des données entièrement fictives pour découvrir le logiciel. Elles sont séparées de vos vraies données : vous pourrez revenir à tout moment.",
+            FirstRunChoice.Demo, primary: false));
 
         var quit = new Button
         {

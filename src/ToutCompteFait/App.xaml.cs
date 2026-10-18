@@ -454,6 +454,12 @@ public partial class App : Application
                 case FirstRunChoice.CreateLocal:
                     return true; // créée juste après par EnsureDatabaseUpToDate
 
+                case FirstRunChoice.Demo:
+                    if (!PrepareDemoSettings()) continue;
+                    Ui.Info($"Dossier de démonstration prêt (données fictives).\n\nIdentifiant : {DemoDatabase.UserName}\nMot de passe : {DemoDatabase.Password}\n\n" +
+                            "Un bandeau « Mode démonstration » reste affiché ; « Revenir à mes données » le quitte à tout moment.", "Démonstration");
+                    return true;
+
                 case FirstRunChoice.OpenFile:
                     var dlg = new Microsoft.Win32.OpenFileDialog
                     {
@@ -677,6 +683,58 @@ public partial class App : Application
         {
             if (!hadLock) ReleaseWriteLock();
         }
+    }
+
+    // ------------------------------------------------------------------ mode démonstration
+
+    /// <summary>Fichier du dossier de démonstration de cette version (séparé des données de l'utilisateur).</summary>
+    public static string DemoFilePath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ToutCompteFait", "Demo", $"demo-{Editions.Current.Id}.db");
+
+    /// <summary>Crée le dossier fictif et pointe les réglages dessus (en mémorisant la base à retrouver). Faux en cas d'échec.</summary>
+    private static bool PrepareDemoSettings()
+    {
+        try
+        {
+            DemoDatabase.Create(DemoFilePath, Editions.Current.IsBusiness, DisplayVersion, DateOnly.FromDateTime(DateTime.Today));
+            if (!Settings.DemoMode)
+            {
+                Settings.DemoReturnPath = Settings.DatabasePath;
+                Settings.DemoReturnServer = Settings.UseDatabaseServer;
+            }
+            Settings.UseDatabaseServer = false;
+            Settings.DatabasePath = DemoFilePath;
+            Settings.DemoMode = true;
+            Settings.Save();
+            Target = Settings.ResolvedTarget;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Impossible de préparer le dossier de démonstration :\n" + ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>Ouvre le dossier de démonstration (données fictives) : le logiciel redémarre, connecté au compte de démonstration.</summary>
+    public static void EnterDemo()
+    {
+        if (!Ui.Confirm("Ouvrir un dossier de démonstration ?\n\nDes données entièrement fictives remplacent l'affichage de vos données le temps de la démonstration ; " +
+                        "vos vraies données ne sont ni modifiées ni mélangées. Le logiciel va redémarrer.", "Mode démonstration")) return;
+        if (!PrepareDemoSettings()) return;
+        Restart($"--user {DemoDatabase.UserName} --password {DemoDatabase.Password}");
+    }
+
+    /// <summary>Quitte la démonstration et retrouve la base précédente (le logiciel redémarre).</summary>
+    public static void LeaveDemo()
+    {
+        Settings.UseDatabaseServer = Settings.DemoReturnServer;
+        Settings.DatabasePath = Settings.DemoReturnPath;
+        Settings.DemoMode = false;
+        Settings.DemoReturnPath = null;
+        Settings.DemoReturnServer = false;
+        Settings.Save();
+        Restart();
     }
 
     // ------------------------------------------------------------------ changement de base / redémarrage

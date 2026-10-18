@@ -32,6 +32,14 @@ Effort : **S** (≤ ½ jour), **M** (1 à 3 jours), **L** (plus d'une semaine). 
 
 > **Points 3.1a, 3.3 et 3.4a : mis de côté pour le moment** (décision du 18/10/2026). Aucun travail supplémentaire n'est prévu dessus avant nouvel ordre.
 
+## Avancement du lot 3 (branche `beta`, 18/10/2026)
+
+| # | Statut | Détail |
+|---|---|---|
+| 1.2 / 1.3 / 1.4 | Fait | Parcours d'accueil en trois parties : écran de premier lancement en langage simple (lot 1), profil court à la première ouverture (lot 2), page « Premiers pas » (checklist calculée d'après l'état réel du dossier, barre de progression, bouton « Y aller » par étape) et visite guidée en 7 écrans. La checklist apparaît aussi dans les notifications tant qu'il reste des étapes sur un dossier neuf, et dans l'Aide |
+| 3.4c | Fait | Onglet « Comptes comptables » dans Gestion de l'entreprise / Paramétrage du dossier : rappel des 8 classes du plan comptable et vos produits / charges rangés par classe (lecture seule, aucun changement de modèle) |
+| 8 | Fait | Mode démonstration : dossier SQLite séparé, entièrement fictif, créé au besoin (Aide → « Essayer avec des données de démonstration » ou choix au premier lancement) ; bandeau violet permanent « MODE DÉMONSTRATION » avec « Revenir à mes données » ; la base d'origine (fichier ou serveur) est retrouvée au retour. Jeux de données Asso et Autoentreprise |
+| 3.1b | Non fait (recommandation retenue) | Connexion directe aux banques : nécessite un agrégateur (DSP2), un contrat, un coût par utilisateur et une analyse RGPD ; à décider séparément |
 ## Avancement du lot 2 (branche `beta`, 18/10/2026) — lot terminé
 
 | # | Statut | Détail |

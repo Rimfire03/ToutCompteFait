@@ -37,5 +37,7 @@ public partial class HelpView : UserControl
             new ToutCompteFait.Dialogs.DevLogWindow(shown) { Owner = Window.GetWindow(this) }.ShowDialog();
         };
         NoYearButton.Click += (_, _) => MainWindow.Current?.CreateYearInteractive();
+        DemoButton.Click += (_, _) => App.EnterDemo();
+        StartButton.Click += (_, _) => MainWindow.Current?.OpenPage("start");
     }
 }

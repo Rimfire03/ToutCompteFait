@@ -66,6 +66,7 @@ public partial class MainWindow : Window
             comparePanel.Children.Insert(comparePanel.Children.IndexOf(NavMembers) + 1, navCompare);
         // Centre de notifications : la cloche est dans le XAML ; le comptage est mis à jour régulièrement.
         _navNotif = NavNotif;
+        DemoBanner.Visibility = App.Settings.DemoMode ? Visibility.Visible : Visibility.Collapsed;
         var notifTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(45) };
         notifTimer.Tick += (_, _) => RefreshNotificationCount();
         notifTimer.Start();
@@ -170,6 +171,11 @@ public partial class MainWindow : Window
         if (OwnedWindows.Count > 0) return;
         Refresh();
     }
+    private void LeaveDemo_Click(object sender, RoutedEventArgs e)
+    {
+        if (Ui.Confirm("Quitter la démonstration et retrouver vos données ?\n\nLe logiciel va redémarrer.", "Mode démonstration")) App.LeaveDemo();
+    }
+
     private void OnDatabaseReopened()
     {
         Dispatcher.BeginInvoke(() =>
@@ -552,10 +558,16 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Ouvre la page demandée (menu de gauche) à partir d'une alerte.</summary>
-    private void OpenPageFromNotification(string tag)
+    private void OpenPageFromNotification(string tag) => OpenPage(tag);
+
+    /// <summary>Ouvre une page : l'entrée du menu correspondante est cochée ; à défaut (page sans entrée de menu, comme
+    /// « Premiers pas »), la page est affichée directement.</summary>
+    public void OpenPage(string tag)
     {
-        if (NavMembers.Parent is Panel panel)
-            foreach (var b in panel.Children.OfType<RadioButton>().Where(b => b.Tag as string == tag)) b.IsChecked = true;
+        var buttons = new[] { NavMembers.Parent, NavDossier.Parent, NavSettings.Parent }.OfType<Panel>().Distinct()
+            .SelectMany(p => p.Children.OfType<RadioButton>()).Where(b => b.Tag as string == tag && b.Visibility == Visibility.Visible).ToList();
+        if (buttons.Count > 0) buttons[0].IsChecked = true;
+        else ShowPage(tag);
     }
 
     /// <summary>Affiche ou masque l'onglet Immobilisations selon le réglage de la base.</summary>
@@ -580,6 +592,7 @@ public partial class MainWindow : Window
         var y = CurrentYear;
         UserControl? view = null;
         if (tag == "help") view = new HelpView();
+        else if (tag == "start") view = new GettingStartedView(y, OpenPageFromNotification);
         else if (y is null)
             view = new HelpView();
         else
@@ -629,7 +642,7 @@ public partial class MainWindow : Window
             enc.Save(fs);
         }
 
-        foreach (var page in new[] { "livre", "notifs", "bilan", "compare", "reports", "members", "dossier", "settings", "help" }
+        foreach (var page in new[] { "livre", "notifs", "start", "bilan", "compare", "reports", "members", "dossier", "settings", "help" }
             .Concat(Editions.Current.IsBusiness ? new[] { "reporting" } : Array.Empty<string>())
             .Concat(App.Compta.AssetsEnabled() ? new[] { "assets" } : Array.Empty<string>()))
         {
@@ -744,6 +757,14 @@ public partial class MainWindow : Window
         ua.Show();
         await Shot(ua, "dlg-urssaf");
         ua.Close();
+        DemoBanner.Visibility = Visibility.Visible;
+        ShowPage("livre");
+        await Shot(this, "demo-banner");
+        DemoBanner.Visibility = App.Settings.DemoMode ? Visibility.Visible : Visibility.Collapsed;
+        var tw = new Dialogs.TourWindow { Owner = this };
+        tw.Show();
+        await Shot(tw, "dlg-visite");
+        tw.Close();
         var pw = new Dialogs.ProfileWindow { Owner = this };
         pw.Show();
         await Shot(pw, "dlg-profil");

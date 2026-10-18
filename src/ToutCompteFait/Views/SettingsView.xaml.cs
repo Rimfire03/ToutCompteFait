@@ -76,6 +76,7 @@ public partial class SettingsView : UserControl, IPage
 
         InitUpdates();
         InitDisplay();
+        InitClasses();
         InitLicense();
         _year = year;
         _canEdit = App.Can(Permission.ManageStructure) && year.Open;

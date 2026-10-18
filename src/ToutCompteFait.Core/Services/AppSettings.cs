@@ -43,6 +43,15 @@ public sealed class AppSettings
     /// <summary>Page ouverte au lancement (étiquette du menu : « livre », « bilan », « compare »…) ; vide = Opérations bancaires.</summary>
     public string? StartPage { get; set; }
 
+    /// <summary>Mode démonstration actif : la base utilisée est le dossier fictif, pas celui de l'utilisateur.</summary>
+    public bool DemoMode { get; set; }
+
+    /// <summary>Fichier SQLite à retrouver en quittant la démonstration (vide si c'était le fichier par défaut).</summary>
+    public string? DemoReturnPath { get; set; }
+
+    /// <summary>La base à retrouver en quittant la démonstration était un serveur.</summary>
+    public bool DemoReturnServer { get; set; }
+
     /// <summary>Ordre personnalisé des entrées du menu de gauche (étiquettes) ; vide = ordre d'origine.</summary>
     public List<string> NavOrder { get; set; } = new();
 
