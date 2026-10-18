@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.13.1",
+      "date": "2026-10-18",
+      "show": false,
+      "title": "Version 1.13.1 (bêta)",
+      "items": [
+        "Mode démonstration : connexion automatique, sans identifiant ni mot de passe."
+      ]
+    },
+    {
       "version": "1.13.0",
       "date": "2026-10-18",
       "show": false,
