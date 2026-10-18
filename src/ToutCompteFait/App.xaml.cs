@@ -313,6 +313,7 @@ public partial class App : Application
             if (!EnsureServerReachable()) return false;
         }
         else if (!EnsureDatabaseFileSelected()) return false;
+        if (cliUser is null && _setupUser is not null) { cliUser = _setupUser; cliPassword = _setupPassword; _setupUser = _setupPassword = null; }
 
         // 1. Création / mise à jour éventuelle du schéma : réservée au poste qui détient l'écriture.
         var probe = new DbContextFactory(Target, readOnly: true);
@@ -454,17 +455,26 @@ public partial class App : Application
 
     /// <summary>Premier lancement / fichier introuvable : se connecter à une base distante, créer une base locale vide
     /// ou choisir un fichier existant.</summary>
+    private static string? _setupUser, _setupPassword;
+
+    /// <summary>Vrai juste après l'assistant de première configuration : la page « Premiers pas » s'ouvre en premier.</summary>
+    public static bool OpenStartAfterSetup { get; set; }
+
     private static bool EnsureDatabaseFileSelected()
     {
         while (!File.Exists(Settings.ResolvedDatabasePath))
         {
-            var first = new FirstRunWindow(Settings.ResolvedDatabasePath);
+            var first = new SetupWizardWindow(Settings.ResolvedDatabasePath);
             if (first.ShowDialog() != true) return false;
 
             switch (first.Choice)
             {
                 case FirstRunChoice.CreateLocal:
-                    return true; // créée juste après par EnsureDatabaseUpToDate
+                    // L'assistant a déjà créé la base, le compte et la première période : connexion automatique ensuite.
+                    _setupUser = first.AdminUserName;
+                    _setupPassword = first.AdminPassword;
+                    OpenStartAfterSetup = first.Completed;
+                    return true;
 
                 case FirstRunChoice.Demo:
                     if (!PrepareDemoSettings()) continue;

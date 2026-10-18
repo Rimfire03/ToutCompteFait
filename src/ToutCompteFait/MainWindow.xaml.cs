@@ -85,6 +85,7 @@ public partial class MainWindow : Window
             LoadYears(App.Settings.LastYear);
             ApplyNavigationPreferences();
             OpenStartPage();
+            if (App.OpenStartAfterSetup) { App.OpenStartAfterSetup = false; OpenPage("start"); }
             if (CurrentYear is null && App.Can(Permission.ManageStructure)) PromptFirstYear();
             Dispatcher.BeginInvoke(new Action(ShowDevLogIfNeeded), DispatcherPriority.ApplicationIdle);
             Dispatcher.BeginInvoke(new Action(ShowBusinessOnboardingIfNeeded), DispatcherPriority.ApplicationIdle);

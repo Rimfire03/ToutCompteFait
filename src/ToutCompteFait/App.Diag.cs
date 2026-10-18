@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -30,7 +30,13 @@ public partial class App
             enc.Save(fs);
             w.Close();
         }
-        await Shot(new FirstRunWindow(Settings.ResolvedDatabasePath), "premier-lancement.png");
+        var probe = new SetupWizardWindow(Settings.ResolvedDatabasePath);
+        for (var i = 0; i < probe.StepCount; i++)
+        {
+            var wiz = new SetupWizardWindow(Settings.ResolvedDatabasePath);
+            wiz.ShowStep(i);
+            await Shot(wiz, $"assistant-etape-{i + 1}.png");
+        }
         await Shot(new DatabaseServerWindow(firstRun: true), "premier-lancement-serveur.png");
     }
 }
