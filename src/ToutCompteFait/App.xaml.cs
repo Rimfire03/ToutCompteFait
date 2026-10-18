@@ -248,13 +248,6 @@ public partial class App : Application
             // Installation par MSI dans la nouvelle arborescence : reprend les données de l'ancien dossier (copie, jamais de suppression).
             LegacyInstallMigration.RunIfInstalled();
             Settings = AppSettings.Load();
-            // Mode démonstration : connexion automatique au compte fictif (pas d'identifiant ni de mot de passe à saisir).
-            if (Settings.DemoMode && cliUser is null && CliDatabase is null && !Settings.UseDatabaseServer
-                && string.Equals(Settings.DatabasePath, DemoFilePath, StringComparison.OrdinalIgnoreCase))
-            {
-                cliUser = DemoDatabase.UserName;
-                cliPassword = DemoDatabase.Password;
-            }
             if (CliDatabase is not null)
             {
                 Settings.UseDatabaseServer = false;
@@ -299,8 +292,20 @@ public partial class App : Application
 
     /// <summary>Ouvre la base, authentifie l'utilisateur puis fixe le mode (écriture ou lecture seule) selon son rôle.
     /// Retourne false si l'utilisateur renonce.</summary>
+    /// <summary>La base utilisée est le dossier de démonstration (mode démonstration actif) : connexion automatique.</summary>
+    private static bool IsDemoSession =>
+        Settings.DemoMode && !Settings.UseDatabaseServer && CliDatabase is null
+        && string.Equals(Settings.DatabasePath, DemoFilePath, StringComparison.OrdinalIgnoreCase);
+
     private static bool StartSession(string? cliUser, string? cliPassword)
     {
+        // Mode démonstration : connexion automatique au compte fictif, quel que soit le chemin d'entrée (premier lancement,
+        // redémarrage depuis l'Aide, simple relance) : ni identifiant ni mot de passe à saisir.
+        if (cliUser is null && IsDemoSession)
+        {
+            cliUser = DemoDatabase.UserName;
+            cliPassword = DemoDatabase.Password;
+        }
         Target = Settings.ResolvedTarget;
 
         if (Target.IsServer)
