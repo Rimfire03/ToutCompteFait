@@ -548,7 +548,7 @@ public partial class MainWindow : Window
         try
         {
             var count = CurrentYear is { } y
-                ? App.Compta.BuildNotifications(DateOnly.FromDateTime(DateTime.Today), y.Id).Count
+                ? App.Compta.CountNotificationBadge(DateOnly.FromDateTime(DateTime.Today), y.Id)
                 : 0;
             _navNotif.Content = count > 0 ? $"🔔 {count}" : "🔔";
             if (count > 0 && _navNotif.IsChecked != true) _navNotif.Foreground = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24));

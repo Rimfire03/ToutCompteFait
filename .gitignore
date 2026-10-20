@@ -31,3 +31,5 @@ profils-releves/
 
 # Exports de la base (données réelles)
 *.sql
+# Travail de l'équipe d'agents (/team)
+.team/

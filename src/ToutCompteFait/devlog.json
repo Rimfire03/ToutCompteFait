@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.13.5",
+      "date": "2026-10-20",
+      "show": false,
+      "title": "Version 1.13.5",
+      "items": [
+        "Autoentreprise : le centre de notifications indique la prochaine ouverture de déclaration URSSAF, à titre d'information seulement (pas d'alerte, non comptée sur la cloche)."
+      ]
+    },
+    {
       "version": "1.13.4",
       "date": "2026-10-18",
       "show": false,

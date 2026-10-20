@@ -815,6 +815,51 @@ Console.WriteLine("Centre de notifications");
     Cleanup(path);
 }
 
+// ------------------------------------------------------------------ notification d'information : prochaine déclaration URSSAF
+Console.WriteLine("Notification d'information : prochaine ouverture de déclaration URSSAF");
+{
+    var path = TempDb();
+    {
+        var c = NewCompta(NewFactory(path));
+        var y = c.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
+        // Les tests tournent en version Asso : la carte (réservée à l'Autoentreprise) n'y apparaît pas, le badge compte tout le reste.
+        var today = Dt(2026, 10, 20);
+        Check(!c.BuildNotifications(today, y.Id).Any(x => x.Id.StartsWith("urssaf-next:")), "version Asso : aucune carte de prochaine déclaration");
+        Eq(c.BuildNotifications(today, y.Id).Count, c.CountNotificationBadge(today, y.Id), "version Asso : le badge compte toutes les notifications");
+        Check(c.BuildNotifications(Dt(2025, 6, 1), y.Id).All(x => x.CountsInBadge), "notifications existantes : toutes comptées dans le badge");
+        Check(new AppNotification("a", NotificationLevel.Info, "t", "d", "livre").CountsInBadge, "par défaut une notification compte dans le badge");
+
+        // Trimestriel : T4 2026, ouverture le 01/01/2027, échéance le 31/01/2027.
+        c.SaveBusinessProfile(new BusinessProfile { Name = "Entreprise Test", Mode = DeclarationMode.Quarterly });
+        var q = c.NextUrssafDeclarationOpening(today)!;
+        Eq("4e trimestre 2026", q.Label, "trimestriel : période en cours");
+        Eq(Dt(2027, 1, 1), q.End.AddDays(1), "trimestriel : ouverture le 1er janvier");
+        Eq(Dt(2027, 1, 31), q.DueDate, "trimestriel : échéance le 31 janvier");
+        Eq(73, q.End.AddDays(1).DayNumber - today.DayNumber, "trimestriel : 73 jours avant l'ouverture");
+        Eq(1, Dt(2027, 1, 1).DayNumber - Dt(2026, 12, 31).DayNumber, "dernier jour de période : ouverture demain");
+        Eq(q.Key, c.NextUrssafDeclarationOpening(Dt(2026, 12, 31))!.Key, "dernier jour de période : la période en cours reste la prochaine");
+
+        // Mensuel : octobre 2026, ouverture le 01/11/2026, échéance le 30/11/2026.
+        c.SaveBusinessProfile(new BusinessProfile { Name = "Entreprise Test", Mode = DeclarationMode.Monthly });
+        var m = c.NextUrssafDeclarationOpening(today)!;
+        Eq(Dt(2026, 11, 1), m.End.AddDays(1), "mensuel : ouverture le 1er du mois suivant");
+        Eq(Dt(2026, 11, 30), m.DueDate, "mensuel : échéance fin du mois suivant");
+        Eq(12, m.End.AddDays(1).DayNumber - today.DayNumber, "mensuel : 12 jours avant l'ouverture");
+
+        // Période en cours déjà marquée déclarée : on passe à la suivante.
+        c.MarkUrssafDeclared(m);
+        Eq("2026-11", c.NextUrssafDeclarationOpening(today)!.Key, "période en cours déclarée : la suivante est annoncée");
+        c.UnmarkUrssafDeclared(m.Key);
+    }
+    Cleanup(path);
+    var empty = TempDb();
+    {
+        var c = NewCompta(NewFactory(empty));
+        Check(c.NextUrssafDeclarationOpening(Dt(2026, 10, 20)) is null, "sans activité connue : aucune prochaine déclaration");
+    }
+    Cleanup(empty);
+}
+
 // ------------------------------------------------------------------ statistique mensuelle
 Console.WriteLine("Statistique mensuelle (sans les éléments personnels)");
 {

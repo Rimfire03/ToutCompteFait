@@ -372,6 +372,19 @@ public sealed partial class Compta
         return result;
     }
 
+    /// <summary>Prochaine période dont la déclaration ouvrira (période en cours, ou la suivante si elle est déjà marquée
+    /// faite) : l'ouverture est le lendemain de la fin de période. Information seulement ; null sans activité connue.</summary>
+    public UrssafPeriod? NextUrssafDeclarationOpening(DateOnly today)
+    {
+        var profile = GetBusinessProfile();
+        if (profile.CreationDate is null && Years().Count == 0) return null;   // aucune activité connue
+        var done = Declarations().Select(d => d.PeriodKey).ToHashSet();
+        var p = UrssafPeriod.ForDate(today, profile.Mode);
+        for (var i = 0; i < 4 && done.Contains(p.Key); i++)
+            p = UrssafPeriod.ForDate(p.End.AddDays(1), profile.Mode);
+        return p;
+    }
+
     /// <summary>Marque la période comme déclarée à l'URSSAF (trace : date, auteur, montant du chiffre d'affaires).</summary>
     public void MarkUrssafDeclared(UrssafPeriod period, string? note = null, long? declaredCents = null)
     {

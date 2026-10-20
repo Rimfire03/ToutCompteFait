@@ -22,8 +22,8 @@ public sealed class NotificationsView : UserControl, IPage
         root.Children.Add(new TextBlock
         {
             Style = ComparisonView.Sty("MutedText"), TextWrapping = TextWrapping.Wrap,
-            Text = "Les alertes en cours, à retrouver à tout moment : échéances de déclaration, écritures à ventiler, exercice à clôturer. " +
-                   "Elles disparaissent d'elles-mêmes dès que la situation est réglée."
+            Text = "Les alertes en cours, à retrouver à tout moment : échéances de déclaration, écritures à ventiler, exercice à clôturer, ainsi que les informations à venir (prochaine déclaration). " +
+                   "Les alertes disparaissent d'elles-mêmes dès que la situation est réglée."
         });
         root.Children.Add(_list);
         Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = root };
@@ -34,7 +34,8 @@ public sealed class NotificationsView : UserControl, IPage
     {
         _list.Children.Clear();
         var items = App.Compta.BuildNotifications(DateOnly.FromDateTime(DateTime.Today), _year.Id);
-        if (items.Count == 0)
+        // Rien qui demande une action (les cartes d'information seule ne comptent pas) : bandeau vert, puis les infos.
+        if (!items.Any(n => n.CountsInBadge))
         {
             _list.Children.Add(new Border
             {
@@ -48,19 +49,19 @@ public sealed class NotificationsView : UserControl, IPage
                     }
                 }
             });
-            return;
         }
         foreach (var n in items) _list.Children.Add(Card(n));
     }
 
     private UIElement Card(AppNotification n)
     {
-        var accent = n.Level switch
-        {
-            NotificationLevel.Alert => Color.FromRgb(0xB9, 0x1C, 0x1C),
-            NotificationLevel.Warning => Color.FromRgb(0xD9, 0x77, 0x06),
-            _ => Color.FromRgb(0x25, 0x63, 0xEB)
-        };
+        var accent = !n.CountsInBadge ? Color.FromRgb(0x94, 0xA3, 0xB8)   // information seule : gris calme
+            : n.Level switch
+            {
+                NotificationLevel.Alert => Color.FromRgb(0xB9, 0x1C, 0x1C),
+                NotificationLevel.Warning => Color.FromRgb(0xD9, 0x77, 0x06),
+                _ => Color.FromRgb(0x25, 0x63, 0xEB)
+            };
         var open = new Button { Content = "Ouvrir", Style = ComparisonView.Sty("SecondaryButton"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
         var target = n.Target;
         open.Click += (_, _) => _open(target);

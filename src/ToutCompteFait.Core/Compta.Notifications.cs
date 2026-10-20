@@ -4,10 +4,16 @@ public enum NotificationLevel { Info, Warning, Alert }
 
 /// <summary>Alerte du centre de notifications : titre, détail, gravité et page vers laquelle l'ouvrir.</summary>
 /// <param name="Target">Étiquette de la page à ouvrir (« livre », « bilan », « reporting »…).</param>
-public sealed record AppNotification(string Id, NotificationLevel Level, string Title, string Detail, string Target);
+/// <param name="CountsInBadge">false = simple information, absente du compteur de la cloche.</param>
+public sealed record AppNotification(string Id, NotificationLevel Level, string Title, string Detail, string Target,
+    bool CountsInBadge = true);
 
 public sealed partial class Compta
 {
+    /// <summary>Nombre affiché sur la cloche : les notifications d'information seule (CountsInBadge = false) ne comptent pas.</summary>
+    public int CountNotificationBadge(DateOnly today, long? yearId) =>
+        BuildNotifications(today, yearId).Count(n => n.CountsInBadge);
+
     /// <summary>Alertes en cours, de la plus grave à la moins grave : déclarations URSSAF à faire (Autoentreprise),
     /// écritures à ventiler de l'exercice affiché, exercice terminé non clôturé. Lecture seule, sans effet de bord.</summary>
     public List<AppNotification> BuildNotifications(DateOnly today, long? yearId)
@@ -25,6 +31,16 @@ public sealed partial class Compta
                     late ? $"En retard de {days} jour(s) : à déclarer avant le {p.DueDate:dd/MM/yyyy}."
                          : $"À déclarer avant le {p.DueDate:dd/MM/yyyy} (J-{days}).",
                     "reporting"));
+            }
+            // Information seule (hors badge, ni popup ni alerte) : la prochaine déclaration qui s'ouvrira.
+            if (NextUrssafDeclarationOpening(today) is { } next)
+            {
+                var opening = next.End.AddDays(1);
+                var inDays = opening.DayNumber - today.DayNumber;
+                list.Add(new AppNotification("urssaf-next:" + next.Key, NotificationLevel.Info,
+                    $"Prochaine déclaration URSSAF : {next.Label}",
+                    $"Ouverture le {opening:dd/MM/yyyy} (dans {inDays} jour(s)), à déclarer avant le {next.DueDate:dd/MM/yyyy}. Rien à faire pour l'instant.",
+                    "reporting", CountsInBadge: false));
             }
         }
 
