@@ -55,7 +55,7 @@ public sealed partial class Compta
 
         // Ordre : du plus dépendant au moins dépendant.
         foreach (var table in new[]
-                 { "attachments", "allocations", "adjustments", "entries", "year_openings", "categories", "operations", "urssaf_declarations",
+                 { "attachments", "allocations", "adjustments", "entries", "year_openings", "categories", "operations", "urssaf_declarations", "stats_cache",
                    "fiscal_years", "accounts" })
             ctx.Database.ExecuteSqlRaw($"DELETE FROM {Q(table)}");
 

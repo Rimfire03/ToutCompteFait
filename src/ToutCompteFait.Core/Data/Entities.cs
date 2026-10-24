@@ -96,6 +96,18 @@ public sealed class UrssafDeclarationEntity
     public long? DeclaredCents { get; set; }
 }
 
+/// <summary>Résultat calculé conservé pour un exercice validé (plus aucune écriture n'y est possible : inutile de le recalculer).
+/// Hors des tables verrouillées et hors empreinte : c'est un cache, jamais une donnée comptable.</summary>
+public sealed class StatsCacheEntity
+{
+    public long YearId { get; set; }
+    public string Kind { get; set; } = "";
+    /// <summary>Empreinte des données dont dépend le résultat ; un résultat dont la clé ne correspond plus est recalculé.</summary>
+    public string CacheKey { get; set; } = "";
+    public string Payload { get; set; } = "";
+    public string ComputedAt { get; set; } = "";
+}
+
 public sealed class YearEntity
 {
     public long Id { get; set; }

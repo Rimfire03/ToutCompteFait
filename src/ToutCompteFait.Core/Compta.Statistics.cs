@@ -17,7 +17,25 @@ public sealed class MonthlyStatistics
 
 public sealed partial class Compta
 {
+    /// <summary>Statistique mensuelle d'un exercice. Pour un exercice validé (plus aucune écriture possible), le résultat est
+    /// conservé en base et relu au lieu d'être recalculé à partir de tout le livre ; il est recalculé si le paramétrage qui
+    /// reste modifiable après clôture (noms et rangs des catégories, repères « personnel ») a changé.</summary>
     public MonthlyStatistics ComputeMonthlyStatistics(long yearId)
+    {
+        var seal = ValidatedSeal(yearId);
+        if (seal is null) return ComputeMonthlyStatisticsCore(yearId);
+        var key = StatsKey("monthly", seal,
+            string.Join("|", Categories(yearId).Select(c => $"{c.Id}:{(int)c.Kind}:{c.Name}:{c.Position}:{c.OperationId}")),
+            string.Join("|", Operations(yearId).Select(o => $"{o.Id}:{o.Name}")),
+            string.Join("|", PersonalCategoryNames().OrderBy(n => n, StringComparer.Ordinal)),
+            string.Join("|", PersonalProductNames().OrderBy(n => n, StringComparer.Ordinal)));
+        if (ReadStatsCache<MonthlyStatistics>(yearId, "monthly", key) is { } cached) return cached;
+        var computed = ComputeMonthlyStatisticsCore(yearId);
+        WriteStatsCache(yearId, "monthly", key, computed);
+        return computed;
+    }
+
+    private MonthlyStatistics ComputeMonthlyStatisticsCore(long yearId)
     {
         var year = Year(yearId) ?? throw new ComptaException("Exercice introuvable.");
         var months = new List<DateOnly>();

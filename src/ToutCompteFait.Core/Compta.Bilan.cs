@@ -557,6 +557,7 @@ public sealed partial class Compta
         e.ValidatedBy = null;
         e.Checksum = null;
         e.ClosingJson = null;
+        ctx.StatsCache.RemoveRange(ctx.StatsCache.Where(c => c.YearId == yearId));
         Save(ctx);
         Log(ctx, "Exercice rouvert", $"{y.Label} — {reason.Trim()}");
         tx.Commit();

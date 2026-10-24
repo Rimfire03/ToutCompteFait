@@ -33,6 +33,7 @@ internal static class DatabaseMigrations
         (16, "Autoentreprise : ventilations de sens contraire annulées (crédits en charges, débits en produits)", ResetWrongWayAllocations),
         (17, "Autoentreprise : un produit personnel n'a plus de type de déclaration URSSAF", ClearPersonalProductUrssaf),
         (18, "Déclarations URSSAF : montant réellement déclaré (saisi par l'utilisateur)", AddUrssafDeclaredAmount),
+        (19, "Résultats statistiques conservés pour les exercices validés (cache, hors empreinte)", AddStatsCache),
     };
 
     /// <summary>Dernière version de <see cref="All"/> déjà contenue dans le schéma créé directement par EF Core sur un
@@ -61,6 +62,8 @@ internal static class DatabaseMigrations
         (16, "Autoentreprise : ventilations de sens contraire annulées (crédits en charges, débits en produits)", ResetWrongWayAllocations),
         (17, "Autoentreprise : un produit personnel n'a plus de type de déclaration URSSAF", ClearPersonalProductUrssaf),
         (18, "Déclarations URSSAF : montant réellement déclaré (saisi par l'utilisateur)", AddUrssafDeclaredAmount),
+        (19, "Résultats statistiques conservés pour les exercices validés (cache, hors empreinte)", AddStatsCache),
+        (19, "Résultats statistiques conservés pour les exercices validés (cache, hors empreinte)", AddStatsCache),
     };
 
     /// <summary>Migrations serveur à appliquer depuis <paramref name="fromVersion"/> ; lève si l'une manque.</summary>
@@ -443,6 +446,23 @@ internal static class DatabaseMigrations
         };
         ctx.Database.ExecuteSqlRaw(sql);
     }
+    // ------------------------------------------------------------------ v19 : cache des résultats statistiques
+
+    /// <summary>Table <c>stats_cache</c> : résultats statistiques conservés pour les exercices validés. Hors des tables
+    /// verrouillées et hors empreinte (simple cache, recalculable à tout moment : aucune donnée comptable).</summary>
+    private static void AddStatsCache(AppDbContext ctx)
+    {
+        if (ServerSql.TableExists(ctx, "stats_cache")) return;
+        ctx.Database.ExecuteSqlRaw(ctx.Provider switch
+        {
+            DatabaseProvider.Sqlite => """CREATE TABLE "stats_cache" ("year_id" INTEGER NOT NULL, "kind" TEXT NOT NULL, "cache_key" TEXT NOT NULL, "payload" TEXT NOT NULL, "computed_at" TEXT NOT NULL, CONSTRAINT "PK_stats_cache" PRIMARY KEY ("year_id", "kind"));""",
+            DatabaseProvider.PostgreSql => """CREATE TABLE "stats_cache" ("year_id" bigint NOT NULL, "kind" varchar(40) NOT NULL, "cache_key" varchar(100) NOT NULL, "payload" text NOT NULL, "computed_at" varchar(30) NOT NULL, CONSTRAINT "PK_stats_cache" PRIMARY KEY ("year_id", "kind"));""",
+            DatabaseProvider.MariaDb => "CREATE TABLE `stats_cache` (`year_id` bigint NOT NULL, `kind` varchar(40) NOT NULL, `cache_key` varchar(100) NOT NULL, `payload` longtext NOT NULL, `computed_at` varchar(30) NOT NULL, CONSTRAINT `PK_stats_cache` PRIMARY KEY (`year_id`, `kind`));",
+            DatabaseProvider.SqlServer => "CREATE TABLE [stats_cache] ([year_id] bigint NOT NULL, [kind] nvarchar(40) NOT NULL, [cache_key] nvarchar(100) NOT NULL, [payload] nvarchar(max) NOT NULL, [computed_at] nvarchar(30) NOT NULL, CONSTRAINT [PK_stats_cache] PRIMARY KEY ([year_id], [kind]));",
+            _ => throw new NotSupportedException()
+        });
+    }
+
     // ------------------------------------------------------------------ v17 : produit personnel sans type URSSAF
 
     /// <summary>Un produit marqué « personnel » (apport de l'exploitant) n'est pas du chiffre d'affaires : son type URSSAF

@@ -545,6 +545,7 @@ public partial class MainWindow : Window
     public void RefreshNotificationCount()
     {
         if (_navNotif is null) return;
+        _lastNotifRefresh = DateTime.UtcNow;
         try
         {
             var count = CurrentYear is { } y
@@ -558,6 +559,18 @@ public partial class MainWindow : Window
         {
             // Base momentanément indisponible : le comptage est ignoré.
         }
+    }
+
+    private DateTime _lastNotifRefresh = DateTime.MinValue;
+    private bool _notifRefreshPending;
+
+    /// <summary>Changement de page : le compteur de la cloche est relu après l'affichage de la page, et au plus une fois
+    /// toutes les 15 s (il demande une dizaine de requêtes : sur un serveur distant, le faire à chaque onglet figeait l'écran).</summary>
+    private void RefreshNotificationCountSoon()
+    {
+        if (_notifRefreshPending || DateTime.UtcNow - _lastNotifRefresh < TimeSpan.FromSeconds(15)) return;
+        _notifRefreshPending = true;
+        Dispatcher.BeginInvoke(new Action(() => { _notifRefreshPending = false; RefreshNotificationCount(); }), DispatcherPriority.ApplicationIdle);
     }
 
     /// <summary>Ouvre la page demandée (menu de gauche) à partir d'une alerte.</summary>
@@ -613,7 +626,7 @@ public partial class MainWindow : Window
                 _ => new LivreView(y)
             };
         Host.Content = view;
-        RefreshNotificationCount();
+        RefreshNotificationCountSoon();
     }
 
     /// <summary>Mode diagnostic (--shots dossier) : enregistre une capture de chaque écran puis quitte.</summary>

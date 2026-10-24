@@ -894,6 +894,20 @@ Console.WriteLine("Statistique mensuelle (sans les éléments personnels)");
         Check(cmp.Products.All(l => l.Name != "Apport"), "comparaison annuelle : produit personnel absent");
         Check(cmp.Charges.All(l => l.Name != "Courses"), "comparaison annuelle : charge personnelle absente");
         Check(cmp.Charges.Any(l => l.Name == "Loyer"), "comparaison annuelle : charge normale présente");
+        // Exercice validé : le résultat est conservé en base, relu tel quel, recalculé si le repère « personnel » change.
+        int CacheRows() { using var cx = NewFactory(path).Create(); return cx.StatsCache.Count(r => r.YearId == y.Id); }
+        Eq(0, CacheRows(), "exercice ouvert : rien conservé");
+        c.ValidateYear(y.Id);
+        var v1 = c.ComputeMonthlyStatistics(y.Id);
+        Eq(1, CacheRows(), "exercice validé : résultat conservé en base");
+        var v2 = c.ComputeMonthlyStatistics(y.Id);
+        Eq(v1.Products.Count, v2.Products.Count, "résultat relu : mêmes produits");
+        Eq(v1.Charges[0].Values[0], v2.Charges[0].Values[0], "résultat relu : mêmes montants");
+        Eq(12, v2.Months.Count, "résultat relu : mois conservés");
+        c.SetCategoryPersonal("Apport", false, CategoryKind.Product);
+        Eq(2, c.ComputeMonthlyStatistics(y.Id).Products.Count, "repère personnel modifié après clôture : résultat recalculé");
+        c.ReopenYear(y.Id, "test du cache");
+        Eq(0, CacheRows(), "exercice rouvert : résultat conservé effacé");
     }
     Cleanup(path);
 }

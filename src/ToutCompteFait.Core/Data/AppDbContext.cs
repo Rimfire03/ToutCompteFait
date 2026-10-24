@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
     public DbSet<CategoryInvestmentEntity> CategoryInvestments => Set<CategoryInvestmentEntity>();
     public DbSet<CategoryPersonalEntity> CategoryPersonal => Set<CategoryPersonalEntity>();
     public DbSet<UrssafDeclarationEntity> UrssafDeclarations => Set<UrssafDeclarationEntity>();
+    public DbSet<StatsCacheEntity> StatsCache => Set<StatsCacheEntity>();
     public DbSet<YearEntity> Years => Set<YearEntity>();
     public DbSet<YearOpeningEntity> YearOpenings => Set<YearOpeningEntity>();
     public DbSet<OperationEntity> Operations => Set<OperationEntity>();
@@ -88,7 +89,7 @@ public class AppDbContext : DbContext
 
         var changed = Provider != DatabaseProvider.Sqlite && ChangeTracker.HasChanges()
                       && ChangeTracker.Entries().Any(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted
-                                                          && e.Entity is not AuditEntity and not UserEntity);
+                                                          && e.Entity is not AuditEntity and not UserEntity and not StatsCacheEntity);
         var result = base.SaveChanges(acceptAllChangesOnSuccess);
         if (changed && result > 0) DatabaseWriteTracking.StampServer(this);
         return result;
@@ -193,6 +194,17 @@ public class AppDbContext : DbContext
             e.Property(x => x.TurnoverCents).HasColumnName("turnover_cents");
             e.Property(x => x.Note).HasColumnName("note").HasMaxLength(500);
             e.Property(x => x.DeclaredCents).HasColumnName("declared_cents");
+        });
+
+        b.Entity<StatsCacheEntity>(e =>
+        {
+            e.ToTable("stats_cache");
+            e.HasKey(x => new { x.YearId, x.Kind });
+            e.Property(x => x.YearId).HasColumnName("year_id");
+            e.Property(x => x.Kind).HasColumnName("kind").HasMaxLength(40).IsRequired();
+            e.Property(x => x.CacheKey).HasColumnName("cache_key").HasMaxLength(100).IsRequired();
+            e.Property(x => x.Payload).HasColumnName("payload").IsRequired();
+            e.Property(x => x.ComputedAt).HasColumnName("computed_at").HasMaxLength(30).IsRequired();
         });
 
         b.Entity<YearEntity>(e =>
