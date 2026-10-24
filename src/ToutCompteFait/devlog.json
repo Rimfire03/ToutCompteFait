@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.13.6",
+      "date": "2026-10-24",
+      "show": false,
+      "title": "Version 1.13.6",
+      "items": [
+        "Ouverture d'une écriture plus rapide, surtout avec une base sur un serveur distant : la liste des dépenses remboursables n'est chargée que lorsqu'elle sert."
+      ]
+    },
+    {
       "version": "1.13.5",
       "date": "2026-10-20",
       "show": false,

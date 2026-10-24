@@ -68,10 +68,6 @@ public partial class EntryWindow : Window
         _cats = _c.Categories(year.Id);
 
         _refundItems.Add(new RefundItem(null, "— Aucune dépense liée —"));
-        foreach (var rc in _c.RefundCandidates(existing?.Entry.RefundOfId, existing?.Entry.Id ?? 0))
-            _refundItems.Add(new RefundItem(rc,
-                $"{rc.Entry.Date:dd/MM/yyyy} · {rc.Entry.Label} · {Money.Format(rc.Entry.AmountCents)} €" +
-                (rc.Refunded > 0 ? $" (déjà remboursé {Money.Format(rc.Refunded)} €)" : "") + $" · {rc.YearLabel}"));
         RefundCombo.ItemsSource = _refundItems;
         RefundCombo.SelectedIndex = 0;
         PaymentModeBox.ItemsSource = new[] { new PayItem(null, "—") }
@@ -151,6 +147,7 @@ public partial class EntryWindow : Window
         ToAccountPanel.Visibility = m == Mode.Transfer ? Visibility.Visible : Visibility.Collapsed;
         MemberPanel.Visibility = m == Mode.Refund ? Visibility.Visible : Visibility.Collapsed;
         RefundPanel.Visibility = m == Mode.Reimbursed ? Visibility.Visible : Visibility.Collapsed;
+        if (m == Mode.Reimbursed) EnsureRefundItems();
         AllocSection.Visibility = m == Mode.Transfer ? Visibility.Collapsed : Visibility.Visible;
         AccountLabel.Text = m == Mode.Transfer ? "Depuis le compte" : m is Mode.Income or Mode.Reimbursed ? "Compte crédité" : "Compte débité";
         ModeHelp.Text = m switch
@@ -174,6 +171,20 @@ public partial class EntryWindow : Window
     // ------------------------------------------------------------------ remboursement lié à une dépense
 
     private RefundCandidate? SelectedRefund => (RefundCombo.SelectedItem as RefundItem)?.Candidate;
+
+    private bool _refundLoaded;
+
+    /// <summary>Charge les dépenses remboursables à la première utilisation seulement : la requête parcourt toutes les dépenses
+    /// de tous les exercices, ce qui rendait l'ouverture de chaque écriture lente sur un serveur distant.</summary>
+    private void EnsureRefundItems()
+    {
+        if (_refundLoaded) return;
+        _refundLoaded = true;
+        foreach (var rc in _c.RefundCandidates(_existing?.Entry.RefundOfId, _existing?.Entry.Id ?? 0))
+            _refundItems.Add(new RefundItem(rc,
+                $"{rc.Entry.Date:dd/MM/yyyy} · {rc.Entry.Label} · {Money.Format(rc.Entry.AmountCents)} €" +
+                (rc.Refunded > 0 ? $" (déjà remboursé {Money.Format(rc.Refunded)} €)" : "") + $" · {rc.YearLabel}"));
+    }
 
     private void RefundCombo_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -680,7 +691,10 @@ public partial class EntryWindow : Window
         }
         if (_rows.Count == 0) AddAllocRow();
         if (e.RefundOfId is { } origId)
+        {
+            EnsureRefundItems();
             RefundCombo.SelectedItem = _refundItems.FirstOrDefault(i => i.Candidate?.Entry.Id == origId) ?? _refundItems[0];
+        }
     }
 
     // ------------------------------------------------------------------ enregistrement
