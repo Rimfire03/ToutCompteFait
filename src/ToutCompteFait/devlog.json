@@ -1,6 +1,16 @@
 {
   "entries": [
     {
+      "version": "1.13.7",
+      "date": "2026-10-24",
+      "show": false,
+      "title": "Version 1.13.7",
+      "items": [
+        "Changement d'onglet plus rapide sur une base distante : le compteur de la cloche est relu après l'affichage de la page.",
+        "Statistiques des exercices validés conservées en base : elles ne sont plus recalculées à chaque affichage."
+      ]
+    },
+    {
       "version": "1.13.6",
       "date": "2026-10-24",
       "show": false,
