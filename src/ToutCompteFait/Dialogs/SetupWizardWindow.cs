@@ -49,6 +49,8 @@ public sealed class SetupWizardWindow : Window
     private readonly List<(RadioButton Radio, string TemplateId)> _activities = new();
     private readonly RadioButton _quarterly = new() { Content = "Par trimestre (le plus courant)", IsChecked = true, GroupName = "wmode" };
     private readonly RadioButton _monthly = new() { Content = "Par mois", GroupName = "wmode" };
+    private readonly RadioButton _vflYes = new() { Content = "Oui, versement libératoire (l'impôt est payé avec les cotisations)", GroupName = "wvfl" };
+    private readonly RadioButton _vflNo = new() { Content = "Non, ou je ne sais pas encore", IsChecked = true, GroupName = "wvfl" };
     private readonly RadioButton _assetsYes = new() { Content = "Oui, suivre mon matériel et l'amortir", GroupName = "wassets" };
     private readonly RadioButton _assetsNo = new() { Content = "Non, pas pour le moment", IsChecked = true, GroupName = "wassets" };
     private readonly DatePicker _start = new();
@@ -161,7 +163,7 @@ public sealed class SetupWizardWindow : Window
             _steps.Add(new Step
             {
                 Title = "Votre activité",
-                Subtitle = "Trois questions pour préparer vos produits et charges habituels, le calendrier de vos déclarations URSSAF et vos réglages. Tout reste modifiable ensuite.",
+                Subtitle = "Quelques questions pour préparer vos produits et charges habituels, le calendrier de vos déclarations URSSAF, l'impôt et vos réglages. Tout reste modifiable ensuite.",
                 Build = ActivityPanel
             });
         _steps.Add(new Step
@@ -285,6 +287,9 @@ public sealed class SetupWizardWindow : Window
         p.Children.Add(new TextBlock { Text = "3. Achetez-vous du matériel durable (ordinateur, machine, outillage) ?", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 14, 0, 4) });
         p.Children.Add(_assetsYes);
         p.Children.Add(_assetsNo);
+        p.Children.Add(new TextBlock { Text = "4. Avez-vous opté pour le versement libératoire de l'impôt sur le revenu ?", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 14, 0, 4) });
+        p.Children.Add(_vflYes);
+        p.Children.Add(_vflNo);
         return p;
     }
 
@@ -359,6 +364,7 @@ public sealed class SetupWizardWindow : Window
             Line("Activité", CategoryTemplates.Find(Template ?? "")?.Name ?? "—");
             Line("Déclaration URSSAF", _monthly.IsChecked == true ? "Par mois" : "Par trimestre");
             Line("Matériel durable", _assetsYes.IsChecked == true ? "Suivi activé" : "Non");
+            Line("Versement libératoire", _vflYes.IsChecked == true ? "Oui" : "Non");
         }
         if (_start.SelectedDate is { } s && _end.SelectedDate is { } e)
             Line(_business ? "Année fiscale" : "Exercice", $"{_yearLabel.Text.Trim()} ({s:dd/MM/yyyy} → {e:dd/MM/yyyy})");
@@ -397,7 +403,11 @@ public sealed class SetupWizardWindow : Window
                 {
                     var name = _companyName.Text.Trim();
                     _compta.SetUrssafTrackingStart(DateOnly.FromDateTime(DateTime.Today));
-                    if (name.Length > 0) _compta.SaveBusinessProfile(_compta.GetBusinessProfile() with { Name = name });
+                    _compta.SaveBusinessProfile(_compta.GetBusinessProfile() with
+                    {
+                        Name = name.Length > 0 ? name : _compta.GetBusinessProfile().Name,
+                        LiberatoryTax = _vflYes.IsChecked == true
+                    });
                     _compta.CompleteBusinessOnboarding(_createdYear.Id, Template,
                         _monthly.IsChecked == true ? DeclarationMode.Monthly : DeclarationMode.Quarterly, _assetsYes.IsChecked == true);
                 }

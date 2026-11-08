@@ -42,6 +42,11 @@ public partial class SettingsView
         Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed
     };
     private readonly Dictionary<UrssafKind, TextBox> _bizRates = new();
+    private readonly Dictionary<UrssafKind, TextBox> _bizVflRates = new();
+    private readonly CheckBox _bizVfl = new()
+    {
+        Content = "J'ai opté pour le versement libératoire de l'impôt sur le revenu", Margin = new Thickness(0, 4, 0, 6)
+    };
     private readonly TextBox _bizCeilTotal = new(), _bizCeilServices = new(), _bizVatSale = new(), _bizVatSaleMax = new(),
         _bizVatService = new(), _bizVatServiceMax = new(), _bizAcreDiscount = new();
     private readonly DatePicker _bizAcreUntil = new();
@@ -193,6 +198,26 @@ public partial class SettingsView
         _bizAcreUntil.HorizontalAlignment = HorizontalAlignment.Left;
         root.Children.Add(rates);
 
+        // --- Impôt sur le revenu : versement libératoire
+        root.Children.Add(Section("Impôt sur le revenu : versement libératoire"));
+        root.Children.Add(new TextBlock
+        {
+            Style = Sty("MutedText"), TextWrapping = TextWrapping.Wrap,
+            Text = "Si vous avez choisi le versement libératoire, l'impôt sur le revenu est payé avec vos cotisations, à un taux fixe sur le " +
+                   "chiffre d'affaires, au lieu d'être calculé sur votre déclaration de revenus. Cochez la case : le Reporting URSSAF ajoute " +
+                   "alors l'impôt estimé. L'option est soumise à une condition de revenu du foyer (voir impots.gouv.fr) et se demande " +
+                   "auprès de l'URSSAF."
+        });
+        root.Children.Add(_bizVfl);
+        var vflForm = Form();
+        foreach (var k in UrssafKinds.All)
+        {
+            var box = new TextBox { Width = 90, HorizontalAlignment = HorizontalAlignment.Left };
+            _bizVflRates[k] = box;
+            Row(vflForm, "Impôt : " + k.Label(), box);
+        }
+        root.Children.Add(vflForm);
+
         // --- Plafonds
         root.Children.Add(Section("Plafonds du régime micro et franchise de TVA (€)"));
         var ceil = Form();
@@ -226,8 +251,9 @@ public partial class SettingsView
             });
 
         foreach (var tb in new[] { _bizSiren, _bizName, _bizAddress, _bizPostal, _bizCity, _bizNature, _bizAcreDiscount, _bizCeilTotal,
-                                   _bizCeilServices, _bizVatSale, _bizVatSaleMax, _bizVatService, _bizVatServiceMax }.Concat(_bizRates.Values))
+                                   _bizCeilServices, _bizVatSale, _bizVatSaleMax, _bizVatService, _bizVatServiceMax }.Concat(_bizRates.Values).Concat(_bizVflRates.Values))
             tb.IsEnabled = canEdit;
+        _bizVfl.IsEnabled = canEdit;
         _bizCreated.IsEnabled = canEdit;
         _bizAcreUntil.IsEnabled = canEdit;
         _bizMode.IsEnabled = canEdit;
@@ -331,7 +357,11 @@ public partial class SettingsView
 
     private void FillParams(UrssafParams prm)
     {
-        foreach (var k in UrssafKinds.All) _bizRates[k].Text = Percent(prm.RatesBp.GetValueOrDefault(k));
+        foreach (var k in UrssafKinds.All)
+        {
+            _bizRates[k].Text = Percent(prm.RatesBp.GetValueOrDefault(k));
+            _bizVflRates[k].Text = Percent(prm.VflRatesBp.GetValueOrDefault(k));
+        }
         _bizAcreDiscount.Text = prm.AcreDiscountPercent.ToString(CultureInfo.InvariantCulture);
         _bizAcreUntil.SelectedDate = prm.AcreUntil?.ToDateTime(TimeOnly.MinValue);
         _bizCeilTotal.Text = Euros(prm.CeilingTotalCents);
@@ -373,6 +403,7 @@ public partial class SettingsView
         _apeCodes.Clear();
         _apeCodes.AddRange(p.ApeCodes.Count > 0 ? p.ApeCodes : p.ApeMain is { } m ? new[] { m } : Array.Empty<string>());
         _bizMode.SelectedIndex = p.Mode == DeclarationMode.Monthly ? 1 : 0;
+        _bizVfl.IsChecked = p.LiberatoryTax;
         RefreshApeInfo();
     }
 
@@ -445,7 +476,8 @@ public partial class SettingsView
             CreationDate = _bizCreated.SelectedDate is { } d ? DateOnly.FromDateTime(d) : null,
             ApeMain = codes.FirstOrDefault(),
             ApeCodes = codes,
-            Mode = _bizMode.SelectedIndex == 1 ? DeclarationMode.Monthly : DeclarationMode.Quarterly
+            Mode = _bizMode.SelectedIndex == 1 ? DeclarationMode.Monthly : DeclarationMode.Quarterly,
+            LiberatoryTax = _bizVfl.IsChecked == true
         };
     }
 
@@ -472,6 +504,17 @@ public partial class SettingsView
             }
             rates[k] = (int)Math.Round(pct * 100, MidpointRounding.AwayFromZero);
         }
+        var vflRates = new Dictionary<UrssafKind, int>();
+        foreach (var k in UrssafKinds.All)
+        {
+            var text = _bizVflRates[k].Text.Trim().Replace("%", "").Replace(',', '.');
+            if (!decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var pct) || pct < 0 || pct > 100)
+            {
+                error = $"Taux d'impôt invalide : {k.Short()} (0 à 100 %).";
+                return false;
+            }
+            vflRates[k] = (int)Math.Round(pct * 100, MidpointRounding.AwayFromZero);
+        }
         if (!int.TryParse(_bizAcreDiscount.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var discount) || discount is < 0 or > 100)
         {
             error = "Réduction ACRE invalide (0 à 100 %).";
@@ -487,6 +530,7 @@ public partial class SettingsView
         prm = new UrssafParams
         {
             RatesBp = rates,
+            VflRatesBp = vflRates,
             AcreDiscountPercent = discount,
             AcreUntil = _bizAcreUntil.SelectedDate is { } u ? DateOnly.FromDateTime(u) : null,
             CeilingTotalCents = ct, CeilingServicesCents = cs, VatSaleCents = vs, VatSaleMaxCents = vsm, VatServiceCents = vv, VatServiceMaxCents = vvm

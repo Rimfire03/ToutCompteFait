@@ -150,6 +150,17 @@ public sealed record UrssafParams
         [UrssafKind.LiberalCipav] = 2320
     };
 
+    /// <summary>Taux du versement libératoire de l'impôt sur le revenu par type, en centièmes de pour cent (100 = 1 %) :
+    /// 1 % pour la vente de marchandises, 1,7 % pour les prestations de services BIC, 2,2 % pour les activités libérales (BNC).
+    /// Appliqués seulement si l'option est cochée (<see cref="BusinessProfile.LiberatoryTax"/>).</summary>
+    public IReadOnlyDictionary<UrssafKind, int> VflRatesBp { get; init; } = new Dictionary<UrssafKind, int>
+    {
+        [UrssafKind.Sale] = 100,
+        [UrssafKind.Service] = 170,
+        [UrssafKind.LiberalSsi] = 220,
+        [UrssafKind.LiberalCipav] = 220
+    };
+
     /// <summary>Plafond de chiffre d'affaires du régime micro (activités de vente + prestations) et sous-plafond des
     /// prestations de services, en centimes (2026-2028).</summary>
     public long CeilingTotalCents { get; init; } = 20_310_000;
@@ -266,13 +277,25 @@ public sealed record BusinessProfile
     public DeclarationMode Mode { get; init; } = DeclarationMode.Quarterly;
     public DateTime? FetchedAt { get; init; }
 
+    /// <summary>Option pour le versement libératoire de l'impôt sur le revenu : l'impôt est payé avec les cotisations, à un
+    /// taux fixe sur le chiffre d'affaires (<see cref="UrssafParams.VflRatesBp"/>).</summary>
+    public bool LiberatoryTax { get; init; }
+
     public bool IsEmpty => string.IsNullOrWhiteSpace(Siren) && string.IsNullOrWhiteSpace(Name);
 }
 
-public sealed record UrssafLine(UrssafKind Kind, long TurnoverCents, int RateBp, long ContributionCents);
+public sealed record UrssafLine(UrssafKind Kind, long TurnoverCents, int RateBp, long ContributionCents,
+    int TaxRateBp = 0, long TaxCents = 0);
 
 public sealed record UrssafReport(UrssafPeriod Period, IReadOnlyList<UrssafLine> Lines, long TotalTurnoverCents,
-    long TotalContributionCents, long UnclassifiedCents, int PendingEntries, DateTime? DeclaredAt, string? DeclaredBy);
+    long TotalContributionCents, long UnclassifiedCents, int PendingEntries, DateTime? DeclaredAt, string? DeclaredBy)
+{
+    /// <summary>Impôt estimé du versement libératoire (0 si l'option n'est pas cochée).</summary>
+    public long TotalTaxCents => Lines.Sum(l => l.TaxCents);
+
+    /// <summary>L'option du versement libératoire est cochée : le rapport affiche l'impôt avec les cotisations.</summary>
+    public bool HasLiberatoryTax { get; init; }
+}
 
 /// <summary>Cumul de l'année civile face aux plafonds et au seuil de TVA.</summary>
 public sealed record UrssafCeilings(int Year, long TotalCents, long ServicesCents, long SalesCents, UrssafParams Params,

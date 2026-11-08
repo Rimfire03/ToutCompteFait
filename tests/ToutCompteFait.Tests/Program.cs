@@ -2369,6 +2369,20 @@ Console.WriteLine("Autoentreprise");
     Eq(120_000L * 615 / 10000 + 30_000L * 1060 / 10000, acre.TotalContributionCents, "cotisations avec ACRE (taux divisés par deux)");
     Eq(1060, c.GetUrssafParams().RateFor(UrssafKind.Service, Dt(2026, 9, 30)) , "taux ACRE d'une prestation");
 
+    // Versement libératoire de l'impôt sur le revenu : sans l'option, aucun impôt ; avec, taux fixes sur le CA (1 % / 1,7 %).
+    Check(!rep.HasLiberatoryTax && rep.TotalTaxCents == 0, "versement libératoire : option décochée = aucun impôt");
+    c.SaveBusinessProfile(c.GetBusinessProfile() with { LiberatoryTax = true });
+    Check(c.GetBusinessProfile().LiberatoryTax, "option du versement libératoire enregistrée");
+    var vfl = c.ComputeUrssafReport(q3);
+    Check(vfl.HasLiberatoryTax, "versement libératoire : option cochée");
+    Eq(120_000L * 100 / 10000 + 30_000L * 170 / 10000, vfl.TotalTaxCents, "impôt estimé : 1 % vente, 1,7 % prestations");
+    Eq(170, vfl.Lines.First(l => l.Kind == UrssafKind.Service).TaxRateBp, "taux d'impôt d'une prestation : 1,7 %");
+    Eq(acre.TotalContributionCents, vfl.TotalContributionCents, "les cotisations ne changent pas avec l'option");
+    c.SaveUrssafParams(c.GetUrssafParams() with { VflRatesBp = new Dictionary<UrssafKind, int> { [UrssafKind.Sale] = 200, [UrssafKind.Service] = 300, [UrssafKind.LiberalSsi] = 400, [UrssafKind.LiberalCipav] = 400 } });
+    Eq(120_000L * 200 / 10000 + 30_000L * 300 / 10000, c.ComputeUrssafReport(q3).TotalTaxCents, "taux d'impôt modifiés dans les réglages");
+    c.SaveBusinessProfile(c.GetBusinessProfile() with { LiberatoryTax = false });
+    Eq(0L, c.ComputeUrssafReport(q3).TotalTaxCents, "option décochée : plus d'impôt");
+
     // Plafonds
     var ceil = c.ComputeUrssafCeilings(2026);
     Eq(220_000L, ceil.TotalCents, "CA cumulé de l'année");

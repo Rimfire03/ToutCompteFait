@@ -51,6 +51,7 @@ public sealed partial class Compta
             ApeMain = G("profile.ape"),
             ApeCodes = (G("profile.apes") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
             Mode = G("profile.mode") == "M" ? DeclarationMode.Monthly : DeclarationMode.Quarterly,
+            LiberatoryTax = G("profile.vfl") == "1",
             FetchedAt = DateTime.TryParse(G("profile.fetched"), CultureInfo.InvariantCulture, DateTimeStyles.None, out var f) ? f : null
         };
     }
@@ -76,11 +77,13 @@ public sealed partial class Compta
             ["profile.ape"] = ApeMapper.Normalize(p.ApeMain) ?? p.ApeMain?.Trim(),
             ["profile.apes"] = string.Join(";", apes),
             ["profile.mode"] = p.Mode == DeclarationMode.Monthly ? "M" : "Q",
+            ["profile.vfl"] = p.LiberatoryTax ? "1" : null,
             ["profile.fetched"] = p.FetchedAt?.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture)
         });
         Save(ctx);
         Log(ctx, "Entreprise : profil enregistré",
-            $"{p.Name} · SIREN {p.Siren} · APE {string.Join(", ", apes)} · déclaration {(p.Mode == DeclarationMode.Monthly ? "mensuelle" : "trimestrielle")}");
+            $"{p.Name} · SIREN {p.Siren} · APE {string.Join(", ", apes)} · déclaration {(p.Mode == DeclarationMode.Monthly ? "mensuelle" : "trimestrielle")}" +
+            (p.LiberatoryTax ? " · versement libératoire de l'impôt" : ""));
         tx.Commit();
     }
 
@@ -93,9 +96,11 @@ public sealed partial class Compta
         var d = new UrssafParams();
         long Cents(string key, long dflt) => s.TryGetValue(key, out var v) && long.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : dflt;
         var rates = d.RatesBp.ToDictionary(kv => kv.Key, kv => (int)Cents("rate." + kv.Key.Code(), kv.Value));
+        var vflRates = d.VflRatesBp.ToDictionary(kv => kv.Key, kv => (int)Cents("vfl." + kv.Key.Code(), kv.Value));
         return d with
         {
             RatesBp = rates,
+            VflRatesBp = vflRates,
             CeilingTotalCents = Cents("ceil.total", d.CeilingTotalCents),
             CeilingServicesCents = Cents("ceil.services", d.CeilingServicesCents),
             VatSaleCents = Cents("vat.sale", d.VatSaleCents),
@@ -112,6 +117,7 @@ public sealed partial class Compta
         Require(Permission.ManageStructure);
         RequireWritable();
         if (p.RatesBp.Values.Any(r => r is < 0 or > 10000)) throw new ComptaException("Un taux de cotisations doit être compris entre 0 et 100 %.");
+        if (p.VflRatesBp.Values.Any(r => r is < 0 or > 10000)) throw new ComptaException("Un taux du versement libératoire doit être compris entre 0 et 100 %.");
         if (p.AcreDiscountPercent is < 0 or > 100) throw new ComptaException("La réduction ACRE doit être comprise entre 0 et 100 %.");
         var values = new Dictionary<string, string?>
         {
@@ -125,7 +131,10 @@ public sealed partial class Compta
             ["acre.until"] = p.AcreUntil?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
         };
         foreach (var k in UrssafKinds.All)
+        {
             values["rate." + k.Code()] = (p.RatesBp.TryGetValue(k, out var r) ? r : 0).ToString(CultureInfo.InvariantCulture);
+            values["vfl." + k.Code()] = (p.VflRatesBp.TryGetValue(k, out var v) ? v : 0).ToString(CultureInfo.InvariantCulture);
+        }
         using var tx = Begin();
         var ctx = Open().Ctx;
         WriteBusinessSettings(ctx, values);
@@ -298,6 +307,7 @@ public sealed partial class Compta
         var prm = GetUrssafParams();
         var byKind = TurnoverByKind(period.Start, period.End, out var unclassified, out var pending);
         var used = CategoryUrssafKinds().Values.ToHashSet();
+        var liberatory = GetBusinessProfile().LiberatoryTax;
         var lines = new List<UrssafLine>();
         foreach (var k in UrssafKinds.All)
         {
@@ -306,11 +316,14 @@ public sealed partial class Compta
             var rate = prm.RateFor(k, period.End);
             // Cotisations estimées : arrondies au centime, jamais négatives (un avoir ne donne pas de crédit).
             var contribution = (long)Math.Max(0, Math.Round(turnover * rate / 10000m, 0, MidpointRounding.AwayFromZero));
-            lines.Add(new UrssafLine(k, turnover, rate, contribution));
+            // Versement libératoire de l'impôt sur le revenu (si l'option est cochée) : taux fixe sur le chiffre d'affaires.
+            var taxRate = liberatory ? prm.VflRatesBp.GetValueOrDefault(k) : 0;
+            var tax = (long)Math.Max(0, Math.Round(turnover * taxRate / 10000m, 0, MidpointRounding.AwayFromZero));
+            lines.Add(new UrssafLine(k, turnover, rate, contribution, taxRate, tax));
         }
         var declared = Declarations().FirstOrDefault(d => d.PeriodKey == period.Key);
         return new UrssafReport(period, lines, lines.Sum(x => x.TurnoverCents), lines.Sum(x => x.ContributionCents),
-            unclassified, pending, declared?.DeclaredAt, declared?.DeclaredBy);
+            unclassified, pending, declared?.DeclaredAt, declared?.DeclaredBy) { HasLiberatoryTax = liberatory };
     }
 
     /// <summary>Chiffre d'affaires cumulé de l'année civile face aux plafonds du régime micro et aux seuils de TVA.</summary>

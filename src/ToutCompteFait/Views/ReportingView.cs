@@ -174,7 +174,8 @@ public sealed class ReportingView : UserControl, IPage
         Card("À saisir sur autoentrepreneur.urssaf.fr");
         var grid = new Grid { MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        foreach (var w in new[] { 140, 80, 150 }) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+        foreach (var w in report.HasLiberatoryTax ? new[] { 140, 80, 150, 90, 150 } : new[] { 140, 80, 150 })
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
         var r = 0;
         void Cell(int row, int col, string text, bool bold = false, bool right = false, bool header = false)
         {
@@ -199,6 +200,11 @@ public sealed class ReportingView : UserControl, IPage
         Cell(r, 1, "Chiffre d'affaires", header: true, right: true);
         Cell(r, 2, "Taux estimé", header: true, right: true);
         Cell(r, 3, "Cotisations estimées", header: true, right: true);
+        if (report.HasLiberatoryTax)
+        {
+            Cell(r, 4, "Taux d'impôt", header: true, right: true);
+            Cell(r, 5, "Impôt estimé", header: true, right: true);
+        }
         foreach (var line in report.Lines)
         {
             r++;
@@ -207,6 +213,11 @@ public sealed class ReportingView : UserControl, IPage
             Cell(r, 1, Eur(line.TurnoverCents), right: true, bold: true);
             Cell(r, 2, $"{line.RateBp / 100m:0.##} %", right: true);
             Cell(r, 3, Eur(line.ContributionCents), right: true);
+            if (report.HasLiberatoryTax)
+            {
+                Cell(r, 4, $"{line.TaxRateBp / 100m:0.##} %", right: true);
+                Cell(r, 5, Eur(line.TaxCents), right: true);
+            }
         }
         r++;
         NewRow();
@@ -214,7 +225,15 @@ public sealed class ReportingView : UserControl, IPage
         Cell(r, 1, Eur(report.TotalTurnoverCents), bold: true, right: true);
         Cell(r, 2, "", right: true);
         Cell(r, 3, Eur(report.TotalContributionCents), bold: true, right: true);
+        if (report.HasLiberatoryTax)
+        {
+            Cell(r, 4, "", right: true);
+            Cell(r, 5, Eur(report.TotalTaxCents), bold: true, right: true);
+        }
         Put(grid);
+        if (report.HasLiberatoryTax)
+            Put(Muted($"Versement libératoire de l'impôt sur le revenu : l'impôt est payé avec les cotisations. Total estimé à payer : " +
+                      $"{Eur(report.TotalContributionCents + report.TotalTaxCents)} (cotisations {Eur(report.TotalContributionCents)} + impôt {Eur(report.TotalTaxCents)})."));
 
         if (report.Lines.All(l => l.TurnoverCents == 0))
             Put(Muted("Aucun chiffre d'affaires sur la période : la déclaration à 0 € est quand même obligatoire sur le site."));
