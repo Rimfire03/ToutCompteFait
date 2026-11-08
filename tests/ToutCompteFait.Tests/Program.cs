@@ -2437,6 +2437,123 @@ Console.WriteLine("Autoentreprise");
     Eq(1300, b2.GetUrssafParams().RatesBp[UrssafKind.Sale], "taux modifié à la main : conservé");
     Eq(2150, b2.GetUrssafParams().RatesBp[UrssafKind.Service], "autre taux non modifié : mis à jour");
     Check(kept.KeptCustom.Count > 0, "valeur personnalisée signalée");
+    // Lecture des règles officielles (simulateur de l'URSSAF, format publicodes) : extraits de la forme réelle des fichiers.
+    const string pubContrib = """
+        dirigeant . auto-entrepreneur . cotisations et contributions . cotisations:
+          avec:
+            service BIC:
+              produit:
+                - entreprise . chiffre d'affaires . service BIC
+                - taux
+              avec:
+                taux:
+                  variations:
+                    - si: date >= 10/2022
+                      alors: 21.2%
+                    - sinon: 22%
+
+                répartition:
+                  avec:
+                    maladie-maternité:
+                      valeur: service BIC * taux de répartition
+            service BNC:
+              produit:
+                - entreprise . chiffre d'affaires . service BNC
+                - taux
+              avec:
+                taux:
+                  variations:
+                    - si: date >= 01/2027
+                      alors: 26.1%
+                    - si: date >= 01/2026
+                      alors: 25.6%
+                    - si: date >= 01/2025
+                      alors: 24.6%
+                    - sinon: 22%
+
+                répartition:
+                  avec:
+                    x: 1
+            vente restauration hébergement:
+              avec:
+                taux:
+                  variations:
+                    - si: date >= 10/2022
+                      alors: 12.3%
+                    - sinon: 12.8%
+
+                répartition:
+                  avec:
+                    x: 1
+            service BNC Cipav:
+              avec:
+                taux:
+                  variations:
+                    - si: date >= 07/2024
+                      alors: 23.2%
+                    - sinon: 21.2%
+
+                répartition:
+                  avec:
+                    x: 1
+        """;
+    const string pubTax = """
+        dirigeant . auto-entrepreneur . impôt . versement libératoire . montant:
+          somme:
+            - produit:
+                - entreprise . chiffre d'affaires . vente restauration hébergement
+                - 1%
+            - produit:
+                - entreprise . chiffre d'affaires . service BIC
+                - 1.7%
+            - produit:
+                - entreprise . chiffre d'affaires . service BNC
+                - 2.2%
+        """;
+    const string pubCompany = """
+        entreprise . chiffre d'affaires . seuil micro . libérale:
+          unité: €/an
+          variations:
+            - si: date < 01/2026
+              alors: 77700 €/an
+            - sinon: 83600 €/an
+
+        entreprise . chiffre d'affaires . seuil micro . total:
+          unité: €/an
+          variations:
+            - si: date < 01/2026
+              alors: 188700 €/an
+            - sinon: 203100 €/an
+
+        entreprise . chiffre d'affaires . seuil micro . dépassé:
+          valeur: oui
+        """;
+    var off2026 = PublicodesBareme.Build(pubContrib, pubTax, pubCompany, new DateOnly(2026, 11, 8), Bareme.Builtin);
+    Eq(1230, off2026.RatesBp[UrssafKind.Sale], "règles officielles : cotisations vente");
+    Eq(2120, off2026.RatesBp[UrssafKind.Service], "règles officielles : cotisations prestations BIC");
+    Eq(2560, off2026.RatesBp[UrssafKind.LiberalSsi], "règles officielles : BNC en 2026 (25,6 %)");
+    Eq(2320, off2026.RatesBp[UrssafKind.LiberalCipav], "règles officielles : Cipav");
+    Eq(170, off2026.VflRatesBp[UrssafKind.Service], "règles officielles : versement libératoire prestations BIC");
+    Eq(220, off2026.VflRatesBp[UrssafKind.LiberalCipav], "règles officielles : versement libératoire BNC");
+    Eq(20_310_000L, off2026.CeilingTotalCents, "règles officielles : plafond micro 2026");
+    Eq(8_360_000L, off2026.CeilingServicesCents, "règles officielles : plafond des prestations 2026");
+    Eq(new DateOnly(2026, 1, 1), off2026.From, "règles officielles : date d'effet = dernier changement passé");
+    Eq(Bareme.Builtin.VatSaleCents, off2026.VatSaleCents, "règles officielles : franchise de TVA reprise du barème de repli");
+    var off2027 = PublicodesBareme.Build(pubContrib, pubTax, pubCompany, new DateOnly(2027, 2, 1), Bareme.Builtin);
+    Eq(2610, off2027.RatesBp[UrssafKind.LiberalSsi], "règles officielles : nouveau taux BNC dès 01/2027");
+    Eq("2027-01", off2027.Label, "règles officielles : révision nommée d'après sa date");
+    var off2025 = PublicodesBareme.Build(pubContrib, pubTax, pubCompany, new DateOnly(2025, 6, 1), Bareme.Builtin);
+    Eq(2460, off2025.RatesBp[UrssafKind.LiberalSsi], "règles officielles : taux d'une date passée");
+    Throws(() => PublicodesBareme.Build(pubContrib.Replace("alors: 21.2%", "alors: beaucoup"), pubTax, pubCompany, new DateOnly(2026, 1, 1), Bareme.Builtin),
+        "règles officielles : valeur illisible refusée", "illisible");
+    Throws(() => PublicodesBareme.Build(pubContrib.Replace("service BNC Cipav:", "autre chose:"), pubTax, pubCompany, new DateOnly(2026, 1, 1), Bareme.Builtin),
+        "règles officielles : règle introuvable refusée", "introuvable");
+    Eq(1, BaremeService.Combine(null, off2026, new DateOnly(2026, 11, 8)).Count, "même date que le barème de repli : pas de doublon");
+    Eq(2, BaremeService.Combine(null, off2027, new DateOnly(2027, 2, 1)).Count, "révision officielle plus récente : ajoutée");
+    var b4 = NewCompta(NewFactory(TempDb()));
+    b4.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
+    var composed = b4.PreviewBareme(BaremeService.Combine(null, off2027, new DateOnly(2027, 2, 1)), new DateOnly(2027, 2, 1));
+    Check(composed.Pending && composed.Changed.Any(x => x.Contains("25,6 % → 26,1 %")), "révision officielle : changement de taux proposé à la validation");
     // Le barème livré avec le logiciel et le fichier publié dans le dépôt doivent rester identiques.
     var dir = new DirectoryInfo(AppContext.BaseDirectory);
     while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "bareme", "urssaf.json"))) dir = dir.Parent;

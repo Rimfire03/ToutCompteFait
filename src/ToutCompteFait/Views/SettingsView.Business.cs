@@ -180,8 +180,10 @@ public partial class SettingsView
         {
             Style = Sty("MutedText"), TextWrapping = TextWrapping.Wrap,
             Text = "Les taux de cotisations, le versement libératoire, les plafonds du régime micro et les seuils de TVA changent chaque année. " +
-                   "Le logiciel lit le barème publié avec le logiciel (un simple fichier public, aucune donnée de votre dossier n'est envoyée) et " +
-                   "remplace uniquement les valeurs que vous n'avez pas modifiées : celles que vous avez saisies à la main sont conservées. " +
+                   "Le logiciel lit les règles publiques du simulateur officiel de l'URSSAF (mon-entreprise.urssaf.fr : cotisations, versement " +
+                   "libératoire, plafonds) et le fichier de barème du logiciel (seuils de TVA) : de simples lectures de fichiers publics, aucune " +
+                   "donnée de votre dossier n'est envoyée. Vous êtes prévenu de tout changement et vous le validez avant qu'il soit appliqué ; " +
+                   "seules les valeurs que vous n'avez pas modifiées sont remplacées, celles saisies à la main sont conservées. " +
                    "Les périodes passées gardent leur taux d'époque."
         });
         _bizBaremeAuto.Click += BaremeAuto_Click;
