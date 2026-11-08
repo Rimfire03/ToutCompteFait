@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "1.13.8",
+      "date": "2026-11-08",
+      "show": false,
+      "title": "Version 1.13.8",
+      "items": [
+        "Autoentreprise : option du versement libératoire de l'impôt sur le revenu (taux modifiables) ; l'impôt estimé s'ajoute aux cotisations dans le Reporting URSSAF."
+      ]
+    },
+    {
       "version": "1.13.7",
       "date": "2026-10-24",
       "show": false,
