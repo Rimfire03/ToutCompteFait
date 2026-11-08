@@ -1,6 +1,19 @@
 {
   "entries": [
     {
+      "version": "1.13.9",
+      "date": "2026-11-08",
+      "show": true,
+      "title": "Nouveautés de la version 1.13.9",
+      "items": [
+        "Autoentreprise : option du versement libératoire de l'impôt sur le revenu (taux modifiables). L'impôt estimé s'ajoute aux cotisations dans le Reporting URSSAF.",
+        "Autoentreprise : mise à jour du barème (taux de cotisations, versement libératoire, plafonds du régime micro) lue dans les règles publiques du simulateur officiel de l'URSSAF. Vous êtes prévenu de chaque changement et vous le validez avant qu'il soit appliqué ; vos valeurs modifiées sont conservées et les périodes passées gardent leur taux d'époque.",
+        "Autoentreprise : plus de déclaration URSSAF réclamée avant le premier exercice du logiciel.",
+        "Changement d'onglet et ouverture d'une écriture plus rapides sur une base distante ; les statistiques des exercices validés sont conservées en base.",
+        "Nouvel assistant de première configuration, centre de notifications avec prochaine déclaration URSSAF, page « Premiers pas »."
+      ]
+    },
+    {
       "version": "1.13.8",
       "date": "2026-11-08",
       "show": false,
