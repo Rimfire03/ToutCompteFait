@@ -6,12 +6,13 @@ using ToutCompteFait.Core.Security;
 namespace ToutCompteFait.Core;
 
 /// <summary>Résultat d'une mise à jour du barème : ce qui a changé, ce qui a été conservé parce que l'utilisateur l'avait modifié.</summary>
-public sealed record BaremeResult(bool Applied, string Label, IReadOnlyList<string> Changed, IReadOnlyList<string> KeptCustom, string Message);
+public sealed record BaremeResult(bool Applied, string Label, IReadOnlyList<string> Changed, IReadOnlyList<string> KeptCustom, string Message,
+    bool Pending = false);
 
 public sealed partial class Compta
 {
     private const string BaremeLabelKey = "bareme.label", BaremeFromKey = "bareme.from", BaremeHistoryKey = "bareme.history",
-        BaremeAutoKey = "bareme.auto", BaremeCheckedKey = "bareme.checked";
+        BaremeAutoKey = "bareme.auto", BaremeCheckedKey = "bareme.checked", BaremePendingKey = "bareme.pending", BaremeAskedKey = "bareme.asked";
 
     private sealed class SnapshotDto
     {
@@ -100,18 +101,27 @@ public sealed partial class Compta
         }
     }
 
-    /// <summary>Applique la dernière révision en vigueur (<paramref name="today"/>) du fichier de barème. Seules les valeurs qui
-    /// portent encore celles de la révision précédente (ou d'un ancien barème par défaut) sont remplacées : une valeur modifiée à
-    /// la main est conservée. Les taux remplacés sont gardés dans l'historique, pour que les périodes passées gardent leur taux.</summary>
-    public BaremeResult ApplyBareme(IReadOnlyList<BaremeEntry> entries, DateOnly today)
+    private sealed record BaremePlan(BaremeEntry Target, string AppliedLabel, UrssafParams Next, List<RateSnapshot> History,
+        List<string> Changed, List<string> Kept);
+
+    /// <summary>Calcule, sans rien écrire, ce que la dernière révision en vigueur (<paramref name="today"/>) du fichier de barème
+    /// changerait. Seules les valeurs qui portent encore celles de la révision précédente (ou d'un ancien barème par défaut) sont
+    /// remplacées : une valeur modifiée à la main est conservée. Null si rien n'est à faire (<paramref name="none"/> l'explique).</summary>
+    private BaremePlan? PlanBareme(IReadOnlyList<BaremeEntry> entries, DateOnly today, out BaremeResult? none)
     {
-        Require(Permission.ManageStructure);
-        RequireWritable();
+        none = null;
         var target = entries.Where(e => e.From <= today).OrderByDescending(e => e.From).FirstOrDefault();
         var applied = BaremeApplied();
-        if (target is null) return new BaremeResult(false, applied.Label, Array.Empty<string>(), Array.Empty<string>(), "Aucune révision du barème n'est encore en vigueur.");
+        if (target is null)
+        {
+            none = new BaremeResult(false, applied.Label, Array.Empty<string>(), Array.Empty<string>(), "Aucune révision du barème n'est encore en vigueur.");
+            return null;
+        }
         if (target.From <= applied.From || target.Label == applied.Label)
-            return new BaremeResult(false, applied.Label, Array.Empty<string>(), Array.Empty<string>(), $"Barème à jour ({applied.Label}).");
+        {
+            none = new BaremeResult(false, applied.Label, Array.Empty<string>(), Array.Empty<string>(), $"Barème à jour ({applied.Label}).");
+            return null;
+        }
 
         var previous = entries.FirstOrDefault(e => e.Label == applied.Label) ?? Bareme.Builtin;
         var cur = GetUrssafParams();
@@ -168,22 +178,76 @@ public sealed partial class Compta
         var ratesChanged = UrssafKinds.All.Any(k => rates[k] != cur.RatesBp.GetValueOrDefault(k) || vfl[k] != cur.VflRatesBp.GetValueOrDefault(k));
         if (ratesChanged)
             history.Add(new RateSnapshot(history.Count > 0 ? history[^1].Until : DateOnly.MinValue, target.From, cur.RatesBp, cur.VflRatesBp));
+        return new BaremePlan(target, applied.Label, next2, history, changed, kept);
+    }
+
+    /// <summary>Ce qu'une mise à jour du barème changerait, sans rien modifier : à montrer à l'utilisateur pour validation.
+    /// <see cref="BaremeResult.Pending"/> est vrai quand une nouvelle révision est disponible.</summary>
+    public BaremeResult PreviewBareme(IReadOnlyList<BaremeEntry> entries, DateOnly today)
+    {
+        var plan = PlanBareme(entries, today, out var none);
+        return plan is null
+            ? none!
+            : new BaremeResult(false, plan.Target.Label, plan.Changed, plan.Kept, $"Nouveau barème disponible : {plan.Target.Label}.", Pending: true);
+    }
+
+    /// <summary>Révision disponible mais pas encore validée par l'utilisateur (null s'il n'y en a pas).</summary>
+    public string? BaremePending()
+    {
+        using var l = Open();
+        return ReadBusinessSettings(l.Ctx).GetValueOrDefault(BaremePendingKey) is { Length: > 0 } v ? v : null;
+    }
+
+    /// <summary>Révision pour laquelle l'utilisateur a déjà été interrogé (on ne le redemande pas à chaque démarrage).</summary>
+    public string? BaremeAsked()
+    {
+        using var l = Open();
+        return ReadBusinessSettings(l.Ctx).GetValueOrDefault(BaremeAskedKey) is { Length: > 0 } v ? v : null;
+    }
+
+    /// <summary>Mémorise la révision disponible (<paramref name="pending"/>) et si l'utilisateur a déjà été interrogé à son sujet.
+    /// Silencieux si la base est en lecture seule ou indisponible.</summary>
+    public void SetBaremePending(string? pending, bool asked)
+    {
+        if (_factory.ReadOnly) return;
+        try
+        {
+            using var l = Open();
+            var ctx = l.Ctx;
+            WriteBusinessSettings(ctx, new Dictionary<string, string?> { [BaremePendingKey] = pending, [BaremeAskedKey] = asked ? pending : null });
+            Save(ctx);
+        }
+        catch
+        {
+            // repère informatif seulement
+        }
+    }
+
+    /// <summary>Applique la mise à jour du barème (après validation par l'utilisateur) : voir <see cref="PlanBareme"/>. Les taux
+    /// remplacés sont gardés dans l'historique, pour que les périodes passées gardent leur taux d'époque.</summary>
+    public BaremeResult ApplyBareme(IReadOnlyList<BaremeEntry> entries, DateOnly today)
+    {
+        Require(Permission.ManageStructure);
+        RequireWritable();
+        var plan = PlanBareme(entries, today, out var none);
+        if (plan is null) return none!;
 
         using var tx = Begin();
-        SaveUrssafParams(next2);
+        SaveUrssafParams(plan.Next);
         var ctx = Open().Ctx;
         WriteBusinessSettings(ctx, new Dictionary<string, string?>
         {
-            [BaremeLabelKey] = target.Label,
-            [BaremeFromKey] = target.From.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            [BaremeHistoryKey] = history.Count > 0 ? WriteRateHistory(history) : null
+            [BaremeLabelKey] = plan.Target.Label,
+            [BaremeFromKey] = plan.Target.From.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            [BaremeHistoryKey] = plan.History.Count > 0 ? WriteRateHistory(plan.History) : null,
+            [BaremePendingKey] = null,
+            [BaremeAskedKey] = null
         });
         Save(ctx);
-        Log(ctx, "Barème mis à jour automatiquement",
-            $"{applied.Label} → {target.Label}" + (changed.Count > 0 ? "\n" + string.Join("\n", changed) : " (aucune valeur modifiée)") +
-            (kept.Count > 0 ? "\nConservé :\n" + string.Join("\n", kept) : ""));
+        Log(ctx, "Barème mis à jour (validé par l'utilisateur)",
+            $"{plan.AppliedLabel} → {plan.Target.Label}" + (plan.Changed.Count > 0 ? "\n" + string.Join("\n", plan.Changed) : " (aucune valeur modifiée)") +
+            (plan.Kept.Count > 0 ? "\nConservé :\n" + string.Join("\n", plan.Kept) : ""));
         tx.Commit();
-        return new BaremeResult(true, target.Label, changed, kept,
-            $"Barème {target.Label} appliqué" + (changed.Count == 0 ? " : aucune de vos valeurs n'avait à changer." : "."));
-    }
-}
+        return new BaremeResult(true, plan.Target.Label, plan.Changed, plan.Kept,
+            $"Barème {plan.Target.Label} appliqué" + (plan.Changed.Count == 0 ? " : aucune de vos valeurs n'avait à changer." : "."));
+    }}

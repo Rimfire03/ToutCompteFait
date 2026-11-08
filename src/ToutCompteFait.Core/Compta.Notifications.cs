@@ -32,6 +32,12 @@ public sealed partial class Compta
                          : $"À déclarer avant le {p.DueDate:dd/MM/yyyy} (J-{days}).",
                     "reporting"));
             }
+            // Nouveau barème disponible (taux, plafonds, seuils) : à consulter et valider dans les réglages de l'entreprise.
+            if (BaremePending() is { } baremeLabel)
+                list.Add(new AppNotification("bareme:" + baremeLabel, NotificationLevel.Warning,
+                    $"Mise à jour du barème URSSAF disponible : {baremeLabel}",
+                    "Les taux, plafonds ou seuils ont changé. Consultez les changements et validez-les : Gestion de l'entreprise › Entreprise, « Vérifier maintenant ».",
+                    "dossier"));
             // Information seule (hors badge, ni popup ni alerte) : la prochaine déclaration qui s'ouvrira.
             if (NextUrssafDeclarationOpening(today) is { } next)
             {

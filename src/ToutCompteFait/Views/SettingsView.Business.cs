@@ -370,7 +370,8 @@ public partial class SettingsView
         var (label, from) = _c.BaremeApplied();
         var last = _c.BaremeLastCheck();
         _bizBaremeStatus.Text = $"Barème appliqué : {label} (en vigueur depuis le {from:dd/MM/yyyy}). " +
-                                (last is { } d ? $"Dernière vérification : {d:dd/MM/yyyy à HH:mm}." : "Aucune vérification encore.");
+                                (last is { } d ? $"Dernière vérification : {d:dd/MM/yyyy à HH:mm}." : "Aucune vérification encore.") +
+                                (_c.BaremePending() is { } pending ? $"\n⚠ Nouveau barème disponible : {pending}. Cliquez sur « Vérifier maintenant » pour consulter les changements et les valider." : "");
     }
 
     private void BaremeAuto_Click(object sender, RoutedEventArgs e)
@@ -385,19 +386,25 @@ public partial class SettingsView
         button.IsEnabled = false;
         try
         {
-            var result = await MainWindow.CheckBaremeAsync(_c, manual: true);
-            if (result is null) return;
+            if (await MainWindow.CheckBaremeAsync(_c, manual: true) is not { } check) return;
             _c.MarkBaremeChecked(DateTime.Now);
+            if (check.Preview.Pending)
+            {
+                _c.SetBaremePending(check.Preview.Label, asked: true);
+                MainWindow.ConfirmAndApplyBareme(_c, check.Entries, check.Preview);
+            }
+            else
+            {
+                if (_c.BaremePending() is not null) _c.SetBaremePending(null, false);
+                Ui.Info(check.Preview.Message, "Barème");
+            }
             LoadBusiness();
-            Ui.Info(result.Message + (result.Changed.Count > 0 ? "\n\n• " + string.Join("\n• ", result.Changed) : "") +
-                    (result.KeptCustom.Count > 0 ? "\n\nValeurs personnalisées conservées :\n• " + string.Join("\n• ", result.KeptCustom) : ""), "Barème");
         }
         finally
         {
             button.IsEnabled = App.Can(Permission.ManageStructure) && !App.IsReadOnly;
         }
     }
-
     private void LoadBusiness()
     {
         ShowBaremeStatus();

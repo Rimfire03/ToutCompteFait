@@ -562,9 +562,10 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Lit le barème publié et l'applique (taux, plafonds, seuils non modifiés à la main). Null si le fichier est
-    /// indisponible ou la mise à jour impossible ; les erreurs ne sont affichées que pour une vérification manuelle.</summary>
-    public static async Task<ToutCompteFait.Core.BaremeResult?> CheckBaremeAsync(ToutCompteFait.Core.Compta c, bool manual)
+    /// <summary>Lit le barème publié et calcule ce qu'il changerait, SANS rien modifier. Null si le fichier est indisponible ;
+    /// les erreurs ne sont affichées que pour une vérification manuelle.</summary>
+    public static async Task<(IReadOnlyList<ToutCompteFait.Core.Business.BaremeEntry> Entries, ToutCompteFait.Core.BaremeResult Preview)?> CheckBaremeAsync(
+        ToutCompteFait.Core.Compta c, bool manual)
     {
         IReadOnlyList<ToutCompteFait.Core.Business.BaremeEntry> entries;
         try { entries = await new ToutCompteFait.Core.Services.BaremeService().FetchAsync(); }
@@ -573,7 +574,7 @@ public partial class MainWindow : Window
             if (manual) Ui.Error("Impossible de lire le barème (connexion ou fichier indisponible) :\n" + ex.InnermostMessage());
             return null;
         }
-        try { return c.ApplyBareme(entries, DateOnly.FromDateTime(DateTime.Today)); }
+        try { return (entries, c.PreviewBareme(entries, DateOnly.FromDateTime(DateTime.Today))); }
         catch (Exception ex)
         {
             if (manual) Ui.Error(ex.InnermostMessage());
@@ -581,7 +582,28 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Au démarrage, au plus une fois par jour : met à jour le barème (poste en écriture, version Autoentreprise).</summary>
+    /// <summary>Montre à l'utilisateur les changements d'un nouveau barème et ne les applique que s'il les valide.
+    /// Renvoie vrai si le barème a été appliqué.</summary>
+    public static bool ConfirmAndApplyBareme(ToutCompteFait.Core.Compta c, IReadOnlyList<ToutCompteFait.Core.Business.BaremeEntry> entries,
+        ToutCompteFait.Core.BaremeResult preview)
+    {
+        var text = $"Un nouveau barème URSSAF est disponible : {preview.Label}.\n\n" +
+                   (preview.Changed.Count > 0
+                       ? "Valeurs qui vont changer :\n• " + string.Join("\n• ", preview.Changed)
+                       : "Aucune de vos valeurs n'a à changer.") +
+                   (preview.KeptCustom.Count > 0 ? "\n\nValeurs que vous aviez modifiées (conservées) :\n• " + string.Join("\n• ", preview.KeptCustom) : "") +
+                   "\n\nVérifiez ces valeurs (autoentrepreneur.urssaf.fr). Les périodes passées gardent leur taux d'époque.\n\nAppliquer ces changements ?";
+        if (!Ui.Confirm(text, "Mise à jour du barème URSSAF")) return false;
+        ToutCompteFait.Core.BaremeResult? applied = null;
+        if (!Ui.Try(() => applied = c.ApplyBareme(entries, DateOnly.FromDateTime(DateTime.Today)))) return false;
+        Ui.Info(applied!.Message, "Barème");
+        Current?.RefreshNotificationCount();
+        return applied.Applied;
+    }
+
+    /// <summary>Au démarrage, au plus une fois par jour : cherche un nouveau barème (poste en écriture, version Autoentreprise).
+    /// S'il y en a un, l'utilisateur est averti et doit valider les changements ; s'il refuse, une alerte reste dans le centre
+    /// de notifications et il n'est plus interrogé pour cette révision.</summary>
     private async void CheckBaremeIfNeeded()
     {
         if (!Editions.Current.IsBusiness || App.ShotsMode || App.RunSelfTest || App.IsReadOnly || !App.Can(Permission.ManageStructure)) return;
@@ -590,20 +612,25 @@ public partial class MainWindow : Window
             var c = App.Compta;
             if (!c.BaremeAutoEnabled()) return;
             if (c.BaremeLastCheck() is { } last && DateTime.Now - last < TimeSpan.FromHours(20)) return;
-            var result = await CheckBaremeAsync(c, manual: false);
-            if (result is null) return;
+            if (await CheckBaremeAsync(c, manual: false) is not { } check) return;
             c.MarkBaremeChecked(DateTime.Now);
-            if (result.Applied)
-                Ui.Info(result.Message + (result.Changed.Count > 0 ? "\n\n• " + string.Join("\n• ", result.Changed) : "") +
-                        (result.KeptCustom.Count > 0 ? "\n\nValeurs personnalisées conservées :\n• " + string.Join("\n• ", result.KeptCustom) : "") +
-                        "\n\nLes périodes passées gardent leur taux d'époque. Réglages : Gestion de l'entreprise › Entreprise.", "Barème mis à jour");
+            if (!check.Preview.Pending)
+            {
+                if (c.BaremePending() is not null) c.SetBaremePending(null, false);
+                RefreshNotificationCount();
+                return;
+            }
+            var label = check.Preview.Label;
+            var asked = c.BaremeAsked() == label;
+            c.SetBaremePending(label, asked: true);
+            RefreshNotificationCount();
+            if (!asked) ConfirmAndApplyBareme(c, check.Entries, check.Preview);
         }
         catch
         {
             // vérification facultative : jamais d'erreur au démarrage
         }
     }
-
     private DateTime _lastNotifRefresh = DateTime.MinValue;
     private bool _notifRefreshPending;
 
