@@ -359,18 +359,20 @@ public sealed partial class Compta
     }
 
     /// <summary>Périodes terminées dont la déclaration n'est pas marquée « faite » (de la plus ancienne à la plus récente).
-    /// Remonte au plus à 12 mois, et pas avant le début de l'activité (création de l'entreprise ou premier exercice) :
+    /// Remonte au plus à 12 mois, et pas avant le premier exercice du logiciel (ni avant la création de l'entreprise) :
     /// sert à l'alerte affichée à l'ouverture de l'application.</summary>
     public List<UrssafPeriod> PendingUrssafDeclarations(DateOnly today)
     {
         var profile = GetBusinessProfile();
         var earliest = today.AddMonths(-12);
-        var starts = new List<DateOnly>();
-        if (profile.CreationDate is { } created) starts.Add(created);
         var years = Years();
-        if (years.Count > 0) starts.Add(years.Min(y => y.Start));
-        if (starts.Count == 0) return new List<UrssafPeriod>();   // aucune activité connue : rien à déclarer
-        var start = starts.Min();
+        // Début du suivi : le logiciel ne connaît rien avant son premier exercice (une déclaration antérieure serait un rappel
+        // sans aucune donnée) ; si l'entreprise a été créée plus tard, c'est la date de création. Sans exercice : date de création.
+        DateOnly? first = years.Count > 0 ? years.Min(y => y.Start) : null;
+        DateOnly start;
+        if (first is { } f) start = profile.CreationDate is { } c0 && c0 > f ? c0 : f;
+        else if (profile.CreationDate is { } c1) start = c1;
+        else return new List<UrssafPeriod>();   // aucune activité connue : rien à déclarer
         if (UrssafTrackingStart() is { } tracking && tracking > start) start = tracking;   // suivi commencé à la création du dossier
         var from = start > earliest ? start : earliest;
         var done = Declarations().Select(d => d.PeriodKey).ToHashSet();

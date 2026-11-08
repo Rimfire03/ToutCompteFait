@@ -928,6 +928,13 @@ Console.WriteLine("Alerte déclaration URSSAF");
         Eq(3, after.Count, "période marquée déclarée : plus d'alerte pour elle");
         Check(after.All(p => p.Key != "2026-T1"), "1er trimestre 2026 retiré de l'alerte");
         Eq(0, c.PendingUrssafDeclarations(new DateOnly(2024, 6, 1)).Count, "avant le début de l'activité : rien");
+        // Entreprise créée avant le premier exercice du logiciel : aucune déclaration réclamée avant cet exercice.
+        var early = NewCompta(NewFactory(path + ".e.db"));
+        early.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
+        early.SaveBusinessProfile(early.GetBusinessProfile() with { CreationDate = Dt(2025, 3, 1) });
+        var earlyKeys = early.PendingUrssafDeclarations(new DateOnly(2026, 5, 10)).Select(x => x.Key).ToList();
+        Check(!earlyKeys.Any(k => k.StartsWith("2025")), "aucune déclaration réclamée avant le premier exercice (T4 2025 absent)");
+        Check(earlyKeys.Contains("2026-T1"), "déclaration du 1er trimestre 2026 réclamée");
         // Suivi commencé à la création du dossier : les périodes passées ne sont ni en retard ni à traiter.
         var tracked = NewCompta(NewFactory(path + ".t.db"));
         tracked.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
