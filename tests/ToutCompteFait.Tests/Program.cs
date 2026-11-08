@@ -2390,6 +2390,51 @@ Console.WriteLine("Autoentreprise");
     c.SaveBusinessProfile(c.GetBusinessProfile() with { LiberatoryTax = false });
     Eq(0L, c.ComputeUrssafReport(q3).TotalTaxCents, "option décochée : plus d'impôt");
 
+    // Mise à jour automatique du barème (fichier publié) : seules les valeurs non modifiées à la main sont remplacées.
+    const string baremeJson = """
+        { "schema": 1, "entries": [
+          { "label": "2026", "from": "2026-01-01", "rates": { "BIC_VENTE": 1230, "BIC_SERVICE": 2120, "BNC_SSI": 2560, "BNC_CIPAV": 2320 },
+            "vfl": { "BIC_VENTE": 100, "BIC_SERVICE": 170, "BNC_SSI": 220, "BNC_CIPAV": 220 }, "ceilings": { "total": 20310000, "services": 8360000 },
+            "vat": { "sale": 8500000, "saleMax": 9350000, "service": 3750000, "serviceMax": 4125000 }, "acreDiscount": 25 },
+          { "label": "2027", "from": "2027-01-01", "rates": { "BIC_VENTE": 1250, "BIC_SERVICE": 2150, "BNC_SSI": 2560, "BNC_CIPAV": 2320 },
+            "vfl": { "BIC_VENTE": 100, "BIC_SERVICE": 170, "BNC_SSI": 220, "BNC_CIPAV": 220 }, "ceilings": { "total": 21000000, "services": 8360000 },
+            "vat": { "sale": 8500000, "saleMax": 9350000, "service": 3750000, "serviceMax": 4125000 }, "acreDiscount": 25 } ] }
+        """;
+    var entries = Bareme.Parse(baremeJson);
+    Eq(2, entries.Count, "barème : deux révisions lues");
+    Throws(() => Bareme.Parse(baremeJson.Replace("\"BIC_VENTE\": 1250", "\"BIC_VENTE\": 20000")), "barème : taux hors bornes refusé", "invalide");
+    Throws(() => Bareme.Parse("{ \"schema\": 2, \"entries\": [] }"), "barème : version de fichier inconnue refusée", "non gérée");
+    Throws(() => Bareme.Parse("pas du json"), "barème : fichier illisible refusé", "illisible");
+    var b1 = NewCompta(NewFactory(TempDb()));
+    b1.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
+    Eq(("2026", new DateOnly(2026, 1, 1)), b1.BaremeApplied(), "barème appliqué au départ : celui du logiciel");
+    Check(b1.ApplyBareme(entries, new DateOnly(2026, 6, 1)) is { Applied: false }, "barème 2027 pas encore en vigueur : rien à faire");
+    var applied = b1.ApplyBareme(entries, new DateOnly(2027, 1, 15));
+    Check(applied.Applied, "barème 2027 appliqué");
+    Eq(1250, b1.GetUrssafParams().RatesBp[UrssafKind.Sale], "taux non modifié à la main : mis à jour");
+    Eq(21_000_000L, b1.GetUrssafParams().CeilingTotalCents, "plafond non modifié à la main : mis à jour");
+    Eq(1230, b1.GetUrssafParams().RateFor(UrssafKind.Sale, Dt(2026, 9, 30)), "période passée : taux d'époque conservé");
+    Eq(1250, b1.GetUrssafParams().RateFor(UrssafKind.Sale, Dt(2027, 3, 31)), "période en cours : nouveau taux");
+    Eq("2027", b1.BaremeApplied().Label, "révision appliquée enregistrée");
+    Check(b1.ApplyBareme(entries, new DateOnly(2027, 1, 16)) is { Applied: false }, "mise à jour idempotente");
+    var b2 = NewCompta(NewFactory(TempDb()));
+    b2.CreateYear(Dt(2026, 1, 1), Dt(2026, 12, 31));
+    b2.SaveUrssafParams(b2.GetUrssafParams() with { RatesBp = new Dictionary<UrssafKind, int>(b2.GetUrssafParams().RatesBp) { [UrssafKind.Sale] = 1300 } });
+    var kept = b2.ApplyBareme(entries, new DateOnly(2027, 1, 15));
+    Eq(1300, b2.GetUrssafParams().RatesBp[UrssafKind.Sale], "taux modifié à la main : conservé");
+    Eq(2150, b2.GetUrssafParams().RatesBp[UrssafKind.Service], "autre taux non modifié : mis à jour");
+    Check(kept.KeptCustom.Count > 0, "valeur personnalisée signalée");
+    // Le barème livré avec le logiciel et le fichier publié dans le dépôt doivent rester identiques.
+    var dir = new DirectoryInfo(AppContext.BaseDirectory);
+    while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "bareme", "urssaf.json"))) dir = dir.Parent;
+    if (dir is not null)
+    {
+        var published = Bareme.Parse(File.ReadAllText(Path.Combine(dir.FullName, "bareme", "urssaf.json")))[0];
+        Eq(Bareme.Builtin.RatesBp[UrssafKind.Service], published.RatesBp[UrssafKind.Service], "fichier publié : taux identique à celui du logiciel");
+        Eq(Bareme.Builtin.CeilingTotalCents, published.CeilingTotalCents, "fichier publié : plafond identique à celui du logiciel");
+        Eq(Bareme.Builtin.VflRatesBp[UrssafKind.LiberalSsi], published.VflRatesBp[UrssafKind.LiberalSsi], "fichier publié : impôt identique à celui du logiciel");
+    }
+
     // Plafonds
     var ceil = c.ComputeUrssafCeilings(2026);
     Eq(220_000L, ceil.TotalCents, "CA cumulé de l'année");

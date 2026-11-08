@@ -101,6 +101,7 @@ public sealed partial class Compta
         {
             RatesBp = rates,
             VflRatesBp = vflRates,
+            History = ReadRateHistory(s),
             CeilingTotalCents = Cents("ceil.total", d.CeilingTotalCents),
             CeilingServicesCents = Cents("ceil.services", d.CeilingServicesCents),
             VatSaleCents = Cents("vat.sale", d.VatSaleCents),
@@ -317,7 +318,7 @@ public sealed partial class Compta
             // Cotisations estimées : arrondies au centime, jamais négatives (un avoir ne donne pas de crédit).
             var contribution = (long)Math.Max(0, Math.Round(turnover * rate / 10000m, 0, MidpointRounding.AwayFromZero));
             // Versement libératoire de l'impôt sur le revenu (si l'option est cochée) : taux fixe sur le chiffre d'affaires.
-            var taxRate = liberatory ? prm.VflRatesBp.GetValueOrDefault(k) : 0;
+            var taxRate = liberatory ? prm.VflRateFor(k, period.End) : 0;
             var tax = (long)Math.Max(0, Math.Round(turnover * taxRate / 10000m, 0, MidpointRounding.AwayFromZero));
             lines.Add(new UrssafLine(k, turnover, rate, contribution, taxRate, tax));
         }

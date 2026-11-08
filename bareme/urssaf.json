@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "_comment": "Barème URSSAF / impôt lu par le logiciel au démarrage (voir src/ToutCompteFait.Core/Business/Bareme.cs). Taux en centièmes de pour cent (1230 = 12,30 %), montants en centimes. Pour une nouvelle révision : ajouter une entrée avec un nouveau nom (label) et sa date d'effet (from), sans modifier les entrées passées. Les valeurs modifiées à la main par l'utilisateur ne sont jamais remplacées.",
+  "entries": [
+    {
+      "label": "2026",
+      "from": "2026-01-01",
+      "rates": { "BIC_VENTE": 1230, "BIC_SERVICE": 2120, "BNC_SSI": 2560, "BNC_CIPAV": 2320 },
+      "vfl": { "BIC_VENTE": 100, "BIC_SERVICE": 170, "BNC_SSI": 220, "BNC_CIPAV": 220 },
+      "ceilings": { "total": 20310000, "services": 8360000 },
+      "vat": { "sale": 8500000, "saleMax": 9350000, "service": 3750000, "serviceMax": 4125000 },
+      "acreDiscount": 25
+    }
+  ]
+}

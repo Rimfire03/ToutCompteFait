@@ -90,6 +90,7 @@ public partial class MainWindow : Window
             Dispatcher.BeginInvoke(new Action(ShowDevLogIfNeeded), DispatcherPriority.ApplicationIdle);
             Dispatcher.BeginInvoke(new Action(ShowBusinessOnboardingIfNeeded), DispatcherPriority.ApplicationIdle);
             Dispatcher.BeginInvoke(new Action(ShowUrssafAlertIfNeeded), DispatcherPriority.ApplicationIdle);
+            Dispatcher.BeginInvoke(new Action(CheckBaremeIfNeeded), DispatcherPriority.ApplicationIdle);
         };
 
         // Poste en lecture seule : on surveille le fichier pour afficher les modifications de l'autre poste.
@@ -558,6 +559,48 @@ public partial class MainWindow : Window
         catch
         {
             // Base momentanément indisponible : le comptage est ignoré.
+        }
+    }
+
+    /// <summary>Lit le barème publié et l'applique (taux, plafonds, seuils non modifiés à la main). Null si le fichier est
+    /// indisponible ou la mise à jour impossible ; les erreurs ne sont affichées que pour une vérification manuelle.</summary>
+    public static async Task<ToutCompteFait.Core.BaremeResult?> CheckBaremeAsync(ToutCompteFait.Core.Compta c, bool manual)
+    {
+        IReadOnlyList<ToutCompteFait.Core.Business.BaremeEntry> entries;
+        try { entries = await new ToutCompteFait.Core.Services.BaremeService().FetchAsync(); }
+        catch (Exception ex)
+        {
+            if (manual) Ui.Error("Impossible de lire le barème (connexion ou fichier indisponible) :\n" + ex.InnermostMessage());
+            return null;
+        }
+        try { return c.ApplyBareme(entries, DateOnly.FromDateTime(DateTime.Today)); }
+        catch (Exception ex)
+        {
+            if (manual) Ui.Error(ex.InnermostMessage());
+            return null;
+        }
+    }
+
+    /// <summary>Au démarrage, au plus une fois par jour : met à jour le barème (poste en écriture, version Autoentreprise).</summary>
+    private async void CheckBaremeIfNeeded()
+    {
+        if (!Editions.Current.IsBusiness || App.ShotsMode || App.RunSelfTest || App.IsReadOnly || !App.Can(Permission.ManageStructure)) return;
+        try
+        {
+            var c = App.Compta;
+            if (!c.BaremeAutoEnabled()) return;
+            if (c.BaremeLastCheck() is { } last && DateTime.Now - last < TimeSpan.FromHours(20)) return;
+            var result = await CheckBaremeAsync(c, manual: false);
+            if (result is null) return;
+            c.MarkBaremeChecked(DateTime.Now);
+            if (result.Applied)
+                Ui.Info(result.Message + (result.Changed.Count > 0 ? "\n\n• " + string.Join("\n• ", result.Changed) : "") +
+                        (result.KeptCustom.Count > 0 ? "\n\nValeurs personnalisées conservées :\n• " + string.Join("\n• ", result.KeptCustom) : "") +
+                        "\n\nLes périodes passées gardent leur taux d'époque. Réglages : Gestion de l'entreprise › Entreprise.", "Barème mis à jour");
+        }
+        catch
+        {
+            // vérification facultative : jamais d'erreur au démarrage
         }
     }
 

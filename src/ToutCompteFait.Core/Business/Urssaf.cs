@@ -131,6 +131,12 @@ public sealed record UrssafPeriod(string Key, DateOnly Start, DateOnly End, Date
         : Enumerable.Range(1, 4).Select(q => Quarterly(year, q)).ToList();
 }
 
+/// <summary>Taux remplacés par une mise à jour du barème : ils restent valables pour les périodes qui se terminent avant
+/// <paramref name="Until"/> (non incluse) et à partir de <paramref name="From"/>, afin que les périodes passées gardent
+/// leur taux d'époque.</summary>
+public sealed record RateSnapshot(DateOnly From, DateOnly Until,
+    IReadOnlyDictionary<UrssafKind, int> RatesBp, IReadOnlyDictionary<UrssafKind, int> VflRatesBp);
+
 /// <summary>Taux de cotisations estimés, plafonds et seuils (modifiables : ces valeurs sont révisées par l'État ; celles
 /// par défaut sont indicatives et à vérifier avant usage).</summary>
 public sealed record UrssafParams
@@ -160,6 +166,15 @@ public sealed record UrssafParams
         [UrssafKind.LiberalSsi] = 220,
         [UrssafKind.LiberalCipav] = 220
     };
+
+    /// <summary>Taux des barèmes précédents (mises à jour automatiques) : voir <see cref="RateSnapshot"/>.</summary>
+    public IReadOnlyList<RateSnapshot> History { get; init; } = Array.Empty<RateSnapshot>();
+
+    private RateSnapshot? SnapshotFor(DateOnly periodEnd) => History.FirstOrDefault(s => periodEnd >= s.From && periodEnd < s.Until);
+
+    /// <summary>Taux du versement libératoire applicable à une période (celui du barème en vigueur à sa fin).</summary>
+    public int VflRateFor(UrssafKind k, DateOnly periodEnd) =>
+        (SnapshotFor(periodEnd)?.VflRatesBp ?? VflRatesBp).TryGetValue(k, out var r) ? r : 0;
 
     /// <summary>Plafond de chiffre d'affaires du régime micro (activités de vente + prestations) et sous-plafond des
     /// prestations de services, en centimes (2026-2028).</summary>
@@ -243,7 +258,7 @@ public sealed record UrssafParams
 
     public int RateFor(UrssafKind k, DateOnly periodEnd)
     {
-        var rate = RatesBp.TryGetValue(k, out var r) ? r : 0;
+        var rate = (SnapshotFor(periodEnd)?.RatesBp ?? RatesBp).TryGetValue(k, out var r) ? r : 0;
         // Historique du taux BNC (SSI) tant que le réglage vaut la référence : 21,1 % jusqu'au 30/06/2024, 23,1 % du
         // 01/07 au 31/12/2024, 24,6 % en 2025 ; les périodes déjà déclarées gardent ainsi leur taux d'époque.
         if (k == UrssafKind.LiberalSsi && rate == Reference.RatesBp[UrssafKind.LiberalSsi])

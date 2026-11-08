@@ -43,6 +43,8 @@ public partial class SettingsView
     };
     private readonly Dictionary<UrssafKind, TextBox> _bizRates = new();
     private readonly Dictionary<UrssafKind, TextBox> _bizVflRates = new();
+    private readonly CheckBox _bizBaremeAuto = new() { Content = "Mettre à jour automatiquement les taux, plafonds et seuils (une vérification par jour au démarrage)", Margin = new Thickness(0, 4, 0, 6) };
+    private readonly TextBlock _bizBaremeStatus = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) };
     private readonly CheckBox _bizVfl = new()
     {
         Content = "J'ai opté pour le versement libératoire de l'impôt sur le revenu", Margin = new Thickness(0, 4, 0, 6)
@@ -172,6 +174,23 @@ public partial class SettingsView
         Row(decl, "Mode de déclaration", _bizMode);
         root.Children.Add(decl);
 
+        // --- Barème : mise à jour automatique
+        root.Children.Add(Section("Barème : mise à jour automatique"));
+        root.Children.Add(new TextBlock
+        {
+            Style = Sty("MutedText"), TextWrapping = TextWrapping.Wrap,
+            Text = "Les taux de cotisations, le versement libératoire, les plafonds du régime micro et les seuils de TVA changent chaque année. " +
+                   "Le logiciel lit le barème publié avec le logiciel (un simple fichier public, aucune donnée de votre dossier n'est envoyée) et " +
+                   "remplace uniquement les valeurs que vous n'avez pas modifiées : celles que vous avez saisies à la main sont conservées. " +
+                   "Les périodes passées gardent leur taux d'époque."
+        });
+        _bizBaremeAuto.Click += BaremeAuto_Click;
+        root.Children.Add(_bizBaremeAuto);
+        root.Children.Add(_bizBaremeStatus);
+        var baremeCheck = new Button { Content = "Vérifier maintenant", HorizontalAlignment = HorizontalAlignment.Left, Style = Sty("SecondaryButton"), IsEnabled = canEdit };
+        baremeCheck.Click += BaremeCheck_Click;
+        root.Children.Add(baremeCheck);
+
         // --- Cotisations
         root.Children.Add(Section("Taux de cotisations estimés (% du chiffre d'affaires)"));
         root.Children.Add(new TextBlock
@@ -254,6 +273,7 @@ public partial class SettingsView
                                    _bizCeilServices, _bizVatSale, _bizVatSaleMax, _bizVatService, _bizVatServiceMax }.Concat(_bizRates.Values).Concat(_bizVflRates.Values))
             tb.IsEnabled = canEdit;
         _bizVfl.IsEnabled = canEdit;
+        _bizBaremeAuto.IsEnabled = canEdit;
         _bizCreated.IsEnabled = canEdit;
         _bizAcreUntil.IsEnabled = canEdit;
         _bizMode.IsEnabled = canEdit;
@@ -344,8 +364,43 @@ public partial class SettingsView
     private static string Euros(long cents) => (cents / 100m).ToString("0.##", CultureInfo.GetCultureInfo("fr-FR"));
     private static string Percent(int bp) => (bp / 100m).ToString("0.##", CultureInfo.GetCultureInfo("fr-FR"));
 
+    private void ShowBaremeStatus()
+    {
+        _bizBaremeAuto.IsChecked = _c.BaremeAutoEnabled();
+        var (label, from) = _c.BaremeApplied();
+        var last = _c.BaremeLastCheck();
+        _bizBaremeStatus.Text = $"Barème appliqué : {label} (en vigueur depuis le {from:dd/MM/yyyy}). " +
+                                (last is { } d ? $"Dernière vérification : {d:dd/MM/yyyy à HH:mm}." : "Aucune vérification encore.");
+    }
+
+    private void BaremeAuto_Click(object sender, RoutedEventArgs e)
+    {
+        var on = _bizBaremeAuto.IsChecked == true;
+        if (!Ui.Try(() => _c.SetBaremeAuto(on))) _bizBaremeAuto.IsChecked = !on;
+    }
+
+    private async void BaremeCheck_Click(object sender, RoutedEventArgs e)
+    {
+        var button = (Button)sender;
+        button.IsEnabled = false;
+        try
+        {
+            var result = await MainWindow.CheckBaremeAsync(_c, manual: true);
+            if (result is null) return;
+            _c.MarkBaremeChecked(DateTime.Now);
+            LoadBusiness();
+            Ui.Info(result.Message + (result.Changed.Count > 0 ? "\n\n• " + string.Join("\n• ", result.Changed) : "") +
+                    (result.KeptCustom.Count > 0 ? "\n\nValeurs personnalisées conservées :\n• " + string.Join("\n• ", result.KeptCustom) : ""), "Barème");
+        }
+        finally
+        {
+            button.IsEnabled = App.Can(Permission.ManageStructure) && !App.IsReadOnly;
+        }
+    }
+
     private void LoadBusiness()
     {
+        ShowBaremeStatus();
         var p = _c.GetBusinessProfile();
         _bizLoaded = p;
         ShowProfile(p);
