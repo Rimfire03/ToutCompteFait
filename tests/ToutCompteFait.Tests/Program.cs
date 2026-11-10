@@ -7,6 +7,7 @@ using ToutCompteFait.Core.Licensing;
 using ToutCompteFait.Core.Security;
 using ToutCompteFait.Core.Services;
 using Microsoft.EntityFrameworkCore;
+using TomLine.Notifications;
 
 // Utilitaire : « adduser <fichier.db> <identifiant> <mot de passe> » crée le premier administrateur (base de démonstration).
 if (args.Length >= 4 && args[0] == "adduser")

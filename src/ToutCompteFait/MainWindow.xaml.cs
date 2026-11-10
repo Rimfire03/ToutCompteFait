@@ -552,9 +552,7 @@ public partial class MainWindow : Window
             var count = CurrentYear is { } y
                 ? App.Compta.CountNotificationBadge(DateOnly.FromDateTime(DateTime.Today), y.Id)
                 : 0;
-            _navNotif.Content = count > 0 ? $"🔔 {count}" : "🔔";
-            if (count > 0 && _navNotif.IsChecked != true) _navNotif.Foreground = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24));
-            else _navNotif.ClearValue(System.Windows.Controls.Control.ForegroundProperty);
+            TomLine.UI.Wpf.Controls.NotificationBell.Apply(_navNotif, count, _navNotif.IsChecked == true);
         }
         catch
         {

@@ -1,18 +1,12 @@
+using TomLine.Notifications;
+
 namespace ToutCompteFait.Core;
-
-public enum NotificationLevel { Info, Warning, Alert }
-
-/// <summary>Alerte du centre de notifications : titre, détail, gravité et page vers laquelle l'ouvrir.</summary>
-/// <param name="Target">Étiquette de la page à ouvrir (« livre », « bilan », « reporting »…).</param>
-/// <param name="CountsInBadge">false = simple information, absente du compteur de la cloche.</param>
-public sealed record AppNotification(string Id, NotificationLevel Level, string Title, string Detail, string Target,
-    bool CountsInBadge = true);
 
 public sealed partial class Compta
 {
     /// <summary>Nombre affiché sur la cloche : les notifications d'information seule (CountsInBadge = false) ne comptent pas.</summary>
     public int CountNotificationBadge(DateOnly today, long? yearId) =>
-        BuildNotifications(today, yearId).Count(n => n.CountsInBadge);
+        NotificationCenter.BadgeCount(BuildNotifications(today, yearId));
 
     /// <summary>Alertes en cours, de la plus grave à la moins grave : déclarations URSSAF à faire (Autoentreprise),
     /// écritures à ventiler de l'exercice affiché, exercice terminé non clôturé. Lecture seule, sans effet de bord.</summary>
@@ -69,6 +63,6 @@ public sealed partial class Compta
                     $"La période s'est terminée le {year.End:dd/MM/yyyy} : vérifiez le bilan puis validez l'exercice.",
                     "bilan"));
         }
-        return list.OrderByDescending(n => n.Level).ThenBy(n => n.Title, StringComparer.CurrentCulture).ToList();
+        return NotificationCenter.Sort(list);
     }
 }

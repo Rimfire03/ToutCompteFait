@@ -22,6 +22,7 @@
   <ItemGroup>
     <PackageReference Include="TomLine.Licensing" Version="1.6.0" />
     <PackageReference Include="TomLine.AppInfo" Version="1.0.0" />
+    <PackageReference Include="TomLine.Notifications" Version="1.0.0" />
   </ItemGroup>
 
 </Project>
