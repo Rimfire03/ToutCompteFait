@@ -6,6 +6,7 @@ using ToutCompteFait.Core.Business;
 using ToutCompteFait.Core.Data;
 using ToutCompteFait.Core.Security;
 using ToutCompteFait.Core.Services;
+using TomLine.UI.Wpf.Controls;
 
 namespace ToutCompteFait.Dialogs;
 
@@ -13,33 +14,10 @@ namespace ToutCompteFait.Dialogs;
 /// d'une succession de fenêtres. Étapes : choix des données → compte administrateur → activité (Autoentreprise) → première
 /// période → soldes de départ → récapitulatif. Rien n'est écrit avant le dernier bouton ; les autres choix de départ (fichier
 /// existant, serveur, configuration, démonstration) sont rendus à l'appelant comme avec l'ancien écran d'accueil.</summary>
-public sealed class SetupWizardWindow : Window
+public sealed class SetupWizardWindow : WizardWindow
 {
-    private sealed class Step
-    {
-        public string Title { get; init; } = "";
-        public string Subtitle { get; init; } = "";
-        public Func<UIElement> Build { get; init; } = () => new Border();
-        /// <summary>Contrôle de l'étape ; renvoie un message d'erreur, ou null si on peut continuer.</summary>
-        public Func<string?>? Validate { get; init; }
-        public string NextText { get; init; } = "Continuer";
-        public bool HideNext { get; init; }
-    }
-
     private readonly string _dbPath;
     private readonly bool _business = Editions.Current.IsBusiness;
-    private readonly List<Step> _steps = new();
-    private int _index;
-
-    private readonly TextBlock _stepText = new() { Foreground = new SolidColorBrush(Color.FromRgb(0x47, 0x55, 0x69)), FontSize = 12.5 };
-    private readonly ProgressBar _progress = new() { Height = 6, Minimum = 0, Margin = new Thickness(0, 6, 0, 0) };
-    private readonly TextBlock _title = new();
-    private readonly TextBlock _subtitle = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 14) };
-    private readonly ContentControl _body = new();
-    private readonly TextBlock _error = new() { Foreground = new SolidColorBrush(Color.FromRgb(0xB9, 0x1C, 0x1C)), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0), FontWeight = FontWeights.SemiBold };
-    private readonly Button _back = new() { Content = "Retour" };
-    private readonly Button _next = new() { Content = "Continuer", IsDefault = true };
-
     // Réponses
     private readonly TextBox _user = new() { Text = "admin" };
     private readonly TextBox _display = new();
@@ -74,59 +52,11 @@ public sealed class SetupWizardWindow : Window
     public string? AdminUserName { get; private set; }
     public string? AdminPassword { get; private set; }
 
-    private static Style Sty(string key) => (Style)Application.Current.FindResource(key);
-
     public SetupWizardWindow(string expectedPath)
+        : base(Editions.AppName + " — Première utilisation", new ToutCompteFait.Controls.AppLogo { Width = 48, Height = 48 })
     {
         _dbPath = expectedPath;
-        Title = Editions.AppName + " — Première utilisation";
-        Width = 740;
-        Height = 700;
-        MinHeight = 560;
-        ResizeMode = ResizeMode.NoResize;
-        WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        Background = (Brush)Application.Current.FindResource("BrushSurface");
-
         BuildSteps(expectedPath);
-        _title.Style = Sty("TitleText");
-        _subtitle.Style = Sty("MutedText");
-        _back.Style = Sty("SecondaryButton");
-        _next.Style = Sty("PrimaryButton");
-        _next.Margin = new Thickness(0);
-        _back.Click += (_, _) => Go(_index - 1);
-        _next.Click += (_, _) => Advance();
-        _progress.Maximum = _steps.Count - 1;
-
-        var quit = new Button { Content = "Quitter", Style = Sty("SecondaryButton"), IsCancel = true, Padding = new Thickness(18, 7, 18, 7) };
-        var footer = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 14, 0, 0) };
-        var right = new StackPanel { Orientation = Orientation.Horizontal };
-        right.Children.Add(_back);
-        right.Children.Add(_next);
-        DockPanel.SetDock(right, Dock.Right);
-        footer.Children.Add(right);
-        footer.Children.Add(quit);
-
-        var head = new DockPanel();
-        var logo = new ToutCompteFait.Controls.AppLogo { Width = 48, Height = 48, Margin = new Thickness(0, 0, 14, 8) };
-        DockPanel.SetDock(logo, Dock.Left);
-        head.Children.Add(logo);
-        var headText = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        headText.Children.Add(_stepText);
-        headText.Children.Add(_progress);
-        head.Children.Add(headText);
-
-        var root = new DockPanel { Margin = new Thickness(26, 20, 26, 18) };
-        DockPanel.SetDock(head, Dock.Top);
-        DockPanel.SetDock(footer, Dock.Bottom);
-        root.Children.Add(head);
-        root.Children.Add(footer);
-        var content = new StackPanel();
-        content.Children.Add(_title);
-        content.Children.Add(_subtitle);
-        content.Children.Add(_body);
-        content.Children.Add(_error);
-        root.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(0, 10, 0, 0), Content = content });
-        Content = root;
 
         AllowDrop = true;
         PreviewDragOver += (_, e) => FileDrop.Accept(e);
@@ -139,34 +69,34 @@ public sealed class SetupWizardWindow : Window
             Choice = FirstRunChoice.LoadConfig;
             DialogResult = true;
         };
-        Go(0);
+        Start();
     }
 
     // ------------------------------------------------------------------ étapes
 
     private void BuildSteps(string expectedPath)
     {
-        _steps.Add(new Step
+        Steps.Add(new WizardStep
         {
             Title = "Bienvenue !",
             Subtitle = "Commençons : où voulez-vous garder vos données ? Pour une première utilisation seul(e) sur cet ordinateur, le premier choix convient. " +
                        "Ce choix pourra être modifié plus tard dans Paramétrage appli → Base de données.",
             Build = () => ChoicesPanel(), HideNext = true
         });
-        _steps.Add(new Step
+        Steps.Add(new WizardStep
         {
             Title = "Votre compte",
             Subtitle = "Ce compte administrateur protège l'accès au logiciel et sert à vous connecter. Notez bien le mot de passe : il n'y a pas de récupération automatique.",
             Build = AccountPanel, Validate = ValidateAccount
         });
         if (_business)
-            _steps.Add(new Step
+            Steps.Add(new WizardStep
             {
                 Title = "Votre activité",
                 Subtitle = "Quelques questions pour préparer vos produits et charges habituels, le calendrier de vos déclarations URSSAF, l'impôt et vos réglages. Tout reste modifiable ensuite.",
                 Build = ActivityPanel
             });
-        _steps.Add(new Step
+        Steps.Add(new WizardStep
         {
             Title = "Votre première période",
             Subtitle = _business
@@ -174,13 +104,13 @@ public sealed class SetupWizardWindow : Window
                 : "L'exercice regroupe toutes vos écritures (souvent de septembre à août pour une association) ; vous pouvez ajuster les dates.",
             Build = PeriodPanel, Validate = ValidatePeriod
         });
-        _steps.Add(new Step
+        Steps.Add(new WizardStep
         {
             Title = "Vos soldes de départ",
             Subtitle = "Le solde de vos comptes à la première date de la période, pour que les soldes affichés soient justes. Laissez vide ou à 0 si vous n'êtes pas sûr(e) : cela se règle plus tard.",
             Build = OpeningPanel, Validate = ValidateOpening
         });
-        _steps.Add(new Step
+        Steps.Add(new WizardStep
         {
             Title = "Tout est prêt",
             Subtitle = "Voici ce que nous allons préparer. Cliquez sur le bouton pour créer votre dossier : vous arriverez ensuite sur la page « Premiers pas ».",
@@ -208,35 +138,13 @@ public sealed class SetupWizardWindow : Window
         return p;
     }
 
-    private UIElement Choice0(string title, string description, FirstRunChoice choice, bool primary)
-    {
-        var text = new StackPanel { Width = 610, HorizontalAlignment = HorizontalAlignment.Left };
-        text.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, FontSize = 14 });
-        text.Children.Add(new TextBlock { Text = description, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0), Opacity = .8 });
-        var button = new Button
-        {
-            Content = text, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 0, 8),
-            Style = Sty(primary ? "PrimaryButton" : "SecondaryButton")
-        };
-        button.Click += (_, _) =>
+    private UIElement Choice0(string title, string description, FirstRunChoice choice, bool primary) =>
+        ChoiceButton(title, description, primary, () =>
         {
             if (choice == FirstRunChoice.CreateLocal) { Go(1); return; }
             Choice = choice;
             DialogResult = true;
-        };
-        return button;
-    }
-
-    private static UIElement Field(string label, UIElement control, string? hint = null)
-    {
-        var p = new StackPanel { Margin = new Thickness(0, 0, 0, 12), MaxWidth = 460, HorizontalAlignment = HorizontalAlignment.Left };
-        p.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, 0, 0, 4) });
-        if (control is TextBox or PasswordBox) { ((FrameworkElement)control).Width = 380; ((FrameworkElement)control).HorizontalAlignment = HorizontalAlignment.Left; }
-        if (control is PasswordBox pb) { pb.Padding = new Thickness(8, 7, 8, 7); pb.BorderBrush = new SolidColorBrush(Color.FromRgb(0xCB, 0xD5, 0xE1)); }
-        p.Children.Add(control);
-        if (hint is not null) p.Children.Add(new TextBlock { Text = hint, Style = Sty("MutedText"), FontSize = 12, Margin = new Thickness(0, 3, 0, 0), TextWrapping = TextWrapping.Wrap });
-        return p;
-    }
+        });
 
     private UIElement AccountPanel()
     {
@@ -430,38 +338,5 @@ public sealed class SetupWizardWindow : Window
         if (text.Trim().Length == 0 || !Money.TryParse(text, out var cents) || cents == 0) return;
         var account = _compta!.Accounts().FirstOrDefault(a => a.Name == accountName);
         if (account is not null) _compta.SetOpening(_createdYear!.Id, account.Id, cents);
-    }
-
-    // ------------------------------------------------------------------ navigation
-
-    private void Advance()
-    {
-        var step = _steps[_index];
-        var error = step.Validate?.Invoke();
-        if (error is not null)
-        {
-            _error.Text = error;
-            return;
-        }
-        if (_index < _steps.Count - 1) Go(_index + 1);
-    }
-
-    /// <summary>Diagnostic (captures d'écran) : affiche une étape donnée.</summary>
-    public int StepCount => _steps.Count;
-    public void ShowStep(int index) => Go(index);
-
-    private void Go(int index)
-    {
-        _index = Math.Clamp(index, 0, _steps.Count - 1);
-        var s = _steps[_index];
-        _error.Text = "";
-        _title.Text = s.Title;
-        _subtitle.Text = s.Subtitle;
-        _body.Content = s.Build();
-        _stepText.Text = $"Étape {_index + 1} sur {_steps.Count}";
-        _progress.Value = _index;
-        _back.Visibility = _index > 0 ? Visibility.Visible : Visibility.Collapsed;
-        _next.Visibility = s.HideNext ? Visibility.Collapsed : Visibility.Visible;
-        _next.Content = s.NextText;
     }
 }
