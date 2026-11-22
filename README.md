@@ -1,5 +1,7 @@
 # Tout Compte Fait
 
+[![Release](https://img.shields.io/github/v/release/Rimfire03/ToutCompteFait)](https://github.com/Rimfire03/ToutCompteFait/releases/latest) [![Téléchargements](https://img.shields.io/github/downloads/Rimfire03/ToutCompteFait/total)](https://github.com/Rimfire03/ToutCompteFait/releases) ![.NET 8](https://img.shields.io/badge/.NET-8-512BD4?logo=dotnet&logoColor=white) ![WPF](https://img.shields.io/badge/UI-WPF-5C2D91) ![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?logo=windows&logoColor=white)
+
 Livre de trésorerie portable de l'association : remplace les classeurs Excel « livre ».
 Application Windows (WPF, .NET 8), un seul `.exe` autonome ; les données sont dans un fichier SQLite à côté.
 
