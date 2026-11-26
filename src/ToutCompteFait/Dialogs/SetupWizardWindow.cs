@@ -43,8 +43,8 @@ public sealed class SetupWizardWindow : Window
     // Réponses
     private readonly TextBox _user = new() { Text = "admin" };
     private readonly TextBox _display = new();
-    private readonly PasswordBox _pwd = new();
-    private readonly PasswordBox _pwd2 = new();
+    private readonly ToutCompteFait.Controls.PasswordField _pwd = new();
+    private readonly ToutCompteFait.Controls.PasswordField _pwd2 = new();
     private readonly TextBox _companyName = new();
     private readonly List<(RadioButton Radio, string TemplateId)> _activities = new();
     private readonly RadioButton _quarterly = new() { Content = "Par trimestre (le plus courant)", IsChecked = true, GroupName = "wmode" };
@@ -231,8 +231,7 @@ public sealed class SetupWizardWindow : Window
     {
         var p = new StackPanel { Margin = new Thickness(0, 0, 0, 12), MaxWidth = 460, HorizontalAlignment = HorizontalAlignment.Left };
         p.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, 0, 0, 4) });
-        if (control is TextBox or PasswordBox) { ((FrameworkElement)control).Width = 380; ((FrameworkElement)control).HorizontalAlignment = HorizontalAlignment.Left; }
-        if (control is PasswordBox pb) { pb.Padding = new Thickness(8, 7, 8, 7); pb.BorderBrush = new SolidColorBrush(Color.FromRgb(0xCB, 0xD5, 0xE1)); }
+        if (control is TextBox or ToutCompteFait.Controls.PasswordField) { ((FrameworkElement)control).Width = 380; ((FrameworkElement)control).HorizontalAlignment = HorizontalAlignment.Left; }
         p.Children.Add(control);
         if (hint is not null) p.Children.Add(new TextBlock { Text = hint, Style = Sty("MutedText"), FontSize = 12, Margin = new Thickness(0, 3, 0, 0), TextWrapping = TextWrapping.Wrap });
         return p;
