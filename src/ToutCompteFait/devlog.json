@@ -3,8 +3,8 @@
     {
       "version": "1.13.10",
       "date": "2026-11-26",
-      "show": false,
-      "title": "Version 1.13.10",
+      "show": true,
+      "title": "Nouveautés de la version 1.13.10",
       "items": [
         "Mots de passe : un petit œil permet d'afficher ou de masquer la saisie (connexion, changement de mot de passe, utilisateurs, serveur, assistant de première configuration)."
       ]
