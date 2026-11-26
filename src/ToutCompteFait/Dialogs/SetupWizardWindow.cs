@@ -21,8 +21,8 @@ public sealed class SetupWizardWindow : WizardWindow
     // Réponses
     private readonly TextBox _user = new() { Text = "admin" };
     private readonly TextBox _display = new();
-    private readonly PasswordBox _pwd = new();
-    private readonly PasswordBox _pwd2 = new();
+    private readonly ToutCompteFait.Controls.PasswordField _pwd = new();
+    private readonly ToutCompteFait.Controls.PasswordField _pwd2 = new();
     private readonly TextBox _companyName = new();
     private readonly List<(RadioButton Radio, string TemplateId)> _activities = new();
     private readonly RadioButton _quarterly = new() { Content = "Par trimestre (le plus courant)", IsChecked = true, GroupName = "wmode" };

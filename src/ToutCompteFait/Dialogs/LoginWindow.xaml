@@ -24,7 +24,7 @@
         </StackPanel>
 
         <TextBlock Text="Mot de passe" Margin="0,12,0,4"/>
-        <PasswordBox x:Name="PasswordBox" FontSize="13" Padding="6,5"/>
+        <ctl:PasswordField x:Name="PasswordBox" FontSize="13"/>
 
         <CheckBox x:Name="RememberBox" Margin="0,10,0,0"
                   Content="Mémoriser mon mot de passe sur ce poste"
@@ -32,7 +32,7 @@
 
         <StackPanel x:Name="ConfirmPanel" Visibility="Collapsed">
             <TextBlock Text="Confirmer le mot de passe" Margin="0,12,0,4"/>
-            <PasswordBox x:Name="ConfirmBox" FontSize="13" Padding="6,5"/>
+            <ctl:PasswordField x:Name="ConfirmBox" FontSize="13"/>
             <TextBlock Style="{StaticResource MutedText}" Margin="0,6,0,0"
                        Text="8 caractères minimum, avec au moins une lettre et un chiffre."/>
         </StackPanel>
